@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ReadyCode.Avalonia.Views.FindBarControl"
+             KeyboardNavigation.TabNavigation="Local"
              Width="460">
 
     <UserControl.Styles>
@@ -27,29 +28,29 @@
             Padding="6,5" BoxShadow="0 3 6 0 #40000000">
         <StackPanel Spacing="4">
             <DockPanel LastChildFill="True">
-                <ToggleButton x:Name="ExpandBtn" DockPanel.Dock="Left" Classes="findOpt" Width="22" Padding="0"
+                <ToggleButton x:Name="ExpandBtn" DockPanel.Dock="Left" Classes="findOpt" Width="22" Padding="0" IsTabStop="False"
                               ToolTip.Tip="Toggle Replace" IsCheckedChanged="ExpandBtn_IsCheckedChanged">
                     <TextBlock x:Name="ExpandArrow" Text="▸" FontSize="10" />
                 </ToggleButton>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0">
-                    <ToggleButton x:Name="MatchCaseBtn" Classes="findOpt" Content="Aa" ToolTip.Tip="Match Case" IsCheckedChanged="Option_Changed" />
-                    <ToggleButton x:Name="WholeWordBtn" Classes="findOpt" Content="ab" ToolTip.Tip="Match Whole Word" IsCheckedChanged="Option_Changed" />
-                    <ToggleButton x:Name="RegexBtn" Classes="findOpt" Content=".*" FontFamily="Menlo,Consolas,monospace" ToolTip.Tip="Use Regular Expression" IsCheckedChanged="Option_Changed" />
+                    <ToggleButton x:Name="MatchCaseBtn" TabIndex="5" Classes="findOpt" Content="Aa" ToolTip.Tip="Match Case" IsCheckedChanged="Option_Changed" />
+                    <ToggleButton x:Name="WholeWordBtn" TabIndex="6" Classes="findOpt" Content="ab" ToolTip.Tip="Match Whole Word" IsCheckedChanged="Option_Changed" />
+                    <ToggleButton x:Name="RegexBtn" TabIndex="7" Classes="findOpt" Content=".*" FontFamily="Menlo,Consolas,monospace" ToolTip.Tip="Use Regular Expression" IsCheckedChanged="Option_Changed" />
                     <TextBlock x:Name="MatchCountText" VerticalAlignment="Center" FontSize="11" Margin="6,0" MinWidth="56" />
-                    <Button Classes="findBtn" Content="◀" ToolTip.Tip="Previous Match (Shift+Enter)" Click="PrevMatch_Click" />
-                    <Button Classes="findBtn" Content="▶" ToolTip.Tip="Next Match (Enter)" Click="NextMatch_Click" />
-                    <Button Classes="findBtn" Content="✕" ToolTip.Tip="Close (Escape)" Click="Close_Click" Margin="4,0,0,0" />
+                    <Button TabIndex="8" Classes="findBtn" Content="◀" ToolTip.Tip="Previous Match (Shift+Enter)" Click="PrevMatch_Click" />
+                    <Button TabIndex="9" Classes="findBtn" Content="▶" ToolTip.Tip="Next Match (Enter)" Click="NextMatch_Click" />
+                    <Button TabIndex="10" Classes="findBtn" Content="✕" ToolTip.Tip="Close (Escape)" Click="Close_Click" Margin="4,0,0,0" />
                 </StackPanel>
-                <TextBox x:Name="SearchBox" Classes="find" Margin="4,0,0,0" PlaceholderText="Find"
+                <TextBox x:Name="SearchBox" TabIndex="1" Classes="find" Margin="4,0,0,0" PlaceholderText="Find"
                          KeyDown="SearchBox_KeyDown" TextChanged="SearchBox_TextChanged" />
             </DockPanel>
             <DockPanel x:Name="ReplaceRow" IsVisible="False" LastChildFill="True">
                 <Panel DockPanel.Dock="Left" Width="22" />
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="4,0,0,0">
-                    <Button Classes="findBtn" Content="Replace" ToolTip.Tip="Replace (Enter)" Click="Replace_Click" />
-                    <Button Classes="findBtn" Content="Replace All" Click="ReplaceAll_Click" />
+                    <Button TabIndex="3" Classes="findBtn" Content="Replace" ToolTip.Tip="Replace (Enter)" Click="Replace_Click" />
+                    <Button TabIndex="4" Classes="findBtn" Content="Replace All" Click="ReplaceAll_Click" />
                 </StackPanel>
-                <TextBox x:Name="ReplaceBox" Classes="find" Margin="4,0,0,0" PlaceholderText="Replace"
+                <TextBox x:Name="ReplaceBox" TabIndex="2" Classes="find" Margin="4,0,0,0" PlaceholderText="Replace"
                          KeyDown="ReplaceBox_KeyDown" />
             </DockPanel>
         </StackPanel>

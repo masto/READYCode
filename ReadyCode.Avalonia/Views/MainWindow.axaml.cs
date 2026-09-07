@@ -84,7 +84,7 @@ public partial class MainWindow : Window
         Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
-        Editor.TextArea.TextView.PointerHoverStopped += (_, _) => ToolTip.SetIsOpen(Editor, false);
+        Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
         _diagnosticsTimer.Tick += (_, _) => { _diagnosticsTimer.Stop(); RunDiagnostics(); };
         Editor.TextArea.TextEntering += Editor_TextEntering;
         Editor.AddHandler(KeyDownEvent, Editor_PreviewKeyDown, global::Avalonia.Interactivity.RoutingStrategies.Tunnel);
@@ -99,11 +99,16 @@ public partial class MainWindow : Window
         _findUpdateTimer.Tick += (_, _) => { _findUpdateTimer.Stop(); UpdateFindMatches(); };
 
         FindBar.CloseRequested        += (_, _) => CloseFind();
-        FindBar.SearchChanged         += (_, _) => UpdateFindMatches();
+        FindBar.SearchChanged         += (_, _) => UpdateFindMatches(revealCurrent: true);
         FindBar.FindNextRequested     += (_, _) => FindNext();
         FindBar.FindPreviousRequested += (_, _) => FindPrev();
         FindBar.ReplaceRequested      += (_, _) => ExecuteReplace();
         FindBar.ReplaceAllRequested   += (_, _) => ExecuteReplaceAll();
+
+        // Cmd+Alt+F (the menu's gesture) is fine when nothing else claims it; Cmd+Shift+H is an
+        // alternate that avoids Option-key text-composition quirks.
+        if (OperatingSystem.IsMacOS())
+            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.H, KeyModifiers.Meta | KeyModifiers.Shift), Command = new AsyncCommand(() => { OpenFind(replaceMode: true); return Task.CompletedTask; }) });
 
         DataContextChanged += (_, _) => AttachViewModel();
     }
@@ -419,15 +424,30 @@ public partial class MainWindow : Window
 
     private void Editor_PointerHover(object? sender, PointerEventArgs e)
     {
+        var textView = Editor.TextArea.TextView;
+        var pointInView = e.GetPosition(textView);
+        // Only the text itself carries diagnostics - not the padding/margins around it.
+        if (pointInView.X < 0 || pointInView.Y < 0 || pointInView.X > textView.Bounds.Width) { HideDiagnosticTip(); return; }
+
         var position = Editor.GetPositionFromPoint(e.GetPosition(Editor));
-        if (position == null) { ToolTip.SetIsOpen(Editor, false); return; }
+        if (position == null) { HideDiagnosticTip(); return; }
 
         var line = Editor.Document.GetLineByNumber(position.Value.Line);
-        int offset = line.Offset + Math.Min(position.Value.Column - 1, line.Length);
-        if (!TryGetDiagnosticAt(offset, out var diagnostic)) { ToolTip.SetIsOpen(Editor, false); return; }
+        int column = position.Value.Column - 1;
+        if (column >= line.Length) { HideDiagnosticTip(); return; } // past the end of the line
+        int offset = line.Offset + column;
+        if (!TryGetDiagnosticAt(offset, out var diagnostic)) { HideDiagnosticTip(); return; }
 
         ToolTip.SetTip(Editor, diagnostic.Message);
         ToolTip.SetIsOpen(Editor, true);
+    }
+
+    // The tip must be cleared, not just closed: while a tip is set, Avalonia's own tooltip
+    // service re-shows it on any hover over the editor, diagnostic or not.
+    private void HideDiagnosticTip()
+    {
+        ToolTip.SetIsOpen(Editor, false);
+        ToolTip.SetTip(Editor, null);
     }
 
     private void JumpToProblem(ErrorListRow row)
@@ -435,8 +455,35 @@ public partial class MainWindow : Window
         ViewModel.ActiveTab = row.Tab;
         int offset = Math.Min(row.Offset, Editor.Document.TextLength);
         Editor.CaretOffset = offset;
-        Editor.TextArea.Caret.BringCaretToView();
+        RevealCaretLine();
         Editor.Focus();
+    }
+
+    // Scrolls so the caret's line is comfortably inside the viewport - vertically centred when
+    // it was outside - rather than relying on BringCaretToView, whose first pass works from
+    // estimated line heights and can leave the target line just above the top edge.
+    private void RevealCaretLine()
+    {
+        void Reveal()
+        {
+            var textView = Editor.TextArea.TextView;
+            var line = Editor.Document.GetLineByOffset(Math.Min(Editor.CaretOffset, Editor.Document.TextLength));
+            double top = textView.GetVisualTopByDocumentLine(line.LineNumber);
+            double lineHeight = textView.DefaultLineHeight;
+            double viewportTop = textView.ScrollOffset.Y;
+            double viewportHeight = textView.Bounds.Height;
+            if (viewportHeight <= 0) return;
+
+            bool visible = top >= viewportTop + lineHeight && top + lineHeight <= viewportTop + viewportHeight - lineHeight;
+            if (visible) return;
+
+            Editor.ScrollToVerticalOffset(Math.Max(0, top - viewportHeight / 2 + lineHeight / 2));
+        }
+
+        Reveal();
+        Editor.TextArea.Caret.BringCaretToView();
+        // A second pass after layout corrects for line heights that weren't measured yet.
+        Dispatcher.UIThread.Post(Reveal, DispatcherPriority.Loaded);
     }
 
     private void ViewProblems_Click(object? sender, RoutedEventArgs e) => ViewModel.IsProblemsPanelOpen = !ViewModel.IsProblemsPanelOpen;
@@ -793,7 +840,12 @@ public partial class MainWindow : Window
         Editor.Focus();
     }
 
-    private void UpdateFindMatches()
+    /// <summary>Re-runs the find (for tests), the way the post-edit debounce does.</summary>
+    internal void UpdateFindMatchesNow() => UpdateFindMatches();
+
+    // revealCurrent: scroll the nearest match into view and select it, as when typing a search
+    // term (VS Code style). The debounced re-search after an edit leaves the view alone.
+    private void UpdateFindMatches(bool revealCurrent = false)
     {
         var previousMatches = _findMatches.Count > 0 ? _findMatches.ToArray() : null;
         _findMatches.Clear();
@@ -810,11 +862,14 @@ public partial class MainWindow : Window
 
         _findMatches.AddRange(ProjectSearcher.FindMatches(Editor.Document.Text, searchText, FindBar.MatchCase, FindBar.WholeWord, FindBar.UseRegex));
 
-        _findMatchIndex = FindNearestMatchIndex(Editor.CaretOffset);
+        _findMatchIndex = FindNearestMatchIndex();
         _findHighlightColorizer.SetMatches(Editor.Document, _findMatches, _findMatchIndex);
         if (previousMatches != null) RedrawMatches(previousMatches);
         RedrawMatches(_findMatches);
         FindBar.SetMatchCount(_findMatchIndex + 1, _findMatches.Count);
+
+        if (revealCurrent && _findMatchIndex >= 0)
+            NavigateToCurrentMatch();
     }
 
     // Redraws only the visual lines overlapping the given segments rather than the whole view.
@@ -824,11 +879,17 @@ public partial class MainWindow : Window
             Editor.TextArea.TextView.Redraw(offset, length);
     }
 
-    private int FindNearestMatchIndex(int caretOffset)
+    // The match at or after the selection start (a selected match stays current, even though the
+    // caret sits at its end), else the one containing the caret, else the first.
+    private int FindNearestMatchIndex()
     {
         if (_findMatches.Count == 0) return -1;
+        int anchor = Editor.SelectionLength > 0 ? Editor.SelectionStart : Editor.CaretOffset;
         for (int i = 0; i < _findMatches.Count; i++)
-            if (_findMatches[i].Offset >= caretOffset) return i;
+        {
+            var (offset, length) = _findMatches[i];
+            if (offset >= anchor || (anchor > offset && anchor < offset + length)) return i;
+        }
         return 0;
     }
 
@@ -855,9 +916,7 @@ public partial class MainWindow : Window
 
         Editor.Select(offset, length);
         _findHighlightColorizer.SetMatches(Editor.Document, _findMatches, _findMatchIndex);
-        Editor.TextArea.Caret.BringCaretToView();
-        // A second pass after layout corrects for line heights that weren't measured yet.
-        Dispatcher.UIThread.Post(() => Editor.TextArea.Caret.BringCaretToView(), DispatcherPriority.Loaded);
+        RevealCaretLine();
         RedrawMatches(_findMatches);
         FindBar.SetMatchCount(_findMatchIndex + 1, _findMatches.Count);
     }
@@ -871,10 +930,14 @@ public partial class MainWindow : Window
         }
 
         var (offset, length) = _findMatches[_findMatchIndex];
-        Editor.Document.Replace(offset, length, FindBar.ReplaceText);
+        Editor.Document.Replace(offset, length, ReplacementText());
         UpdateFindMatches();
         NavigateToCurrentMatch();
     }
+
+    // Replacement text follows the same C64 case rule as typing: upper case for BASIC.
+    private string ReplacementText() =>
+        ViewModel.ActiveTab?.Language == EditorLanguage.Asm ? FindBar.ReplaceText : FindBar.ReplaceText.ToUpperInvariant();
 
     private void ExecuteReplaceAll()
     {
@@ -883,8 +946,9 @@ public partial class MainWindow : Window
 
         using (Editor.Document.RunUpdate())
         {
+            string replacement = ReplacementText();
             for (int i = _findMatches.Count - 1; i >= 0; i--)
-                Editor.Document.Replace(_findMatches[i].Offset, _findMatches[i].Length, FindBar.ReplaceText);
+                Editor.Document.Replace(_findMatches[i].Offset, _findMatches[i].Length, replacement);
         }
         UpdateFindMatches();
     }
