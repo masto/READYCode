@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>READYCode</string>
+    <key>CFBundleDisplayName</key>
+    <string>READYCode</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.moonspacelabs.readycode</string>
+    <key>CFBundleVersion</key>
+    <string>2.3.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>2.3.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleExecutable</key>
+    <string>ReadyCode.Avalonia</string>
+    <key>CFBundleIconFile</key>
+    <string>READYCode.icns</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>12.0</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright © 2026 Moonspace Labs, LLC. MIT License.</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Commodore 64 program</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>prg</string><string>bas</string><string>asm</string><string>s</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+        </dict>
+    </array>
+</dict>
+</plist>

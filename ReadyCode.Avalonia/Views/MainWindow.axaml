@@ -1,0 +1,67 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        xmlns:vm="using:ReadyCode.Avalonia.ViewModels"
+        xmlns:models="using:ReadyCode.Avalonia.Models"
+        x:Class="ReadyCode.Avalonia.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding WindowTitle}"
+        Width="1000" Height="700"
+        MinWidth="480" MinHeight="320">
+
+    <DockPanel>
+
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_New"        Click="FileNew_Click"    HotKey="{OnPlatform Ctrl+N, macOS=Cmd+N}" InputGesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
+                <MenuItem Header="_Open…"      Click="FileOpen_Click"   HotKey="{OnPlatform Ctrl+O, macOS=Cmd+O}" InputGesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
+                <Separator />
+                <MenuItem Header="_Save"       Click="FileSave_Click"   HotKey="{OnPlatform Ctrl+S, macOS=Cmd+S}" InputGesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />
+                <MenuItem Header="Save _As…"   Click="FileSaveAs_Click" HotKey="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" InputGesture="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" />
+                <Separator />
+                <MenuItem Header="_Close Tab"  Click="FileClose_Click"  HotKey="{OnPlatform Ctrl+W, macOS=Cmd+W}" InputGesture="{OnPlatform Ctrl+W, macOS=Cmd+W}" />
+                <Separator />
+                <MenuItem Header="E_xit"       Click="FileExit_Click" />
+            </MenuItem>
+            <MenuItem Header="_VICE">
+                <MenuItem Header="_Run"        Click="ViceRun_Click"      HotKey="F5" InputGesture="F5" />
+                <MenuItem Header="_Transfer (load only)" Click="ViceTransfer_Click" HotKey="F6" InputGesture="F6" />
+                <Separator />
+                <MenuItem Header="Re_set"      Click="ViceReset_Click" />
+                <MenuItem Header="Re_boot"     Click="ViceReboot_Click" />
+                <MenuItem Header="_Pause"      Click="VicePause_Click" />
+                <MenuItem Header="Res_ume"     Click="ViceResume_Click" />
+                <Separator />
+                <MenuItem Header="Power _Off"  Click="VicePowerOff_Click" />
+            </MenuItem>
+            <MenuItem Header="_Settings">
+                <MenuItem Header="_Preferences…" Click="Preferences_Click" HotKey="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" InputGesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
+            </MenuItem>
+        </Menu>
+
+        <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE">
+            <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" />
+        </Border>
+
+        <TabStrip DockPanel.Dock="Top" x:Name="Tabs"
+                  ItemsSource="{Binding OpenTabs}"
+                  SelectedItem="{Binding ActiveTab, Mode=TwoWay}">
+            <TabStrip.ItemTemplate>
+                <DataTemplate x:DataType="models:EditorTab">
+                    <TextBlock Text="{Binding Header}" FontSize="12" Margin="6,2" />
+                </DataTemplate>
+            </TabStrip.ItemTemplate>
+        </TabStrip>
+
+        <ae:TextEditor x:Name="Editor"
+                       Padding="10"
+                       FontSize="16"
+                       Foreground="Black"
+                       Background="White"
+                       WordWrap="False"
+                       ShowLineNumbers="False"
+                       HorizontalScrollBarVisibility="Auto"
+                       VerticalScrollBarVisibility="Auto" />
+
+    </DockPanel>
+</Window>
