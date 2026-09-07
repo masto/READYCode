@@ -285,7 +285,9 @@ public partial class MainWindow : Window
 
     #region Event Handlers
 
-    private void FileNew_Click(object? sender, RoutedEventArgs e) => ViewModel.NewTab();
+    private void FileNew_Click(object? sender, RoutedEventArgs e) => ViewModel.NewTab(EditorLanguage.Basic);
+
+    private void FileNewAsm_Click(object? sender, RoutedEventArgs e) => ViewModel.NewTab(EditorLanguage.Asm);
 
     private async void FileOpen_Click(object? sender, RoutedEventArgs e)
     {
@@ -299,8 +301,18 @@ public partial class MainWindow : Window
 
         foreach (var file in files)
         {
-            if (file.TryGetLocalPath() is { } path)
-                ViewModel.OpenFile(path);
+            if (file.TryGetLocalPath() is not { } path) continue;
+
+            // Re-opening a file that has unsaved edits is a "revert to saved" - make sure that's
+            // what the user meant before throwing the edits away.
+            if (ViewModel.FindOpenTab(path) is { IsModified: true } dirty)
+            {
+                string? choice = await MessageDialog.ShowAsync(this, "Reload File",
+                    $"{dirty.FileName} has unsaved changes. Reload it from disk and discard them?", "Reload", "Cancel");
+                if (choice != "Reload") continue;
+            }
+
+            ViewModel.OpenFile(path);
         }
     }
 

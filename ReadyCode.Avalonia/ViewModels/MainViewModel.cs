@@ -42,7 +42,7 @@ public class MainViewModel : INotifyPropertyChanged
     {
         Settings = AppSettings.Load();
         ApplyPlatformDefaults(Settings);
-        OpenTabs.Add(new EditorTab());
+        OpenTabs.Add(EditorTab.CreateNew(EditorLanguage.Basic));
         ActiveTab = OpenTabs[0];
     }
 
@@ -109,27 +109,30 @@ public class MainViewModel : INotifyPropertyChanged
         StatusType = type;
     }
 
-    /// <summary>Opens a new, empty BASIC tab and activates it.</summary>
-    public EditorTab NewTab()
+    /// <summary>Opens a new, empty tab for the given language and activates it.</summary>
+    public EditorTab NewTab(EditorLanguage language = EditorLanguage.Basic)
     {
-        var tab = new EditorTab();
+        var tab = EditorTab.CreateNew(language);
         OpenTabs.Add(tab);
         ActiveTab = tab;
         return tab;
     }
 
     /// <summary>
-    /// Opens <paramref name="path"/> in a tab (activating the existing tab if it's already open).
+    /// Gets the already-open tab for <paramref name="path"/>, if any.
+    /// </summary>
+    public EditorTab? FindOpenTab(string path) =>
+        OpenTabs.FirstOrDefault(t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Opens <paramref name="path"/> in a tab. If the file is already open, its tab is reloaded
+    /// from disk (discarding any unsaved edits - the caller is expected to have confirmed that)
+    /// and activated, the way most editors treat re-opening a file as "revert to saved".
     /// Tokenized .prg files are detokenized to a BASIC listing; everything else is read as text.
     /// </summary>
     public bool OpenFile(string path)
     {
-        var existing = OpenTabs.FirstOrDefault(t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
-        if (existing != null)
-        {
-            ActiveTab = existing;
-            return true;
-        }
+        var existing = FindOpenTab(path);
 
         if (FileClassifier.Classify(path, isFolder: false).IsDiskImageKind())
         {
@@ -157,26 +160,30 @@ public class MainViewModel : INotifyPropertyChanged
                 return false;
             }
 
-            var tab = new EditorTab
+            var tab = existing ?? new EditorTab
             {
                 FilePath = path,
                 Language = LanguageClassifier.Classify(path),
-                Kind = kind,
             };
+            tab.Kind = kind;
 
             tab.Document.Text = prgData != null
                 ? PadLineNumbers(new PrgConverter().ConvertFromPrg(prgData))
                 : File.ReadAllText(path, Encoding.UTF8);
             tab.IsModified = false;
 
-            // Replace a pristine, untitled tab rather than leaving it hanging around.
-            if (OpenTabs.Count == 1 && OpenTabs[0].FilePath == null && !OpenTabs[0].IsModified && OpenTabs[0].Document.TextLength == 0)
-                OpenTabs.Clear();
+            if (existing == null)
+            {
+                // Replace a pristine, untitled tab rather than leaving it hanging around.
+                if (OpenTabs.Count == 1 && OpenTabs[0].FilePath == null && !OpenTabs[0].IsModified && OpenTabs[0].Document.TextLength == 0)
+                    OpenTabs.Clear();
 
-            OpenTabs.Add(tab);
+                OpenTabs.Add(tab);
+            }
+
             ActiveTab = tab;
             Settings.LastFolderPath = Path.GetDirectoryName(path) ?? Settings.LastFolderPath;
-            SetStatus($"Opened {tab.FileName}.");
+            SetStatus(existing == null ? $"Opened {tab.FileName}." : $"Reloaded {tab.FileName} from disk.");
             return true;
         }
         catch (Exception ex)
