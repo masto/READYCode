@@ -66,10 +66,12 @@ scripts/make-app-bundle.sh --publish  # self-contained release
 
 The dev bundle depends on the .NET SDK that built it: its launcher script sets `DOTNET_ROOT` to
 whatever SDK `dotnet --list-sdks` reports, so Finder can start it with an otherwise empty
-environment. The `--publish` bundle carries its own runtime and has no such dependency.
+environment. The `--publish` bundle is a self-contained single-file build that carries its own
+runtime and has no such dependency.
 
-Neither bundle is code-signed or notarized, so the first launch needs the usual right-click → Open,
-or an allow in System Settings → Privacy & Security.
+Neither bundle is code-signed, so the first launch needs the usual right-click → Open, or an allow
+in System Settings → Privacy & Security. To produce something other people can open normally, see
+[Releasing a signed macOS build](#releasing-a-signed-macos-build).
 
 On Linux, publish a self-contained build the ordinary way:
 
@@ -77,6 +79,89 @@ On Linux, publish a self-contained build the ordinary way:
 dotnet publish ReadyCode.Avalonia -c Release -r linux-x64 --self-contained true -o out
 ./out/ReadyCode.Avalonia
 ```
+
+## Releasing a signed macOS build
+
+A downloaded app that is not signed and notarized is blocked by Gatekeeper with a message that
+sounds like malware ("Apple could not verify..."), so a public binary needs both. This needs a
+paid Apple Developer account.
+
+### One-time setup
+
+1. **Get a Developer ID Application certificate.** In Xcode, Settings → Accounts → your Apple ID →
+   Manage Certificates → **+** → *Developer ID Application*. Confirm it landed:
+
+   ```bash
+   security find-identity -v -p codesigning | grep "Developer ID Application"
+   ```
+
+   An *Apple Development* certificate is not a substitute: it is for local testing, and
+   notarization rejects builds signed with it.
+
+2. **Create an app-specific password** at [appleid.apple.com](https://appleid.apple.com) →
+   Sign-In and Security → App-Specific Passwords. This is not your Apple ID password.
+
+3. **Store the notary credentials in your keychain**, so the script never handles them:
+
+   ```bash
+   xcrun notarytool store-credentials READYCode-notary \
+     --apple-id you@example.com --team-id ABCDE12345 --password <app-specific-password>
+   ```
+
+   Your team ID is on the Apple Developer Membership page.
+
+### Each release
+
+```bash
+scripts/make-app-bundle.sh --publish              # Apple Silicon
+scripts/sign-and-notarize.sh ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.app
+```
+
+That signs the bundle with the hardened runtime, uploads it to Apple, waits for the result,
+staples the ticket into the app, and leaves a `READYCode.zip` beside it. Notarization usually
+takes a few minutes. Repeat with `osx-x64` for a build that runs on Intel Macs:
+
+```bash
+scripts/make-app-bundle.sh --publish osx-x64
+scripts/sign-and-notarize.sh ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.app
+```
+
+Apple Silicon Macs can run the Intel build under Rosetta, but not the reverse, so shipping both is
+worthwhile if you expect Intel users.
+
+Then create the release and attach the zips:
+
+```bash
+gh release create v2.3.0-avalonia \
+  --title "READYCode 2.3.0 for macOS" \
+  --notes-file RELEASE-NOTES.md \
+  ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.zip#READYCode-2.3.0-macos-arm64.zip \
+  ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.zip#READYCode-2.3.0-macos-x64.zip
+```
+
+Use a tag that will not collide with the Windows app's own `v*` tags, since those trigger the
+Windows release workflow.
+
+To check a build before shipping it, from a different account or Mac:
+
+```bash
+spctl --assess --type execute --verbose=4 /path/to/READYCode.app   # expect "accepted"
+xcrun stapler validate /path/to/READYCode.app
+```
+
+### Why the published bundle is single-file
+
+`codesign` treats every `.dll` inside `Contents/MacOS` as nested code that must be signed before
+the enclosing bundle can be sealed, but it will not sign the `.deps.json` that .NET requires
+alongside them. An ordinary self-contained publish therefore cannot produce a sealed bundle at
+all. Publishing single-file leaves exactly one executable in `Contents/MacOS`, which signs and
+notarizes cleanly.
+
+The hardened runtime that notarization requires would also block .NET's JIT, so
+`scripts/READYCode.entitlements` re-enables what the runtime needs, plus Apple Events for the
+"bring VICE to the foreground" feature. That entitlement pairs with the
+`NSAppleEventsUsageDescription` string in `scripts/Info.plist`; macOS still asks the user to
+approve the automation the first time.
 
 ## What works
 

@@ -1,23 +1,37 @@
 #!/usr/bin/env bash
 # Wraps the ReadyCode.Avalonia build output into a macOS .app bundle.
 #
-#   scripts/make-app-bundle.sh            # Debug build -> ReadyCode.Avalonia/bin/READYCode.app
-#   scripts/make-app-bundle.sh --publish  # self-contained Release publish for this Mac's CPU
-#                                         #   -> ReadyCode.Avalonia/bin/publish/READYCode.app
+#   scripts/make-app-bundle.sh                     # Debug build
+#                                                  #   -> ReadyCode.Avalonia/bin/READYCode.app
+#   scripts/make-app-bundle.sh --publish           # self-contained Release for this Mac's CPU
+#                                                  #   -> ReadyCode.Avalonia/bin/publish/READYCode.app
+#   scripts/make-app-bundle.sh --publish osx-x64   # ...for Intel Macs instead
 #
-# The bundle is unsigned; Gatekeeper is happy with it when launched locally via `open` or
-# Finder on the machine that built it. Distribution builds will need codesign + notarization.
+# The bundle is unsigned. Gatekeeper accepts it when launched locally on the machine that built
+# it; to hand it to anyone else, run scripts/sign-and-notarize.sh on the --publish output.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PROJ="$ROOT/ReadyCode.Avalonia/ReadyCode.Avalonia.csproj"
 
 if [[ "${1:-}" == "--publish" ]]; then
-    ARCH="$(uname -m)"; RID="osx-arm64"; [[ "$ARCH" == "x86_64" ]] && RID="osx-x64"
-    OUT="$ROOT/ReadyCode.Avalonia/bin/publish"
+    # Default to this Mac's own CPU; pass a runtime identifier to cross-build (e.g. osx-x64).
+    RID="${2:-}"
+    if [[ -z "$RID" ]]; then
+        RID="osx-arm64"; [[ "$(uname -m)" == "x86_64" ]] && RID="osx-x64"
+    fi
+    OUT="$ROOT/ReadyCode.Avalonia/bin/publish/$RID"
     PAYLOAD="$OUT/payload"
     rm -rf "$OUT"
-    dotnet publish "$PROJ" -c Release -r "$RID" --self-contained true -o "$PAYLOAD" -nologo -v q
+    # Single-file, so Contents/MacOS holds exactly one executable. That is not just tidiness:
+    # codesign treats every .dll in Contents/MacOS as nested code that must be signed before the
+    # bundle can be sealed, but it will not sign the .deps.json sitting beside them, so the
+    # ordinary layout cannot produce a sealed bundle at all. One binary makes signing trivial.
+    # Debug symbols are dropped: they are 100 MB of no use to someone running a release.
+    dotnet publish "$PROJ" -c Release -r "$RID" --self-contained true \
+        -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true \
+        -p:DebugType=none -p:DebugSymbols=false \
+        -o "$PAYLOAD" -nologo -v q
 else
     OUT="$ROOT/ReadyCode.Avalonia/bin"
     PAYLOAD="$OUT/Debug/net8.0"
@@ -31,6 +45,12 @@ cp "$ROOT/scripts/Info.plist" "$APP/Contents/Info.plist"
 # rsync keeps the apphost's executable bit and lets repeated dev builds stay fast.
 rsync -a --delete "$PAYLOAD/" "$APP/Contents/MacOS/"
 [[ -f "$ROOT/scripts/READYCode.icns" ]] && cp "$ROOT/scripts/READYCode.icns" "$APP/Contents/Resources/"
+
+# The Pet Me 64 font is redistributable free of charge provided its license travels with it
+# verbatim and Kreative Software is credited. It is embedded in the assembly for rendering; this
+# copy is what makes it readable to someone who only has the .app.
+cp "$ROOT/LICENSE" "$APP/Contents/Resources/LICENSE.txt"
+cp "$ROOT/ReadyCode.Avalonia/Assets/Fonts/LICENSE-PetMe64.txt" "$APP/Contents/Resources/"
 
 if [[ "${1:-}" != "--publish" ]]; then
     # A framework-dependent build needs the shared runtime. Finder launches with an empty
