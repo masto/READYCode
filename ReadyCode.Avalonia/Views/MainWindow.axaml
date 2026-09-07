@@ -10,6 +10,7 @@
         x:Class="ReadyCode.Avalonia.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
+        Icon="avares://ReadyCode.Avalonia/Assets/READYCode.png"
         Width="1000" Height="700"
         MinWidth="480" MinHeight="320">
 
@@ -32,79 +33,120 @@
         </Style>
     </Window.Styles>
 
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="File">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="New BASIC File"    Click="FileNew_Click"        Gesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
+                        <NativeMenuItem Header="New Assembly File" Click="FileNewAsm_Click"     Gesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
+                        <NativeMenuItem Header="Open…"             Click="FileOpen_Click"       Gesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
+                        <NativeMenuItem Header="Open Folder…"      Click="FileOpenFolder_Click" Gesture="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" />
+                        <NativeMenuItem Header="Close Folder"      Click="FileCloseFolder_Click" IsEnabled="{Binding IsFolderOpen}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Save"      Click="FileSave_Click"   Gesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />
+                        <NativeMenuItem Header="Save As…"  Click="FileSaveAs_Click" Gesture="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Close Tab" Click="FileClose_Click"  Gesture="{OnPlatform Ctrl+W, macOS=Cmd+W}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Exit" Click="FileExit_Click" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <NativeMenuItem Header="Edit">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Undo" Click="EditUndo_Click" Gesture="{OnPlatform Ctrl+Z, macOS=Cmd+Z}" />
+                        <NativeMenuItem Header="Redo" Click="EditRedo_Click" Gesture="{OnPlatform Ctrl+Y, macOS=Cmd+Shift+Z}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Cut"    Click="EditCut_Click"    Gesture="{OnPlatform Ctrl+X, macOS=Cmd+X}" />
+                        <NativeMenuItem Header="Copy"   Click="EditCopy_Click"   Gesture="{OnPlatform Ctrl+C, macOS=Cmd+C}" />
+                        <NativeMenuItem Header="Paste"  Click="EditPaste_Click"  Gesture="{OnPlatform Ctrl+V, macOS=Cmd+V}" />
+                        <NativeMenuItem Header="Delete" Click="EditDelete_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Select All" Click="EditSelectAll_Click" Gesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Find…"            Click="EditFind_Click"         Gesture="{OnPlatform Ctrl+F, macOS=Cmd+F}" />
+                        <NativeMenuItem Header="Find and Replace…" Click="EditReplace_Click"     Gesture="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" />
+                        <NativeMenuItem Header="Find Next"        Click="EditFindNext_Click"     Gesture="{OnPlatform F3, macOS=Cmd+G}" />
+                        <NativeMenuItem Header="Find Previous"    Click="EditFindPrevious_Click" Gesture="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <NativeMenuItem Header="View">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Explorer" Click="ViewExplorer_Click" Gesture="{OnPlatform Ctrl+B, macOS=Cmd+B}"
+                                        ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Column Guide" Click="ViewColumnGuide_Click" ToggleType="CheckBox" IsChecked="{Binding ShowColumnGuide, Mode=OneWay}" />
+                        <NativeMenuItem Header="Word Wrap"    Click="ViewWordWrap_Click"    ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" />
+                        <NativeMenuItem Header="Status Bar"   Click="ViewStatusBar_Click"   ToggleType="CheckBox" IsChecked="{Binding ShowStatusBar, Mode=OneWay}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Problems"    Click="ViewProblems_Click"   Gesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" />
+                        <NativeMenuItem Header="Debug Panel" Click="ViewDebugPanel_Click" Gesture="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <NativeMenuItem Header="VICE">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Run"                  Click="ViceRun_Click"      Gesture="F5" />
+                        <NativeMenuItem Header="Transfer (load only)" Click="ViceTransfer_Click" Gesture="F6" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Reset"  Click="ViceReset_Click" />
+                        <NativeMenuItem Header="Reboot" Click="ViceReboot_Click" />
+                        <NativeMenuItem Header="Pause"  Click="VicePause_Click" />
+                        <NativeMenuItem Header="Resume" Click="ViceResume_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Power Off" Click="VicePowerOff_Click" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <NativeMenuItem Header="Debug">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Start Debugging / Continue" Click="DebugStart_Click"   Gesture="Alt+F5" />
+                        <NativeMenuItem Header="Pause"                      Click="DebugPause_Click"   Gesture="Alt+F6" IsEnabled="{Binding IsDebugRunning}" />
+                        <NativeMenuItem Header="Restart Debugging"          Click="DebugRestart_Click" Gesture="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" IsEnabled="{Binding IsDebugging}" />
+                        <NativeMenuItem Header="Stop Debugging"             Click="DebugStop_Click"    Gesture="Alt+Shift+F5" IsEnabled="{Binding IsDebugging}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Step Over"     Click="DebugStepOver_Click"    Gesture="F10"       IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItem Header="Step Into"     Click="DebugStepInto_Click"    Gesture="F11"       IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItem Header="Step Out"      Click="DebugStepOut_Click"     Gesture="Shift+F11" IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItem Header="Run to Cursor" Click="DebugRunToCursor_Click" Gesture="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Toggle Breakpoint"         Click="DebugToggleBreakpoint_Click"        Gesture="F9" />
+                        <NativeMenuItem Header="Enable/Disable Breakpoint" Click="DebugToggleBreakpointEnabled_Click" Gesture="{OnPlatform Ctrl+F9, macOS=Cmd+F9}" />
+                        <NativeMenuItem Header="Delete All Breakpoints"    Click="DebugDeleteAllBreakpoints_Click"    Gesture="{OnPlatform Ctrl+Shift+F9, macOS=Cmd+Shift+F9}" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <!-- Hidden on macOS, where Preferences and About belong in the application menu
+                 instead; MainWindow moves them there at startup. -->
+            <NativeMenuItem Header="Settings">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Preferences…" Click="Preferences_Click" Gesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="About READYCode" Click="About_Click" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+        </NativeMenu>
+    </NativeMenu.Menu>
+
     <DockPanel>
 
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_New BASIC File"    Click="FileNew_Click"    HotKey="{OnPlatform Ctrl+N, macOS=Cmd+N}" InputGesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
-                <MenuItem Header="New _Assembly File" Click="FileNewAsm_Click" HotKey="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" InputGesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
-                <MenuItem Header="_Open…"             Click="FileOpen_Click"   HotKey="{OnPlatform Ctrl+O, macOS=Cmd+O}" InputGesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
-                <MenuItem Header="Open _Folder…"      Click="FileOpenFolder_Click" HotKey="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" InputGesture="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" />
-                <MenuItem Header="Close Fol_der"      Click="FileCloseFolder_Click" IsEnabled="{Binding IsFolderOpen}" />
-                <Separator />
-                <MenuItem Header="_Save"       Click="FileSave_Click"   HotKey="{OnPlatform Ctrl+S, macOS=Cmd+S}" InputGesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />
-                <MenuItem Header="Save _As…"   Click="FileSaveAs_Click" HotKey="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" InputGesture="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" />
-                <Separator />
-                <MenuItem Header="_Close Tab"  Click="FileClose_Click"  HotKey="{OnPlatform Ctrl+W, macOS=Cmd+W}" InputGesture="{OnPlatform Ctrl+W, macOS=Cmd+W}" />
-                <Separator />
-                <MenuItem Header="E_xit"       Click="FileExit_Click" />
-            </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem Header="_Undo"       Click="EditUndo_Click"      InputGesture="{OnPlatform Ctrl+Z, macOS=Cmd+Z}" />
-                <MenuItem Header="_Redo"       Click="EditRedo_Click"      InputGesture="{OnPlatform Ctrl+Y, macOS=Cmd+Shift+Z}" />
-                <Separator />
-                <MenuItem Header="Cu_t"        Click="EditCut_Click"       InputGesture="{OnPlatform Ctrl+X, macOS=Cmd+X}" />
-                <MenuItem Header="_Copy"       Click="EditCopy_Click"      InputGesture="{OnPlatform Ctrl+C, macOS=Cmd+C}" />
-                <MenuItem Header="_Paste"      Click="EditPaste_Click"     InputGesture="{OnPlatform Ctrl+V, macOS=Cmd+V}" />
-                <MenuItem Header="_Delete"     Click="EditDelete_Click"    InputGesture="Delete" />
-                <Separator />
-                <MenuItem Header="Select _All" Click="EditSelectAll_Click" InputGesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
-                <Separator />
-                <MenuItem Header="_Find…"         Click="EditFind_Click"         HotKey="{OnPlatform Ctrl+F, macOS=Cmd+F}" InputGesture="{OnPlatform Ctrl+F, macOS=Cmd+F}" />
-                <MenuItem Header="Find and Re_place…" Click="EditReplace_Click" HotKey="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" InputGesture="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" />
-                <MenuItem Header="Find _Next"     Click="EditFindNext_Click"     HotKey="{OnPlatform F3, macOS=Cmd+G}" InputGesture="{OnPlatform F3, macOS=Cmd+G}" />
-                <MenuItem Header="Find Pre_vious" Click="EditFindPrevious_Click" HotKey="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" InputGesture="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" />
-            </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
-                <Separator />
-                <MenuItem Header="_Column Guide" Click="ViewColumnGuide_Click" ToggleType="CheckBox" IsChecked="{Binding ShowColumnGuide, Mode=OneWay}" />
-                <MenuItem Header="_Word Wrap" Click="ViewWordWrap_Click" ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" />
-                <MenuItem Header="_Status Bar" Click="ViewStatusBar_Click" ToggleType="CheckBox" IsChecked="{Binding ShowStatusBar, Mode=OneWay}" />
-                <Separator />
-                <MenuItem Header="_Problems" Click="ViewProblems_Click" HotKey="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" InputGesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" />
-                <MenuItem Header="_Debug Panel" Click="ViewDebugPanel_Click" HotKey="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" InputGesture="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" />
-            </MenuItem>
-            <MenuItem Header="_VICE">
-                <MenuItem Header="_Run"        Click="ViceRun_Click"      HotKey="F5" InputGesture="F5" />
-                <MenuItem Header="_Transfer (load only)" Click="ViceTransfer_Click" HotKey="F6" InputGesture="F6" />
-                <Separator />
-                <MenuItem Header="Re_set"      Click="ViceReset_Click" />
-                <MenuItem Header="Re_boot"     Click="ViceReboot_Click" />
-                <MenuItem Header="_Pause"      Click="VicePause_Click" />
-                <MenuItem Header="Res_ume"     Click="ViceResume_Click" />
-                <Separator />
-                <MenuItem Header="Power _Off"  Click="VicePowerOff_Click" />
-            </MenuItem>
-            <MenuItem Header="_Debug">
-                <MenuItem Header="_Start Debugging / Continue" Click="DebugStart_Click" HotKey="Alt+F5" InputGesture="Alt+F5" />
-                <MenuItem Header="_Pause"                      Click="DebugPause_Click" HotKey="Alt+F6" InputGesture="Alt+F6" IsEnabled="{Binding IsDebugRunning}" />
-                <MenuItem Header="Restart De_bugging"          Click="DebugRestart_Click" HotKey="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" InputGesture="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" IsEnabled="{Binding IsDebugging}" />
-                <MenuItem Header="Sto_p Debugging"             Click="DebugStop_Click" HotKey="Alt+Shift+F5" InputGesture="Alt+Shift+F5" IsEnabled="{Binding IsDebugging}" />
-                <Separator />
-                <MenuItem Header="Step _Over"    Click="DebugStepOver_Click" HotKey="F10" InputGesture="F10" IsEnabled="{Binding IsDebugStopped}" />
-                <MenuItem Header="Step _Into"    Click="DebugStepInto_Click" HotKey="F11" InputGesture="F11" IsEnabled="{Binding IsDebugStopped}" />
-                <MenuItem Header="Step O_ut"     Click="DebugStepOut_Click"  HotKey="Shift+F11" InputGesture="Shift+F11" IsEnabled="{Binding IsDebugStopped}" />
-                <MenuItem Header="R_un to Cursor" Click="DebugRunToCursor_Click" HotKey="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" InputGesture="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" IsEnabled="{Binding IsDebugStopped}" />
-                <Separator />
-                <MenuItem Header="_Toggle Breakpoint"         Click="DebugToggleBreakpoint_Click" HotKey="F9" InputGesture="F9" />
-                <MenuItem Header="_Enable/Disable Breakpoint" Click="DebugToggleBreakpointEnabled_Click" HotKey="{OnPlatform Ctrl+F9, macOS=Cmd+F9}" InputGesture="{OnPlatform Ctrl+F9, macOS=Cmd+F9}" />
-                <MenuItem Header="_Delete All Breakpoints"    Click="DebugDeleteAllBreakpoints_Click" HotKey="{OnPlatform Ctrl+Shift+F9, macOS=Cmd+Shift+F9}" InputGesture="{OnPlatform Ctrl+Shift+F9, macOS=Cmd+Shift+F9}" />
-            </MenuItem>
-            <MenuItem Header="_Settings">
-                <MenuItem Header="_Preferences…" Click="Preferences_Click" HotKey="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" InputGesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
-            </MenuItem>
-        </Menu>
+        <!-- One definition drives both: on macOS this becomes the system menu bar at the top of
+             the screen, and NativeMenuBar below renders nothing. On Windows and Linux, where
+             there is no global menu bar, NativeMenuBar draws it inside the window instead. -->
+        <NativeMenuBar DockPanel.Dock="Top" />
 
         <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE" IsVisible="{Binding ShowStatusBar}">
             <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" />
@@ -139,7 +181,7 @@
                 <Panel>
                     <StackPanel Margin="12" Spacing="8" IsVisible="{Binding !IsFolderOpen}">
                         <TextBlock Text="No folder open." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
-                        <Button Content="Open Folder…" Click="FileOpenFolder_Click" HorizontalAlignment="Left" />
+                        <Button Content="Open Folder…" Click="ExplorerOpenFolder_Click" HorizontalAlignment="Left" />
                     </StackPanel>
 
                     <TreeView x:Name="FileTree"

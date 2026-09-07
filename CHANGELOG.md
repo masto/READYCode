@@ -9,9 +9,11 @@
   emulator logic with the Windows app through a new `ReadyCode.Core` library, so both produce
   byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, the folder
   explorer (including `.d64`/`.d81` browsing), find and replace, live diagnostics with a Problems
-  panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. The
-  Windows app is unchanged. Currently released as a macOS binary; see
-  [README-Avalonia.md](README-Avalonia.md) for platform support and what is and isn't ported yet
+  panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. A
+  native macOS menu bar (an in-window one on Linux) and an About box crediting the original Windows
+  application and carrying the Pet Me 64 font's license. The Windows app is unchanged. Currently
+  released as a macOS binary; see [README-Avalonia.md](README-Avalonia.md) for platform support and
+  what is and isn't ported yet
 
 ### Improvements
 
