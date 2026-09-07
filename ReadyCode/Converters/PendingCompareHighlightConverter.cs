@@ -27,7 +27,7 @@ public class PendingCompareHighlightConverter : IMultiValueConverter
 
         var candidate = values[0] switch
         {
-            FileTreeItem local => local.ToComparableFileRef(),
+            FileTreeItem local => ComparableFileRef.FromLocal(local),
             C64UFileItem remote => ComparableFileRef.FromC64U(remote),
             _ => null,
         };
