@@ -1,0 +1,77 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ReadyCode.Avalonia.Views.AboutWindow"
+        Title="About READYCode"
+        Width="520" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.body">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style Selector="TextBlock.dim">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#6E6E6E" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <!-- A link is a button templated to look like text, so it stays keyboard-focusable. -->
+        <Style Selector="Button.link">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="#0A62C4" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.link:pointerover">
+            <Setter Property="Foreground" Value="#0847A0" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="24" Spacing="14">
+
+        <StackPanel Orientation="Horizontal" Spacing="16">
+            <Image x:Name="AppIcon" Width="72" Height="72" VerticalAlignment="Top" />
+            <StackPanel Spacing="2" VerticalAlignment="Center">
+                <TextBlock Text="READYCode" FontSize="22" FontWeight="Bold" />
+                <TextBlock x:Name="VersionText" Classes="dim" />
+                <TextBlock Text="A Commodore 64 BASIC and 6502 assembly IDE." Classes="body" Margin="0,6,0,0" />
+            </StackPanel>
+        </StackPanel>
+
+        <Border Background="#DDDDDD" Height="1" />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Original application" FontWeight="SemiBold" FontSize="12" />
+            <TextBlock Classes="body"
+                       Text="READYCode was created by Jeff Bramwell as a Windows application. This is that program with a cross-platform front end added; all of its editor, tokenizer, assembler, and emulator logic is his work." />
+            <Button Classes="link" Content="github.com/jbramwell/READYCode"
+                    Click="OriginalProject_Click" HorizontalAlignment="Left" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="macOS and Linux front end" FontWeight="SemiBold" FontSize="12" />
+            <TextBlock Classes="body" Text="Built with Avalonia and AvaloniaEdit." />
+            <Button x:Name="PortProjectLink" Classes="link" Click="PortProject_Click"
+                    HorizontalAlignment="Left" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <Border Background="#DDDDDD" Height="1" />
+
+        <StackPanel Spacing="6">
+            <TextBlock x:Name="CopyrightText" Classes="dim" />
+            <TextBlock Classes="dim"
+                       Text="The &quot;Pet Me 64&quot; font is by Rebecca Bettencourt, made with Bits'n'Picas by Kreative Software, and is used under the Kreative Software Relay Fonts Free Use License." />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button Content="Licenses…" Click="Licenses_Click" />
+            <Button Content="OK" MinWidth="80" IsDefault="True" IsCancel="True" Click="Ok_Click" />
+        </StackPanel>
+
+    </StackPanel>
+</Window>

@@ -14,6 +14,8 @@
     <AssemblyName>ReadyCode.Avalonia</AssemblyName>
     <!-- Lets the app run on a newer installed runtime (e.g. the .NET 10 SDK on macOS). -->
     <RollForward>Major</RollForward>
+    <!-- Version drives what the About box shows; kept in step with the Windows app's version. -->
+    <Version>2.3.0</Version>
     <AssemblyVersion>2.3.0.0</AssemblyVersion>
     <FileVersion>2.3.0.0</FileVersion>
   </PropertyGroup>

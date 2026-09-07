@@ -2,6 +2,7 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System.ComponentModel;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
@@ -125,7 +126,70 @@ public partial class MainWindow : Window
         if (OperatingSystem.IsMacOS())
             KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.H, KeyModifiers.Meta | KeyModifiers.Shift), Command = new AsyncCommand(() => { OpenFind(replaceMode: true); return Task.CompletedTask; }) });
 
+        ConfigureMacOSMenus();
+        Opened += (_, _) => AddMenuShortcutBindings();
+
         DataContextChanged += (_, _) => AttachViewModel();
+    }
+
+    // On macOS, Quit is supplied by the system and About and Preferences belong in the
+    // application menu (which App sets up), so the menu bar should not carry them as well.
+    private void ConfigureMacOSMenus()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        var menu = NativeMenu.GetMenu(this);
+        if (menu == null) return;
+
+        RemoveItem(menu, "Settings");
+        if (FindItem(menu, "File")?.Menu is { } fileMenu)
+        {
+            RemoveItem(fileMenu, "Exit");
+            if (fileMenu.Items.Count > 0 && fileMenu.Items[^1] is NativeMenuItemSeparator trailing)
+                fileMenu.Items.Remove(trailing);
+        }
+    }
+
+    // Where the menu is exported to the system (macOS), each item's Gesture becomes a real menu
+    // key equivalent and the shortcuts work with nothing further. Where it is drawn inside the
+    // window instead (Windows, Linux), that does not register accelerators, so the same gestures
+    // are bound on the window. Driven off the menu itself, so the shortcuts cannot drift from
+    // what the menu advertises. Deferred to Opened, because whether the menu was exported is not
+    // known until the window has a platform handle.
+    internal void AddMenuShortcutBindings()
+    {
+        if (NativeMenu.GetIsNativeMenuExported(this)) return;
+        if (NativeMenu.GetMenu(this) is not { } menu) return;
+
+        foreach (var top in menu.Items.OfType<NativeMenuItem>())
+        {
+            foreach (var item in top.Menu?.Items.OfType<NativeMenuItem>() ?? [])
+            {
+                if (item is NativeMenuItemSeparator || item.Gesture is not { } gesture) continue;
+
+                var target = item;
+                KeyBindings.Add(new KeyBinding
+                {
+                    Gesture = gesture,
+                    Command = new AsyncCommand(() =>
+                    {
+                        // The same entry point the platform menu exporters use to fire an item.
+                        if (target.IsEnabled)
+                            ((INativeMenuItemExporterEventsImplBridge)target).RaiseClicked();
+                        return Task.CompletedTask;
+                    }),
+                });
+            }
+        }
+    }
+
+    private static NativeMenuItem? FindItem(NativeMenu menu, string header) =>
+        menu.Items.OfType<NativeMenuItem>().FirstOrDefault(item => item.Header == header);
+
+    private static void RemoveItem(NativeMenu menu, string header)
+    {
+        if (FindItem(menu, header) is { } item)
+            menu.Items.Remove(item);
     }
 
     protected override void OnOpened(EventArgs e)
@@ -536,15 +600,15 @@ public partial class MainWindow : Window
         await ViewModel.OnBreakpointEnabledChangedAsync(breakpoint);
     }
 
-    private async void DebugStart_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStartOrContinueAsync();
-    private async void DebugPause_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugPauseAsync();
-    private async void DebugRestart_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugRestartAsync();
-    private async void DebugStop_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStopAsync();
-    private async void DebugStepOver_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepOverAsync();
-    private async void DebugStepInto_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepIntoAsync();
-    private async void DebugStepOut_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepOutAsync();
+    private async void DebugStart_Click(object? sender, EventArgs e) => await ViewModel.DebugStartOrContinueAsync();
+    private async void DebugPause_Click(object? sender, EventArgs e) => await ViewModel.DebugPauseAsync();
+    private async void DebugRestart_Click(object? sender, EventArgs e) => await ViewModel.DebugRestartAsync();
+    private async void DebugStop_Click(object? sender, EventArgs e) => await ViewModel.DebugStopAsync();
+    private async void DebugStepOver_Click(object? sender, EventArgs e) => await ViewModel.DebugStepOverAsync();
+    private async void DebugStepInto_Click(object? sender, EventArgs e) => await ViewModel.DebugStepIntoAsync();
+    private async void DebugStepOut_Click(object? sender, EventArgs e) => await ViewModel.DebugStepOutAsync();
 
-    private async void DebugRunToCursor_Click(object? sender, RoutedEventArgs e)
+    private async void DebugRunToCursor_Click(object? sender, EventArgs e)
     {
         if (!TryGetBasicLineAtDocumentLine(Editor.TextArea.Caret.Line, out ushort basicLine))
         {
@@ -554,21 +618,21 @@ public partial class MainWindow : Window
         await ViewModel.RunToLineAsync(basicLine);
     }
 
-    private async void DebugToggleBreakpoint_Click(object? sender, RoutedEventArgs e) => await ToggleBreakpointAtDocumentLineAsync(Editor.TextArea.Caret.Line);
+    private async void DebugToggleBreakpoint_Click(object? sender, EventArgs e) => await ToggleBreakpointAtDocumentLineAsync(Editor.TextArea.Caret.Line);
 
-    private void DebugToggleBreakpointEnabled_Click(object? sender, RoutedEventArgs e)
+    private void DebugToggleBreakpointEnabled_Click(object? sender, EventArgs e)
     {
         if (ViewModel.ActiveTab is { } tab && TryGetBasicLineAtDocumentLine(Editor.TextArea.Caret.Line, out ushort basicLine))
             ViewModel.ToggleBreakpointEnabled(tab, basicLine);
     }
 
-    private async void DebugDeleteAllBreakpoints_Click(object? sender, RoutedEventArgs e)
+    private async void DebugDeleteAllBreakpoints_Click(object? sender, EventArgs e)
     {
         await ViewModel.DeleteAllBreakpointsAsync();
         RefreshBreakpointMargin();
     }
 
-    private void ViewDebugPanel_Click(object? sender, RoutedEventArgs e)
+    private void ViewDebugPanel_Click(object? sender, EventArgs e)
     {
         if (ViewModel.IsBottomPanelOpen && ViewModel.BottomPanelTabIndex == 1) { ViewModel.IsBottomPanelOpen = false; return; }
         ViewModel.IsBottomPanelOpen = true;
@@ -712,7 +776,7 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(Reveal, DispatcherPriority.Loaded);
     }
 
-    private void ViewProblems_Click(object? sender, RoutedEventArgs e)
+    private void ViewProblems_Click(object? sender, EventArgs e)
     {
         if (ViewModel.IsBottomPanelOpen && ViewModel.BottomPanelTabIndex == 0) { ViewModel.IsBottomPanelOpen = false; return; }
         ViewModel.IsBottomPanelOpen = true;
@@ -922,11 +986,11 @@ public partial class MainWindow : Window
 
     #region Event Handlers
 
-    private void FileNew_Click(object? sender, RoutedEventArgs e) => ViewModel.NewTab(EditorLanguage.Basic);
+    private void FileNew_Click(object? sender, EventArgs e) => ViewModel.NewTab(EditorLanguage.Basic);
 
-    private void FileNewAsm_Click(object? sender, RoutedEventArgs e) => ViewModel.NewTab(EditorLanguage.Asm);
+    private void FileNewAsm_Click(object? sender, EventArgs e) => ViewModel.NewTab(EditorLanguage.Asm);
 
-    private async void FileOpen_Click(object? sender, RoutedEventArgs e)
+    private async void FileOpen_Click(object? sender, EventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
@@ -953,19 +1017,19 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void FileSave_Click(object? sender, RoutedEventArgs e)
+    private async void FileSave_Click(object? sender, EventArgs e)
     {
         if (ViewModel.ActiveTab is { } tab)
             await SaveTabAsync(tab, forceDialog: false);
     }
 
-    private async void FileSaveAs_Click(object? sender, RoutedEventArgs e)
+    private async void FileSaveAs_Click(object? sender, EventArgs e)
     {
         if (ViewModel.ActiveTab is { } tab)
             await SaveTabAsync(tab, forceDialog: true);
     }
 
-    private async void FileClose_Click(object? sender, RoutedEventArgs e)
+    private async void FileClose_Click(object? sender, EventArgs e)
     {
         if (ViewModel.ActiveTab is not { } tab) return;
 
@@ -980,9 +1044,15 @@ public partial class MainWindow : Window
         ViewModel.CloseTab(tab);
     }
 
-    private void FileExit_Click(object? sender, RoutedEventArgs e) => Close();
+    private void FileExit_Click(object? sender, EventArgs e) => Close();
 
-    private async void FileOpenFolder_Click(object? sender, RoutedEventArgs e)
+    private async void FileOpenFolder_Click(object? sender, EventArgs e) => await OpenFolderAsync();
+
+    // The explorer's empty state offers the same action as a button, whose Click carries
+    // RoutedEventArgs rather than the native menu's plain EventArgs.
+    private async void ExplorerOpenFolder_Click(object? sender, RoutedEventArgs e) => await OpenFolderAsync();
+
+    private async Task OpenFolderAsync()
     {
         var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
@@ -999,12 +1069,12 @@ public partial class MainWindow : Window
         }
     }
 
-    private void FileCloseFolder_Click(object? sender, RoutedEventArgs e) => ViewModel.CloseFolder();
+    private void FileCloseFolder_Click(object? sender, EventArgs e) => ViewModel.CloseFolder();
 
-    private void ViewExplorer_Click(object? sender, RoutedEventArgs e) => ViewModel.IsExplorerOpen = !ViewModel.IsExplorerOpen;
-    private void ViewColumnGuide_Click(object? sender, RoutedEventArgs e) => ViewModel.ShowColumnGuide = !ViewModel.ShowColumnGuide;
-    private void ViewWordWrap_Click(object? sender, RoutedEventArgs e) => ViewModel.WordWrap = !ViewModel.WordWrap;
-    private void ViewStatusBar_Click(object? sender, RoutedEventArgs e) => ViewModel.ShowStatusBar = !ViewModel.ShowStatusBar;
+    private void ViewExplorer_Click(object? sender, EventArgs e) => ViewModel.IsExplorerOpen = !ViewModel.IsExplorerOpen;
+    private void ViewColumnGuide_Click(object? sender, EventArgs e) => ViewModel.ShowColumnGuide = !ViewModel.ShowColumnGuide;
+    private void ViewWordWrap_Click(object? sender, EventArgs e) => ViewModel.WordWrap = !ViewModel.WordWrap;
+    private void ViewStatusBar_Click(object? sender, EventArgs e) => ViewModel.ShowStatusBar = !ViewModel.ShowStatusBar;
 
     private async void ExplorerNewFile_Click(object? sender, RoutedEventArgs e) => await NewFileAsync();
     private async void ExplorerNewFolder_Click(object? sender, RoutedEventArgs e) => await NewFolderAsync();
@@ -1184,10 +1254,10 @@ public partial class MainWindow : Window
         UpdateFindMatches();
     }
 
-    private void EditFind_Click(object? sender, RoutedEventArgs e) => OpenFind(replaceMode: false);
-    private void EditReplace_Click(object? sender, RoutedEventArgs e) => OpenFind(replaceMode: true);
-    private void EditFindNext_Click(object? sender, RoutedEventArgs e) => FindNext();
-    private void EditFindPrevious_Click(object? sender, RoutedEventArgs e) => FindPrev();
+    private void EditFind_Click(object? sender, EventArgs e) => OpenFind(replaceMode: false);
+    private void EditReplace_Click(object? sender, EventArgs e) => OpenFind(replaceMode: true);
+    private void EditFindNext_Click(object? sender, EventArgs e) => FindNext();
+    private void EditFindPrevious_Click(object? sender, EventArgs e) => FindPrev();
 
     // ── Editor input ──────────────────────────────────────────────────────────
 
@@ -1455,32 +1525,47 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void EditUndo_Click(object? sender, RoutedEventArgs e) => Editor.Undo();
-    private void EditRedo_Click(object? sender, RoutedEventArgs e) => Editor.Redo();
-    private void EditCut_Click(object? sender, RoutedEventArgs e) => Editor.Cut();
-    private void EditCopy_Click(object? sender, RoutedEventArgs e) => Editor.Copy();
-    private async void EditPaste_Click(object? sender, RoutedEventArgs e) => await PasteAsync();
-    private void EditDelete_Click(object? sender, RoutedEventArgs e) => Editor.Delete();
-    private void EditSelectAll_Click(object? sender, RoutedEventArgs e) => Editor.SelectAll();
+    private void EditUndo_Click(object? sender, EventArgs e) => Editor.Undo();
+    private void EditRedo_Click(object? sender, EventArgs e) => Editor.Redo();
+    private void EditCut_Click(object? sender, EventArgs e) => Editor.Cut();
+    private void EditCopy_Click(object? sender, EventArgs e) => Editor.Copy();
+    private async void EditPaste_Click(object? sender, EventArgs e) => await PasteAsync();
+    private void EditDelete_Click(object? sender, EventArgs e) => Editor.Delete();
+    private void EditSelectAll_Click(object? sender, EventArgs e) => Editor.SelectAll();
 
-    private async void ViceRun_Click(object? sender, RoutedEventArgs e)
+    private async void ViceRun_Click(object? sender, EventArgs e)
     {
         await ViewModel.RunOnViceAsync();
         if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
     }
 
-    private async void ViceTransfer_Click(object? sender, RoutedEventArgs e)
+    private async void ViceTransfer_Click(object? sender, EventArgs e)
     {
         await ViewModel.TransferToViceAsync();
         if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
     }
-    private async void ViceReset_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResetAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine reset.");
-    private async void ViceReboot_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.RebootAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine rebooted.");
-    private async void VicePause_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PauseAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine paused.");
-    private async void ViceResume_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResumeAsync(), "VICE machine resumed.");
-    private async void VicePowerOff_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PowerOffAsync(ViewModel.Settings.ViceEmulatorPath), "VICE emulator closed.");
+    private async void ViceReset_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResetAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine reset.");
+    private async void ViceReboot_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.RebootAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine rebooted.");
+    private async void VicePause_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PauseAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine paused.");
+    private async void ViceResume_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResumeAsync(), "VICE machine resumed.");
+    private async void VicePowerOff_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PowerOffAsync(ViewModel.Settings.ViceEmulatorPath), "VICE emulator closed.");
 
-    private async void Preferences_Click(object? sender, RoutedEventArgs e)
+    /// <summary>
+    /// Shows the About box. Public so the macOS application menu, which App owns, can invoke it.
+    /// </summary>
+    public async Task ShowAboutAsync() => await new AboutWindow().ShowDialog(this);
+
+    private async void About_Click(object? sender, EventArgs e) => await ShowAboutAsync();
+
+    /// <summary>
+    /// Shows the Preferences dialog and applies whatever changed. Public for the same reason as
+    /// <see cref="ShowAboutAsync"/>.
+    /// </summary>
+    public async Task ShowPreferencesAsync() => await ShowPreferencesCoreAsync();
+
+    private async void Preferences_Click(object? sender, EventArgs e) => await ShowPreferencesCoreAsync();
+
+    private async Task ShowPreferencesCoreAsync()
     {
         var dialog = new SettingsWindow(ViewModel.Settings);
         await dialog.ShowDialog(this);

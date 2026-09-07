@@ -5,6 +5,7 @@
 ### New Features
 
 - **macOS and Linux support** - a second front end, `ReadyCode.Avalonia`, built on [Avalonia](https://avaloniaui.net/). It shares all editor, tokenizer, assembler, diagnostics, and emulator logic with the Windows app through a new `ReadyCode.Core` library, so both produce byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, the folder explorer (including `.d64`/`.d81` browsing), find and replace, live diagnostics with a Problems panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. The Windows app is unchanged. See [README-Avalonia.md](README-Avalonia.md) for what is and isn't ported yet
+- **Native menus and an About box on the cross-platform front end** - the menu bar is now the real macOS system menu bar (with About and Preferences in the application menu and Quit supplied by the system), and an in-window menu bar on Windows and Linux, both from a single definition. A new About box credits the original Windows application and carries the Pet Me 64 font's license
 - **Cross-platform CI** - a GitHub Actions workflow building and testing the shared library, the Avalonia front end, and both test suites on Ubuntu and macOS, and compile-checking the WPF app on both
 
 ### Bug Fixes
