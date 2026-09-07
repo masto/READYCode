@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ReadyCode.Views"
         xmlns:models="clr-namespace:ReadyCode.Models"
+        xmlns:coremodels="clr-namespace:ReadyCode.Models;assembly=ReadyCode.Core"
         xmlns:converters="clr-namespace:ReadyCode.Converters"
         xmlns:avalonEdit="http://icsharpcode.net/sharpdevelop/avalonedit"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
@@ -1793,7 +1794,7 @@
                                 <MenuItem Header="_Go to Line" Click="VariableOccurrenceContextGoToLine_Click"/>
                             </ContextMenu>
 
-                            <HierarchicalDataTemplate DataType="{x:Type models:VariableInfo}" ItemsSource="{Binding Occurrences}">
+                            <HierarchicalDataTemplate DataType="{x:Type coremodels:VariableInfo}" ItemsSource="{Binding Occurrences}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1831,7 +1832,7 @@
                                     </DataTrigger>
                                 </HierarchicalDataTemplate.Triggers>
                             </HierarchicalDataTemplate>
-                            <DataTemplate DataType="{x:Type models:VariableOccurrenceInfo}">
+                            <DataTemplate DataType="{x:Type coremodels:VariableOccurrenceInfo}">
                                 <TextBlock Text="{Binding DisplayText}"
                                            FontSize="12" Foreground="{DynamicResource ThemeFileFg}"
                                            Margin="0,1" VerticalAlignment="Center"/>
@@ -1882,7 +1883,7 @@
                               VirtualizingPanel.IsVirtualizing="True"
                               VirtualizingPanel.VirtualizationMode="Recycling">
                         <TreeView.Resources>
-                            <HierarchicalDataTemplate DataType="{x:Type models:AsmSymbolGroupInfo}" ItemsSource="{Binding Symbols}">
+                            <HierarchicalDataTemplate DataType="{x:Type coremodels:AsmSymbolGroupInfo}" ItemsSource="{Binding Symbols}">
                                 <TextBlock FontSize="12" FontWeight="SemiBold"
                                            Foreground="{DynamicResource ThemeFileFg}"
                                            Margin="0,2" VerticalAlignment="Center">
@@ -1894,7 +1895,7 @@
                                     </TextBlock.Text>
                                 </TextBlock>
                             </HierarchicalDataTemplate>
-                            <HierarchicalDataTemplate DataType="{x:Type models:AsmSymbolInfo}" ItemsSource="{Binding Occurrences}">
+                            <HierarchicalDataTemplate DataType="{x:Type coremodels:AsmSymbolInfo}" ItemsSource="{Binding Occurrences}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1916,7 +1917,7 @@
                                     </Border>
                                 </Grid>
                             </HierarchicalDataTemplate>
-                            <DataTemplate DataType="{x:Type models:AsmSymbolOccurrenceInfo}">
+                            <DataTemplate DataType="{x:Type coremodels:AsmSymbolOccurrenceInfo}">
                                 <TextBlock Text="{Binding DisplayText}"
                                            FontSize="12" Foreground="{DynamicResource ThemeFileFg}"
                                            Margin="0,1" VerticalAlignment="Center"/>
@@ -2449,7 +2450,7 @@
                               ItemsSource="{Binding ViewModel.SearchResults}"
                               MouseDoubleClick="SearchResultsTree_MouseDoubleClick">
                         <TreeView.Resources>
-                            <HierarchicalDataTemplate DataType="{x:Type models:ProjectSearchFileResult}" ItemsSource="{Binding Matches}">
+                            <HierarchicalDataTemplate DataType="{x:Type coremodels:ProjectSearchFileResult}" ItemsSource="{Binding Matches}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -2468,7 +2469,7 @@
                                     </Border>
                                 </Grid>
                             </HierarchicalDataTemplate>
-                            <DataTemplate DataType="{x:Type models:ProjectSearchMatchInfo}">
+                            <DataTemplate DataType="{x:Type coremodels:ProjectSearchMatchInfo}">
                                 <TextBlock Text="{Binding DisplayText}"
                                            FontSize="12" Foreground="{DynamicResource ThemeFileFg}"
                                            Margin="0,1" VerticalAlignment="Center"
