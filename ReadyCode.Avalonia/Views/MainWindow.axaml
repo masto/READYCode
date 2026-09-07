@@ -66,6 +66,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
+                <MenuItem Header="_Problems" Click="ViewProblems_Click" HotKey="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" InputGesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" ToggleType="CheckBox" IsChecked="{Binding IsProblemsPanelOpen, Mode=OneWay}" />
             </MenuItem>
             <MenuItem Header="_VICE">
                 <MenuItem Header="_Run"        Click="ViceRun_Click"      HotKey="F5" InputGesture="F5" />
@@ -159,7 +160,8 @@
                     </TabStrip.ItemTemplate>
                 </TabStrip>
 
-                <Panel>
+                <Grid x:Name="EditorGrid" RowDefinitions="*,4,160">
+                <Panel Grid.Row="0">
                     <ae:TextEditor x:Name="Editor"
                                    Padding="10"
                                    ContextRequested="Editor_ContextRequested"
@@ -173,6 +175,44 @@
                     <views:FindBarControl x:Name="FindBar" IsVisible="False"
                                           HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" />
                 </Panel>
+
+                <GridSplitter Grid.Row="1" x:Name="ProblemsSplitter" ResizeDirection="Rows" Background="#DDDDDD" IsVisible="{Binding IsProblemsPanelOpen}" />
+
+                <!-- Problems panel -->
+                <DockPanel Grid.Row="2" x:Name="ProblemsPanel" Background="#F3F3F3" IsVisible="{Binding IsProblemsPanelOpen}">
+                    <Border DockPanel.Dock="Top" Height="28" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,1,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding ProblemsTitle}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0" />
+                            <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Close" Click="ViewProblems_Click" Margin="0,0,4,0">
+                                <PathIcon Data="M5 4l5 5 5-5 1.4 1.4-5 5 5 5L15 16.8l-5-5-5 5L3.6 15.4l5-5-5-5z" />
+                            </Button>
+                        </Grid>
+                    </Border>
+                    <Panel>
+                        <TextBlock Text="{Binding ProblemsEmptyText}" FontSize="12" Foreground="#666666" Margin="12,8"
+                                   IsVisible="{Binding !ErrorListRows.Count}" />
+                        <ListBox x:Name="ProblemsList" ItemsSource="{Binding ErrorListRows}" Background="Transparent" BorderThickness="0"
+                                 IsVisible="{Binding !!ErrorListRows.Count}" DoubleTapped="ProblemsList_DoubleTapped" KeyDown="ProblemsList_KeyDown">
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="10,3" />
+                                    <Setter Property="MinHeight" Value="0" />
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="models:ErrorListRow">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <PathIcon Width="12" Height="12" Foreground="#D03030" Data="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 4h2v6H9zm0 7h2v2H9z" />
+                                        <TextBlock Text="{Binding Message}" FontSize="12" />
+                                        <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="#777777" />
+                                        <TextBlock Text="{Binding Location}" FontSize="12" Foreground="#777777" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Panel>
+                </DockPanel>
+                </Grid>
             </DockPanel>
         </Grid>
 
