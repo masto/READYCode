@@ -6,6 +6,7 @@
         xmlns:core="using:ReadyCode.Models"
         xmlns:conv="using:ReadyCode.Avalonia.Converters"
         xmlns:views="using:ReadyCode.Avalonia.Views"
+        xmlns:dbg="using:ReadyCode.Debugger"
         x:Class="ReadyCode.Avalonia.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
@@ -71,7 +72,8 @@
                 <MenuItem Header="_Word Wrap" Click="ViewWordWrap_Click" ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" />
                 <MenuItem Header="_Status Bar" Click="ViewStatusBar_Click" ToggleType="CheckBox" IsChecked="{Binding ShowStatusBar, Mode=OneWay}" />
                 <Separator />
-                <MenuItem Header="_Problems" Click="ViewProblems_Click" HotKey="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" InputGesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" ToggleType="CheckBox" IsChecked="{Binding IsProblemsPanelOpen, Mode=OneWay}" />
+                <MenuItem Header="_Problems" Click="ViewProblems_Click" HotKey="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" InputGesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" />
+                <MenuItem Header="_Debug Panel" Click="ViewDebugPanel_Click" HotKey="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" InputGesture="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" />
             </MenuItem>
             <MenuItem Header="_VICE">
                 <MenuItem Header="_Run"        Click="ViceRun_Click"      HotKey="F5" InputGesture="F5" />
@@ -83,6 +85,21 @@
                 <MenuItem Header="Res_ume"     Click="ViceResume_Click" />
                 <Separator />
                 <MenuItem Header="Power _Off"  Click="VicePowerOff_Click" />
+            </MenuItem>
+            <MenuItem Header="_Debug">
+                <MenuItem Header="_Start Debugging / Continue" Click="DebugStart_Click" HotKey="Alt+F5" InputGesture="Alt+F5" />
+                <MenuItem Header="_Pause"                      Click="DebugPause_Click" HotKey="Alt+F6" InputGesture="Alt+F6" IsEnabled="{Binding IsDebugRunning}" />
+                <MenuItem Header="Restart De_bugging"          Click="DebugRestart_Click" HotKey="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" InputGesture="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" IsEnabled="{Binding IsDebugging}" />
+                <MenuItem Header="Sto_p Debugging"             Click="DebugStop_Click" HotKey="Alt+Shift+F5" InputGesture="Alt+Shift+F5" IsEnabled="{Binding IsDebugging}" />
+                <Separator />
+                <MenuItem Header="Step _Over"    Click="DebugStepOver_Click" HotKey="F10" InputGesture="F10" IsEnabled="{Binding IsDebugStopped}" />
+                <MenuItem Header="Step _Into"    Click="DebugStepInto_Click" HotKey="F11" InputGesture="F11" IsEnabled="{Binding IsDebugStopped}" />
+                <MenuItem Header="Step O_ut"     Click="DebugStepOut_Click"  HotKey="Shift+F11" InputGesture="Shift+F11" IsEnabled="{Binding IsDebugStopped}" />
+                <MenuItem Header="R_un to Cursor" Click="DebugRunToCursor_Click" HotKey="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" InputGesture="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" IsEnabled="{Binding IsDebugStopped}" />
+                <Separator />
+                <MenuItem Header="_Toggle Breakpoint"         Click="DebugToggleBreakpoint_Click" HotKey="F9" InputGesture="F9" />
+                <MenuItem Header="_Enable/Disable Breakpoint" Click="DebugToggleBreakpointEnabled_Click" HotKey="{OnPlatform Ctrl+F9, macOS=Cmd+F9}" InputGesture="{OnPlatform Ctrl+F9, macOS=Cmd+F9}" />
+                <MenuItem Header="_Delete All Breakpoints"    Click="DebugDeleteAllBreakpoints_Click" HotKey="{OnPlatform Ctrl+Shift+F9, macOS=Cmd+Shift+F9}" InputGesture="{OnPlatform Ctrl+Shift+F9, macOS=Cmd+Shift+F9}" />
             </MenuItem>
             <MenuItem Header="_Settings">
                 <MenuItem Header="_Preferences…" Click="Preferences_Click" HotKey="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" InputGesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
@@ -181,41 +198,103 @@
                                           HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" />
                 </Panel>
 
-                <GridSplitter Grid.Row="1" x:Name="ProblemsSplitter" ResizeDirection="Rows" Background="#DDDDDD" IsVisible="{Binding IsProblemsPanelOpen}" />
+                <GridSplitter Grid.Row="1" x:Name="ProblemsSplitter" ResizeDirection="Rows" Background="#DDDDDD" IsVisible="{Binding IsBottomPanelOpen}" />
 
-                <!-- Problems panel -->
-                <DockPanel Grid.Row="2" x:Name="ProblemsPanel" Background="#F3F3F3" IsVisible="{Binding IsProblemsPanelOpen}">
-                    <Border DockPanel.Dock="Top" Height="28" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,1,0,1">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0" Text="{Binding ProblemsTitle}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0" />
-                            <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Close" Click="ViewProblems_Click" Margin="0,0,4,0">
-                                <PathIcon Data="M5 4l5 5 5-5 1.4 1.4-5 5 5 5L15 16.8l-5-5-5 5L3.6 15.4l5-5-5-5z" />
-                            </Button>
-                        </Grid>
+                <!-- Bottom panel: Problems / Variables / Breakpoints / Call Stack -->
+                <DockPanel Grid.Row="2" x:Name="ProblemsPanel" Background="#F3F3F3" IsVisible="{Binding IsBottomPanelOpen}">
+                    <Border DockPanel.Dock="Right" Width="28" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,1,0,0">
+                        <Button Classes="explorerTool" ToolTip.Tip="Close" Click="ViewBottomPanelClose_Click" VerticalAlignment="Top" Margin="0,3,0,0">
+                            <PathIcon Data="M5 4l5 5 5-5 1.4 1.4-5 5 5 5L15 16.8l-5-5-5 5L3.6 15.4l5-5-5-5z" />
+                        </Button>
                     </Border>
-                    <Panel>
-                        <TextBlock Text="{Binding ProblemsEmptyText}" FontSize="12" Foreground="#666666" Margin="12,8"
-                                   IsVisible="{Binding !ErrorListRows.Count}" />
-                        <ListBox x:Name="ProblemsList" ItemsSource="{Binding ErrorListRows}" Background="Transparent" BorderThickness="0"
-                                 IsVisible="{Binding !!ErrorListRows.Count}" DoubleTapped="ProblemsList_DoubleTapped" KeyDown="ProblemsList_KeyDown">
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="10,3" />
-                                    <Setter Property="MinHeight" Value="0" />
-                                </Style>
-                            </ListBox.Styles>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate x:DataType="models:ErrorListRow">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <PathIcon Width="12" Height="12" Foreground="#D03030" Data="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 4h2v6H9zm0 7h2v2H9z" />
-                                        <TextBlock Text="{Binding Message}" FontSize="12" />
-                                        <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="#777777" />
-                                        <TextBlock Text="{Binding Location}" FontSize="12" Foreground="#777777" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Panel>
+                    <TabControl x:Name="BottomTabs" SelectedIndex="{Binding BottomPanelTabIndex, Mode=TwoWay}" Padding="0" BorderThickness="0,1,0,0" BorderBrush="#CFCFCF">
+                        <TabControl.Styles>
+                            <Style Selector="TabItem">
+                                <Setter Property="FontSize" Value="11" />
+                                <Setter Property="FontWeight" Value="Bold" />
+                                <Setter Property="Padding" Value="10,4" />
+                                <Setter Property="MinHeight" Value="0" />
+                            </Style>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="10,3" />
+                                <Setter Property="MinHeight" Value="0" />
+                            </Style>
+                        </TabControl.Styles>
+
+                        <TabItem Header="{Binding ProblemsTitle}">
+                            <Panel>
+                                <TextBlock Text="{Binding ProblemsEmptyText}" FontSize="12" Foreground="#666666" Margin="12,8"
+                                           IsVisible="{Binding !ErrorListRows.Count}" />
+                                <ListBox x:Name="ProblemsList" ItemsSource="{Binding ErrorListRows}" Background="Transparent" BorderThickness="0"
+                                         IsVisible="{Binding !!ErrorListRows.Count}" DoubleTapped="ProblemsList_DoubleTapped" KeyDown="ProblemsList_KeyDown">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="models:ErrorListRow">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <PathIcon Width="12" Height="12" Foreground="#D03030" Data="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 4h2v6H9zm0 7h2v2H9z" />
+                                                <TextBlock Text="{Binding Message}" FontSize="12" />
+                                                <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="#777777" />
+                                                <TextBlock Text="{Binding Location}" FontSize="12" Foreground="#777777" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
+                        </TabItem>
+
+                        <TabItem Header="VARIABLES">
+                            <Panel>
+                                <TextBlock x:Name="VariablesEmptyText" FontSize="12" Foreground="#666666" Margin="12,8"
+                                           IsVisible="{Binding !DebugVariables.Count}" />
+                                <ListBox x:Name="VariablesList" ItemsSource="{Binding DebugVariables}" Background="Transparent" BorderThickness="0"
+                                         IsVisible="{Binding !!DebugVariables.Count}" DoubleTapped="VariablesList_DoubleTapped" KeyDown="VariablesList_KeyDown"
+                                         ToolTip.Tip="Double-click a variable to change its value">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="dbg:BasicVariable">
+                                            <Grid ColumnDefinitions="120,80,*">
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="12" Foreground="#777777" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ., Converter={x:Static conv:FileTreeConverters.VariableValue}}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
+                        </TabItem>
+
+                        <TabItem Header="BREAKPOINTS">
+                            <Panel>
+                                <TextBlock Text="No breakpoints. Click the gutter left of a BASIC line, or press F9." FontSize="12" Foreground="#666666" Margin="12,8"
+                                           IsVisible="{Binding !BreakpointStore.Breakpoints.Count}" />
+                                <ListBox x:Name="BreakpointsList" ItemsSource="{Binding BreakpointStore.Breakpoints}" Background="Transparent" BorderThickness="0"
+                                         IsVisible="{Binding !!BreakpointStore.Breakpoints.Count}" DoubleTapped="BreakpointsList_DoubleTapped">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="dbg:Breakpoint">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" MinHeight="0" Padding="0" />
+                                                <TextBlock Text="{Binding LineNumber, StringFormat='line {0}'}" FontSize="12" MinWidth="70" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding FilePath}" FontSize="12" Foreground="#777777" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
+                        </TabItem>
+
+                        <TabItem Header="CALL STACK">
+                            <Panel>
+                                <TextBlock x:Name="CallStackEmptyText" FontSize="12" Foreground="#666666" Margin="12,8"
+                                           IsVisible="{Binding !DebugCallStack.Count}" />
+                                <ListBox x:Name="CallStackList" ItemsSource="{Binding DebugCallStack}" Background="Transparent" BorderThickness="0"
+                                         IsVisible="{Binding !!DebugCallStack.Count}" DoubleTapped="CallStackList_DoubleTapped">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate x:DataType="dbg:GosubFrame">
+                                            <TextBlock Text="{Binding ReturnLineNumber, StringFormat='Returns to line {0}'}" FontSize="12" />
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </Panel>
+                        </TabItem>
+                    </TabControl>
                 </DockPanel>
                 </Grid>
             </DockPanel>
