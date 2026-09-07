@@ -19,12 +19,16 @@ It is a work in progress. What works today:
   monitor - the emulator is launched automatically if it isn't already running
 - Editor conveniences from the Windows app: zero-padded line numbers, auto-numbering on Enter,
   assembly auto-indent, column guide, word wrap, and reopening last session's tabs
+- BASIC debugger on VICE (Debug menu): breakpoints in the gutter or with F9, Start/Continue
+  (Alt+F5), Pause, Step Over/Into/Out (F10/F11/Shift+F11), Run to Cursor, a highlighted current
+  line, and Variables (double-click to change a value), Breakpoints, and Call Stack tabs in the
+  bottom panel (Cmd+Shift+D). Breakpoints persist per open folder, shared with the Windows app.
 - Preferences (Application, Text Editor, BASIC, Assembly, VICE) covering everything above plus
   minify-on-transfer and assembler output options, stored in the same
   `settings.json` format as the Windows app (`~/Library/Application Support/READYCode/` on macOS, `~/.config/READYCode/` on Linux)
 
 Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, project-wide search, the hex editor,
-file compare, the debugger UI, reference panels, printing, and the C64U menu.
+file compare, reference panels, printing, and the C64U menu.
 
 ## Prerequisites
 

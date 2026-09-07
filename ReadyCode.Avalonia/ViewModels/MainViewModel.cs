@@ -27,7 +27,7 @@ public enum StatusType { Info, Warning, Error }
 /// <see cref="ErrorRaised"/> and progress through the status bar properties, and never block
 /// on UI.
 /// </summary>
-public class MainViewModel : INotifyPropertyChanged
+public partial class MainViewModel : INotifyPropertyChanged
 {
     #region Private Fields
 
@@ -127,14 +127,27 @@ public class MainViewModel : INotifyPropertyChanged
     /// <summary>Gets the diagnostics of every open tab, for the Problems panel.</summary>
     public ObservableCollection<ErrorListRow> ErrorListRows { get; } = new();
 
-    /// <summary>Gets or sets whether the Problems panel is shown. Persisted in settings.</summary>
-    public bool IsProblemsPanelOpen
+    /// <summary>Gets or sets whether the bottom panel (Problems / Debug) is shown. Persisted in settings.</summary>
+    public bool IsBottomPanelOpen
     {
         get => Settings.IsBottomPanelOpen;
         set
         {
             if (Settings.IsBottomPanelOpen == value) return;
             Settings.IsBottomPanelOpen = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Gets or sets the selected bottom-panel tab index (0 Problems, 1 Variables, 2 Breakpoints, 3 Call Stack).</summary>
+    public int BottomPanelTabIndex
+    {
+        get => Settings.ActiveBottomPanelTab switch { "Variables" => 1, "Breakpoints" => 2, "CallStack" => 3, _ => 0 };
+        set
+        {
+            string name = value switch { 1 => "Variables", 2 => "Breakpoints", 3 => "CallStack", _ => "Problems" };
+            if (Settings.ActiveBottomPanelTab == name) return;
+            Settings.ActiveBottomPanelTab = name;
             OnPropertyChanged();
         }
     }
@@ -536,6 +549,7 @@ public class MainViewModel : INotifyPropertyChanged
         }
         catch { /* Access denied, etc. */ }
 
+        LoadBreakpointsForProject(folderPath);
         OnPropertyChanged(nameof(RootFolderPath));
         OnPropertyChanged(nameof(IsFolderOpen));
     }

@@ -195,7 +195,10 @@ public sealed class DebugConfigStore
     #region Private Properties
 
     private static string FilePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "READYCode", "debug-config.json");
+        Path.Combine(
+            Environment.GetEnvironmentVariable("READYCODE_SETTINGS_DIR")
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "READYCode"),
+            "debug-config.json");
 
     #endregion
 }
