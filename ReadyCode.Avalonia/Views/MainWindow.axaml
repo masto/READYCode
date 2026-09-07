@@ -13,7 +13,8 @@
 
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
-                <MenuItem Header="_New"        Click="FileNew_Click"    HotKey="{OnPlatform Ctrl+N, macOS=Cmd+N}" InputGesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
+                <MenuItem Header="_New BASIC File"    Click="FileNew_Click"    HotKey="{OnPlatform Ctrl+N, macOS=Cmd+N}" InputGesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
+                <MenuItem Header="New _Assembly File" Click="FileNewAsm_Click" HotKey="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" InputGesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
                 <MenuItem Header="_Open…"      Click="FileOpen_Click"   HotKey="{OnPlatform Ctrl+O, macOS=Cmd+O}" InputGesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
                 <Separator />
                 <MenuItem Header="_Save"       Click="FileSave_Click"   HotKey="{OnPlatform Ctrl+S, macOS=Cmd+S}" InputGesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />

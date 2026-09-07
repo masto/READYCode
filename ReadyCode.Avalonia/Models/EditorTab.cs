@@ -20,7 +20,7 @@ public class EditorTab : INotifyPropertyChanged
     private string? _filePath;
     private bool _isModified;
     private EditorLanguage _language = EditorLanguage.Basic;
-    private C64UFileKind _kind = C64UFileKind.Bas;
+    private C64UFileKind _kind = C64UFileKind.Prg;
 
     #endregion
 
@@ -67,18 +67,38 @@ public class EditorTab : INotifyPropertyChanged
     }
 
     /// <summary>
+    /// Creates an empty tab for a new file of the given language.
+    /// </summary>
+    public static EditorTab CreateNew(EditorLanguage language) => new()
+    {
+        Language = language,
+        Kind = language == EditorLanguage.Asm ? C64UFileKind.Asm : C64UFileKind.Prg,
+    };
+
+    /// <summary>
     /// Gets or sets the language the editor treats this tab's text as.
     /// </summary>
     public EditorLanguage Language
     {
         get => _language;
-        set { if (_language == value) return; _language = value; OnPropertyChanged(); }
+        set
+        {
+            if (_language == value) return;
+            _language = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FileName));
+            OnPropertyChanged(nameof(Header));
+        }
     }
 
     /// <summary>
-    /// Gets the display file name ("Untitled" for a new file).
+    /// Gets the display file name. A new file is "Untitled.prg" or "Untitled.asm" - a new BASIC
+    /// tab defaults to the tokenized .prg format so it renders with the C64 font and PETSCII
+    /// glyphs from the start rather than only after it's saved.
     /// </summary>
-    public string FileName => FilePath != null ? Path.GetFileName(FilePath) : "Untitled";
+    public string FileName => FilePath != null
+        ? Path.GetFileName(FilePath)
+        : Language == EditorLanguage.Asm ? "Untitled.asm" : "Untitled.prg";
 
     /// <summary>
     /// Gets the tab header text: the file name plus a trailing marker when unsaved.
