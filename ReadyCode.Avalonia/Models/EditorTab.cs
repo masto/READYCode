@@ -18,6 +18,7 @@ public class EditorTab : INotifyPropertyChanged
     #region Private Fields
 
     private string? _filePath;
+    private string? _displayName;
     private bool _isModified;
     private EditorLanguage _language = EditorLanguage.Basic;
     private C64UFileKind _kind = C64UFileKind.Prg;
@@ -55,6 +56,33 @@ public class EditorTab : INotifyPropertyChanged
             OnPropertyChanged(nameof(Header));
         }
     }
+
+    /// <summary>
+    /// Gets or sets the name shown for a tab that has no file path of its own (a program read
+    /// from inside a disk image).
+    /// </summary>
+    public string? DisplayName
+    {
+        get => _displayName;
+        set
+        {
+            if (_displayName == value) return;
+            _displayName = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FileName));
+            OnPropertyChanged(nameof(Header));
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the identity of a "virtual" entry read from a disk image, as
+    /// "&lt;disk image path&gt;!&lt;entry name&gt;", or null for a real file. Saving such a tab
+    /// writes the entry back into the image.
+    /// </summary>
+    public string? VirtualSourceId { get; set; }
+
+    /// <summary>Gets whether this tab is a disk-image entry rather than a file on disk.</summary>
+    public bool IsVirtual => VirtualSourceId != null;
 
     /// <summary>
     /// Gets or sets the file kind (BASIC listing, tokenized PRG, assembly...), which decides how
@@ -98,7 +126,7 @@ public class EditorTab : INotifyPropertyChanged
     /// </summary>
     public string FileName => FilePath != null
         ? Path.GetFileName(FilePath)
-        : Language == EditorLanguage.Asm ? "Untitled.asm" : "Untitled.prg";
+        : DisplayName ?? (Language == EditorLanguage.Asm ? "Untitled.asm" : "Untitled.prg");
 
     /// <summary>
     /// Gets the tab header text: the file name plus a trailing marker when unsaved.

@@ -3,6 +3,10 @@
 
 using System.ComponentModel;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
+using Avalonia.VisualTree;
+using System.Diagnostics;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
@@ -42,6 +46,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _foldingTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
 
     private FoldingManager? _foldingManager;
+    private double _explorerWidth = 230;
     private EditorTab? _boundTab;
     private bool _closeConfirmed;
 
@@ -61,6 +66,17 @@ public partial class MainWindow : Window
         DataContextChanged += (_, _) => AttachViewModel();
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (DataContext is MainViewModel vm)
+        {
+            if (vm.Settings.MainWindowWidth >= MinWidth) Width = vm.Settings.MainWindowWidth;
+            if (vm.Settings.MainWindowHeight >= MinHeight) Height = vm.Settings.MainWindowHeight;
+            if (vm.Settings.IsMainWindowMaximized) WindowState = WindowState.Maximized;
+        }
+    }
+
     #endregion
 
     #region Private Properties
@@ -78,6 +94,8 @@ public partial class MainWindow : Window
             base.OnClosing(e);
             return;
         }
+
+        PersistLayout(vm);
 
         var dirty = vm.OpenTabs.Where(t => t.IsModified).ToList();
         if (dirty.Count == 0)
@@ -121,6 +139,8 @@ public partial class MainWindow : Window
         vm.PropertyChanged += ViewModel_PropertyChanged;
         vm.ErrorRaised += (title, message) => Dispatcher.UIThread.Post(async () => await MessageDialog.ShowAsync(this, title, message));
         ApplyEditorSettings();
+        _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
+        ApplyExplorerLayout();
         BindActiveTab();
     }
 
@@ -133,6 +153,9 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.StatusType):
                 UpdateStatusColors();
+                break;
+            case nameof(MainViewModel.IsExplorerOpen):
+                ApplyExplorerLayout();
                 break;
         }
     }
@@ -247,14 +270,183 @@ public partial class MainWindow : Window
 
     private async Task<IStorageFolder?> SuggestedFolderAsync()
     {
-        string folder = ViewModel.Settings.LastFolderPath;
+        string folder = ViewModel.LastDialogFolder;
         if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return null;
         return await StorageProvider.TryGetFolderFromPathAsync(folder);
+    }
+
+    // Collapses the explorer column (and its splitter) to nothing while the panel is hidden,
+    // remembering the width so it comes back the same size.
+    private void ApplyExplorerLayout()
+    {
+        var column = MainGrid.ColumnDefinitions[0];
+        if (ViewModel.IsExplorerOpen)
+        {
+            column.Width = new GridLength(_explorerWidth);
+            column.MinWidth = 120;
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(4);
+        }
+        else
+        {
+            if (column.Width.IsAbsolute && column.Width.Value > 0) _explorerWidth = column.Width.Value;
+            column.MinWidth = 0;
+            column.Width = new GridLength(0);
+            MainGrid.ColumnDefinitions[1].Width = new GridLength(0);
+        }
+    }
+
+    private void PersistLayout(MainViewModel vm)
+    {
+        var column = MainGrid.ColumnDefinitions[0];
+        if (vm.IsExplorerOpen && column.Width.IsAbsolute && column.Width.Value > 0)
+            _explorerWidth = column.Width.Value;
+        vm.Settings.LeftPanelWidth = _explorerWidth;
+        vm.Settings.IsMainWindowMaximized = WindowState == WindowState.Maximized;
+        if (WindowState == WindowState.Normal)
+        {
+            vm.Settings.MainWindowWidth = Width;
+            vm.Settings.MainWindowHeight = Height;
+        }
+    }
+
+    private FileTreeItem? SelectedTreeItem => FileTree.SelectedItem as FileTreeItem;
+
+    // The folder an explorer "new" action should target: the selected folder, the selected
+    // file's folder, or the root when nothing is selected.
+    private (string Directory, FileTreeItem? Folder) ExplorerTargetFolder()
+    {
+        var selected = SelectedTreeItem;
+        if (selected == null || selected.IsVirtual) return (ViewModel.RootFolderPath, null);
+        if (selected.IsFolder) return (selected.FullPath, selected);
+        var parent = ViewModel.FindParentFolder(selected);
+        return parent == null ? (ViewModel.RootFolderPath, null) : (parent.FullPath, parent);
+    }
+
+    private void OpenTreeItem(FileTreeItem item)
+    {
+        if (item.IsFolder || item.IsDiskImage)
+        {
+            item.IsExpanded = !item.IsExpanded;
+            return;
+        }
+
+        if (item.IsVirtual)
+            ViewModel.OpenVirtualEntry(item);
+        else if (item.FullPath.Length > 0)
+            ViewModel.OpenFile(item.FullPath);
+    }
+
+    private async Task NewFileAsync()
+    {
+        if (!ViewModel.IsFolderOpen) return;
+        var (directory, folder) = ExplorerTargetFolder();
+        string? name = await TextPromptDialog.ShowAsync(this, "New File", "File name:", "untitled.prg");
+        if (name == null) return;
+        if (folder != null) folder.IsExpanded = true;
+        ViewModel.CreateFile(directory, name);
+    }
+
+    private async Task NewFolderAsync()
+    {
+        if (!ViewModel.IsFolderOpen) return;
+        var (directory, folder) = ExplorerTargetFolder();
+        string? name = await TextPromptDialog.ShowAsync(this, "New Folder", "Folder name:");
+        if (name == null) return;
+        if (folder != null) folder.IsExpanded = true;
+        ViewModel.CreateFolder(directory, name);
+    }
+
+    private async Task RenameItemAsync(FileTreeItem item)
+    {
+        string? name = await TextPromptDialog.ShowAsync(this, "Rename", $"New name for \"{item.Name}\":", item.Name);
+        if (name == null || name == item.Name) return;
+        ViewModel.RenameItem(item, name);
+    }
+
+    private async Task DeleteItemAsync(FileTreeItem item)
+    {
+        string what = item.IsFolder ? $"folder \"{item.Name}\" and all its contents" : $"\"{item.Name}\"";
+        string? choice = await MessageDialog.ShowAsync(this, "Delete", $"Permanently delete {what}?", "Delete", "Cancel");
+        if (choice != "Delete") return;
+        ViewModel.DeleteItem(item);
+    }
+
+    private static void RevealInFileManager(FileTreeItem item)
+    {
+        string path = item.IsVirtual ? item.SourcePath ?? "" : item.FullPath;
+        if (path.Length == 0) return;
+
+        try
+        {
+            if (OperatingSystem.IsMacOS())
+                Process.Start(new ProcessStartInfo("open", ["-R", path]) { UseShellExecute = false });
+            else if (OperatingSystem.IsWindows())
+                Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+            else
+                Process.Start(new ProcessStartInfo("xdg-open", [Path.GetDirectoryName(path) ?? path]) { UseShellExecute = false });
+        }
+        catch
+        {
+            // Best effort - nothing sensible to do if there is no file manager.
+        }
+    }
+
+    private ContextMenu BuildTreeContextMenu(FileTreeItem item)
+    {
+        var menu = new ContextMenu();
+        var items = menu.Items;
+
+        void Add(string header, Func<Task> action) =>
+            items.Add(new MenuItem { Header = header, Command = new AsyncCommand(action) });
+        void AddSync(string header, Action action) => Add(header, () => { action(); return Task.CompletedTask; });
+        void Sep() => items.Add(new Separator());
+
+        if (item.IsFolder)
+        {
+            Add("New File…", async () => { FileTree.SelectedItem = item; await NewFileAsync(); });
+            Add("New Folder…", async () => { FileTree.SelectedItem = item; await NewFolderAsync(); });
+            Sep();
+            AddSync("Refresh", item.RefreshChildren);
+            Sep();
+        }
+        else if (item.IsDiskImage)
+        {
+            AddSync("Refresh", item.RefreshChildren);
+            Sep();
+        }
+        else
+        {
+            if (item.IsOpenable)
+                AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenTreeItem(item));
+            if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
+            {
+                Add("Run on VICE", () => ViewModel.SendFileToViceAsync(item, run: true));
+                Add("Load on VICE", () => ViewModel.SendFileToViceAsync(item, run: false));
+            }
+            Sep();
+        }
+
+        if (!item.IsVirtual)
+        {
+            AddSync(OperatingSystem.IsMacOS() ? "Reveal in Finder" : "Reveal in File Manager", () => RevealInFileManager(item));
+            Add("Copy Path", async () =>
+            {
+                if (Clipboard != null) await Clipboard.SetTextAsync(item.FullPath);
+            });
+            Sep();
+        }
+
+        Add("Rename…", () => RenameItemAsync(item));
+        Add("Delete", () => DeleteItemAsync(item));
+        return menu;
     }
 
     // Saves a tab to its existing path, or prompts for one when it has none (or when forced).
     private async Task<bool> SaveTabAsync(EditorTab tab, bool forceDialog)
     {
+        if (tab.IsVirtual && !forceDialog)
+            return ViewModel.SaveVirtualTab(tab);
+
         string? path = tab.FilePath;
 
         if (forceDialog || path == null)
@@ -344,6 +536,74 @@ public partial class MainWindow : Window
     }
 
     private void FileExit_Click(object? sender, RoutedEventArgs e) => Close();
+
+    private async void FileOpenFolder_Click(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = "Open Folder",
+            AllowMultiple = false,
+            SuggestedStartLocation = ViewModel.IsFolderOpen ? await StorageProvider.TryGetFolderFromPathAsync(ViewModel.RootFolderPath) : null,
+        });
+
+        if (folders.Count == 1 && folders[0].TryGetLocalPath() is { } path)
+        {
+            ViewModel.LoadFolder(path);
+            ViewModel.IsExplorerOpen = true;
+            ViewModel.SaveSettings();
+        }
+    }
+
+    private void FileCloseFolder_Click(object? sender, RoutedEventArgs e) => ViewModel.CloseFolder();
+
+    private void ViewExplorer_Click(object? sender, RoutedEventArgs e) => ViewModel.IsExplorerOpen = !ViewModel.IsExplorerOpen;
+
+    private async void ExplorerNewFile_Click(object? sender, RoutedEventArgs e) => await NewFileAsync();
+    private async void ExplorerNewFolder_Click(object? sender, RoutedEventArgs e) => await NewFolderAsync();
+    private void ExplorerRefresh_Click(object? sender, RoutedEventArgs e) => ViewModel.RefreshRootItems();
+    private void ExplorerCollapse_Click(object? sender, RoutedEventArgs e) => ViewModel.CollapseAllFolders();
+
+    private void FileTree_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if ((e.Source as Control)?.DataContext is not FileTreeItem item) return;
+        if (item.IsFolder || item.IsDiskImage) return; // TreeView already toggles expansion
+        OpenTreeItem(item);
+        e.Handled = true;
+    }
+
+    private async void FileTree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (SelectedTreeItem is not { } item) return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                OpenTreeItem(item);
+                e.Handled = true;
+                break;
+            case Key.F2:
+                e.Handled = true;
+                await RenameItemAsync(item);
+                break;
+            case Key.Delete:
+            case Key.Back when e.KeyModifiers.HasFlag(KeyModifiers.Meta):
+                e.Handled = true;
+                await DeleteItemAsync(item);
+                break;
+        }
+    }
+
+    private void FileTree_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (!e.GetCurrentPoint(FileTree).Properties.IsRightButtonPressed) return;
+        if ((e.Source as Control)?.DataContext is not FileTreeItem item || item.Name.Length == 0) return;
+
+        FileTree.SelectedItem = item;
+        var container = (e.Source as Control)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+        var menu = BuildTreeContextMenu(item);
+        menu.Open(container ?? (Control)FileTree);
+        e.Handled = true;
+    }
 
     private async void ViceRun_Click(object? sender, RoutedEventArgs e) => await ViewModel.RunOnViceAsync();
     private async void ViceTransfer_Click(object? sender, RoutedEventArgs e) => await ViewModel.TransferToViceAsync();

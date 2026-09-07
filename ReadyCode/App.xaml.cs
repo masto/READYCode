@@ -12,4 +12,11 @@ namespace ReadyCode;
 /// </summary>
 public partial class App : Application
 {
+    public App()
+    {
+        // The shared FileTreeItem model defers disk-image expansion until after WPF's TreeView
+        // has finished generating containers (see FileTreeItem.LoadChildren).
+        Models.FileTreeItem.DeferToUiThread = action =>
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, action);
+    }
 }

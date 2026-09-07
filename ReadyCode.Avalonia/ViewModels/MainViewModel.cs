@@ -8,6 +8,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using ReadyCode.Assembler;
 using ReadyCode.Avalonia.Models;
+using ReadyCode.C64U;
+using ReadyCode.Diff;
 using ReadyCode.Minify;
 using ReadyCode.Models;
 using ReadyCode.Settings;
@@ -19,9 +21,10 @@ namespace ReadyCode.Avalonia.ViewModels;
 public enum StatusType { Info, Warning, Error }
 
 /// <summary>
-/// Application state and the file/VICE operations behind the main window's menus. Dialogs are
-/// the view's job: methods here report failures through <see cref="ErrorRaised"/> and progress
-/// through the status bar properties, and never block on UI.
+/// Application state and the file, folder-explorer, and VICE operations behind the main
+/// window's menus. Dialogs are the view's job: methods here report failures through
+/// <see cref="ErrorRaised"/> and progress through the status bar properties, and never block
+/// on UI.
 /// </summary>
 public class MainViewModel : INotifyPropertyChanged
 {
@@ -33,6 +36,7 @@ public class MainViewModel : INotifyPropertyChanged
     private EditorTab? _activeTab;
     private string _statusText = "Ready.";
     private StatusType _statusType = StatusType.Info;
+    private string _explorerTitle = "";
 
     #endregion
 
@@ -42,8 +46,13 @@ public class MainViewModel : INotifyPropertyChanged
     {
         Settings = AppSettings.Load();
         ApplyPlatformDefaults(Settings);
+        LastDialogFolder = Directory.Exists(Settings.LastFolderPath) ? Settings.LastFolderPath : "";
+
         OpenTabs.Add(EditorTab.CreateNew(EditorLanguage.Basic));
         ActiveTab = OpenTabs[0];
+
+        if (Directory.Exists(Settings.LastFolderPath))
+            LoadFolder(Settings.LastFolderPath);
     }
 
     #endregion
@@ -86,6 +95,42 @@ public class MainViewModel : INotifyPropertyChanged
     /// <summary>Gets the main window title.</summary>
     public string WindowTitle => ActiveTab == null ? "READYCode" : $"{ActiveTab.FileName} - READYCode";
 
+    /// <summary>
+    /// Gets or sets the folder the file pickers start in. Deliberately separate from the
+    /// explorer's root folder, which is what <see cref="AppSettings.LastFolderPath"/> holds.
+    /// </summary>
+    public string LastDialogFolder { get; set; }
+
+    // ── Folder explorer ───────────────────────────────────────────────────────
+
+    /// <summary>Gets the root items of the folder explorer tree.</summary>
+    public ObservableCollection<FileTreeItem> FolderItems { get; } = new();
+
+    /// <summary>Gets the folder currently open in the explorer, or "" if none.</summary>
+    public string RootFolderPath => Settings.LastFolderPath;
+
+    /// <summary>Gets whether a folder is open in the explorer.</summary>
+    public bool IsFolderOpen => !string.IsNullOrEmpty(RootFolderPath);
+
+    /// <summary>Gets the title shown above the explorer tree (the open folder's name).</summary>
+    public string ExplorerTitle
+    {
+        get => _explorerTitle;
+        private set { if (_explorerTitle == value) return; _explorerTitle = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Gets or sets whether the explorer panel is shown. Persisted in settings.</summary>
+    public bool IsExplorerOpen
+    {
+        get => Settings.IsLeftPanelOpen;
+        set
+        {
+            if (Settings.IsLeftPanelOpen == value) return;
+            Settings.IsLeftPanelOpen = value;
+            OnPropertyChanged();
+        }
+    }
+
     #endregion
 
     #region Events
@@ -100,7 +145,7 @@ public class MainViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region Public Methods
+    #region Public Methods - Status and Settings
 
     /// <summary>Sets the status bar message.</summary>
     public void SetStatus(string text, StatusType type = StatusType.Info)
@@ -108,6 +153,17 @@ public class MainViewModel : INotifyPropertyChanged
         StatusText = text;
         StatusType = type;
     }
+
+    /// <summary>Persists settings to disk.</summary>
+    public void SaveSettings()
+    {
+        try { Settings.Save(); }
+        catch (Exception ex) { SetStatus($"Couldn't save settings: {ex.Message}", StatusType.Warning); }
+    }
+
+    #endregion
+
+    #region Public Methods - Tabs and Files
 
     /// <summary>Opens a new, empty tab for the given language and activates it.</summary>
     public EditorTab NewTab(EditorLanguage language = EditorLanguage.Basic)
@@ -136,7 +192,7 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (FileClassifier.Classify(path, isFolder: false).IsDiskImageKind())
         {
-            SetStatus("Disk images can't be opened as text yet in this version.", StatusType.Warning);
+            SetStatus("Disk images can't be opened as text - expand them in the explorer to see the programs inside.", StatusType.Warning);
             return false;
         }
 
@@ -173,17 +229,65 @@ public class MainViewModel : INotifyPropertyChanged
             tab.IsModified = false;
 
             if (existing == null)
-            {
-                // Replace a pristine, untitled tab rather than leaving it hanging around.
-                if (OpenTabs.Count == 1 && OpenTabs[0].FilePath == null && !OpenTabs[0].IsModified && OpenTabs[0].Document.TextLength == 0)
-                    OpenTabs.Clear();
-
-                OpenTabs.Add(tab);
-            }
+                AddTab(tab);
 
             ActiveTab = tab;
-            Settings.LastFolderPath = Path.GetDirectoryName(path) ?? Settings.LastFolderPath;
+            LastDialogFolder = Path.GetDirectoryName(path) ?? LastDialogFolder;
             SetStatus(existing == null ? $"Opened {tab.FileName}." : $"Reloaded {tab.FileName} from disk.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Open File Error", $"Error opening file: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Opens a program stored inside a disk image (an explorer entry with in-memory content) in
+    /// a tab, re-activating the existing tab if it's already open.
+    /// </summary>
+    public bool OpenVirtualEntry(FileTreeItem item)
+    {
+        if (item.Content == null || item.SourcePath == null) return false;
+
+        if (!item.IsOpenable)
+        {
+            SetStatus($"{item.Name} isn't a text-editable program type.", StatusType.Warning);
+            return false;
+        }
+
+        if (item.Kind == C64UFileKind.Ml)
+        {
+            SetStatus("Machine-language files need the hex editor, which isn't available yet in this version.", StatusType.Warning);
+            return false;
+        }
+
+        string sourceId = $"{item.SourcePath}!{item.Name}";
+        var existing = OpenTabs.FirstOrDefault(t => t.VirtualSourceId == sourceId);
+        if (existing != null)
+        {
+            ActiveTab = existing;
+            return true;
+        }
+
+        try
+        {
+            var tab = new EditorTab
+            {
+                DisplayName = item.Name,
+                VirtualSourceId = sourceId,
+                Kind = item.Kind,
+                Language = item.Kind == C64UFileKind.Asm ? EditorLanguage.Asm : EditorLanguage.Basic,
+            };
+            tab.Document.Text = item.Kind == C64UFileKind.Prg
+                ? PadLineNumbers(new PrgConverter().ConvertFromPrg(item.Content))
+                : CompareFileResolver.DecodeSourceText(item.Content);
+            tab.IsModified = false;
+
+            AddTab(tab);
+            ActiveTab = tab;
+            SetStatus($"Opened {item.Name} from {Path.GetFileName(item.SourcePath)}.");
             return true;
         }
         catch (Exception ex)
@@ -213,17 +317,59 @@ public class MainViewModel : INotifyPropertyChanged
                 SetStatus($"File saved: {prgData.Length:N0} tokenized bytes.");
             }
 
+            bool isNewPath = !string.Equals(tab.FilePath, filePath, StringComparison.OrdinalIgnoreCase);
+            tab.VirtualSourceId = null;
+            tab.DisplayName = null;
             tab.FilePath = filePath;
             tab.Kind = FileClassifier.Classify(filePath, isFolder: false);
             tab.Language = LanguageClassifier.Classify(filePath);
             tab.IsModified = false;
-            Settings.LastFolderPath = Path.GetDirectoryName(filePath) ?? Settings.LastFolderPath;
+            LastDialogFolder = Path.GetDirectoryName(filePath) ?? LastDialogFolder;
             OnPropertyChanged(nameof(WindowTitle));
+
+            if (isNewPath)
+                RefreshFolderContaining(filePath);
             return true;
         }
         catch (Exception ex)
         {
             ErrorRaised?.Invoke("Save File Error", $"Error saving file: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Writes a disk-image entry tab back into its source image (plain text for assembly,
+    /// tokenized PRG bytes otherwise) and refreshes the image's node in the explorer.
+    /// </summary>
+    public bool SaveVirtualTab(EditorTab tab)
+    {
+        if (tab.VirtualSourceId == null) return false;
+
+        var parts = tab.VirtualSourceId.Split('!', 2);
+        if (parts.Length != 2) return false;
+        string sourcePath = parts[0];
+        string entryName = parts[1];
+
+        try
+        {
+            byte[] newContent = tab.Language == EditorLanguage.Asm
+                ? Encoding.UTF8.GetBytes(tab.Document.Text)
+                : new PrgConverter().ConvertToPrg(tab.Document.Text);
+
+            byte[] diskBytes = File.ReadAllBytes(sourcePath);
+            var kind = FileClassifier.Classify(sourcePath, isFolder: false);
+            byte[] updated = DiskImage.ForKind(kind).ReplaceEntry(diskBytes, entryName, newContent);
+            File.WriteAllBytes(sourcePath, updated);
+
+            tab.IsModified = false;
+            FindItemByPath(sourcePath)?.RefreshChildren();
+            SetStatus($"{entryName} saved into {Path.GetFileName(sourcePath)}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Save File Error", $"Error saving to disk image: {ex.Message}");
             return false;
         }
     }
@@ -236,17 +382,363 @@ public class MainViewModel : INotifyPropertyChanged
 
         OpenTabs.RemoveAt(index);
         if (OpenTabs.Count == 0)
-            OpenTabs.Add(new EditorTab());
+            OpenTabs.Add(EditorTab.CreateNew(EditorLanguage.Basic));
 
         if (ReferenceEquals(ActiveTab, tab) || ActiveTab == null)
             ActiveTab = OpenTabs[Math.Min(index, OpenTabs.Count - 1)];
     }
+
+    #endregion
+
+    #region Public Methods - Folder Explorer
+
+    /// <summary>
+    /// Loads the folder explorer tree from <paramref name="folderPath"/> and remembers it as
+    /// the open folder.
+    /// </summary>
+    public void LoadFolder(string folderPath)
+    {
+        Settings.LastFolderPath = folderPath;
+        string name = Path.GetFileName(folderPath.TrimEnd(Path.DirectorySeparatorChar));
+        ExplorerTitle = string.IsNullOrEmpty(name) ? folderPath.ToUpperInvariant() : name.ToUpperInvariant();
+
+        FolderItems.Clear();
+        try
+        {
+            foreach (string dir in Directory.GetDirectories(folderPath)
+                                            .OrderBy(d => Path.GetFileName(d), StringComparer.OrdinalIgnoreCase))
+                FolderItems.Add(new FileTreeItem(dir, true));
+
+            foreach (string file in Directory.GetFiles(folderPath)
+                                             .OrderBy(f => Path.GetFileName(f), StringComparer.OrdinalIgnoreCase))
+                FolderItems.Add(new FileTreeItem(file, false));
+        }
+        catch { /* Access denied, etc. */ }
+
+        OnPropertyChanged(nameof(RootFolderPath));
+        OnPropertyChanged(nameof(IsFolderOpen));
+    }
+
+    /// <summary>Closes the open folder and empties the explorer.</summary>
+    public void CloseFolder()
+    {
+        Settings.LastFolderPath = "";
+        ExplorerTitle = "";
+        FolderItems.Clear();
+        OnPropertyChanged(nameof(RootFolderPath));
+        OnPropertyChanged(nameof(IsFolderOpen));
+    }
+
+    /// <summary>Reloads the explorer tree, preserving which root folders are expanded.</summary>
+    public void RefreshRootItems()
+    {
+        if (!IsFolderOpen) return;
+
+        var expandedPaths = FolderItems
+            .Where(i => i.IsFolder && i.IsExpanded)
+            .Select(i => i.FullPath)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        LoadFolder(RootFolderPath);
+
+        foreach (var item in FolderItems.Where(i => i.IsFolder && expandedPaths.Contains(i.FullPath)))
+            item.IsExpanded = true;
+    }
+
+    /// <summary>Collapses every folder in the explorer.</summary>
+    public void CollapseAllFolders()
+    {
+        foreach (var item in FolderItems)
+            item.CollapseAll();
+    }
+
+    /// <summary>Finds the loaded explorer item for <paramref name="path"/>, if it's been loaded.</summary>
+    public FileTreeItem? FindItemByPath(string path) => FindItemByPath(FolderItems, path);
+
+    /// <summary>Returns the folder item containing <paramref name="target"/>, or null at the root.</summary>
+    public FileTreeItem? FindParentFolder(FileTreeItem target) =>
+        FolderItems.Contains(target) ? null : FindParentFolderRecursive(FolderItems, target);
+
+    /// <summary>
+    /// Refreshes the explorer node for the folder containing <paramref name="path"/> (or the
+    /// whole tree if that folder is the root or isn't loaded), so a newly created or renamed
+    /// file shows up without collapsing everything else.
+    /// </summary>
+    public void RefreshFolderContaining(string path)
+    {
+        if (!IsFolderOpen) return;
+
+        string? dir = Path.GetDirectoryName(path);
+        if (dir == null) return;
+
+        string root = RootFolderPath.TrimEnd(Path.DirectorySeparatorChar);
+        bool isRoot = string.Equals(dir.TrimEnd(Path.DirectorySeparatorChar), root, StringComparison.OrdinalIgnoreCase);
+        bool isNested = dir.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        if (!isRoot && !isNested) return;
+
+        if (isRoot)
+            RefreshRootItems();
+        else
+            FindItemByPath(dir)?.RefreshChildren();
+    }
+
+    /// <summary>
+    /// Creates an empty file named <paramref name="fileName"/> in <paramref name="parentDirectory"/>
+    /// and opens it in a new tab.
+    /// </summary>
+    public bool CreateFile(string parentDirectory, string fileName)
+    {
+        string path = Path.Combine(parentDirectory, fileName);
+        if (File.Exists(path) || Directory.Exists(path))
+        {
+            ErrorRaised?.Invoke("New File", $"\"{fileName}\" already exists.");
+            return false;
+        }
+
+        try
+        {
+            File.WriteAllText(path, string.Empty);
+            RefreshFolderContaining(path);
+
+            // Open a blank tab directly rather than re-reading the (empty) file, which for a .prg
+            // would go through the PRG parser and produce nothing useful.
+            var tab = new EditorTab
+            {
+                FilePath = path,
+                Language = LanguageClassifier.Classify(path),
+                Kind = FileClassifier.Classify(path, isFolder: false),
+            };
+            tab.IsModified = false;
+            AddTab(tab);
+            ActiveTab = tab;
+            SetStatus($"Created {fileName}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("New File", $"Could not create file: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>Creates a folder named <paramref name="folderName"/> in <paramref name="parentDirectory"/>.</summary>
+    public bool CreateFolder(string parentDirectory, string folderName)
+    {
+        string path = Path.Combine(parentDirectory, folderName);
+        if (File.Exists(path) || Directory.Exists(path))
+        {
+            ErrorRaised?.Invoke("New Folder", $"\"{folderName}\" already exists.");
+            return false;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(path);
+            RefreshFolderContaining(path);
+            SetStatus($"Created folder {folderName}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("New Folder", $"Could not create folder: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Renames a file, folder, or disk-image entry, updating any open tab for it.
+    /// </summary>
+    public bool RenameItem(FileTreeItem item, string newName)
+    {
+        if (string.IsNullOrWhiteSpace(newName) || newName == item.Name) return false;
+
+        try
+        {
+            if (item.IsVirtual)
+            {
+                if (item.SourcePath == null) return false;
+                byte[] diskBytes = File.ReadAllBytes(item.SourcePath);
+                var kind = FileClassifier.Classify(item.SourcePath, isFolder: false);
+                File.WriteAllBytes(item.SourcePath, DiskImage.ForKind(kind).RenameEntry(diskBytes, item.Name, newName));
+                FindItemByPath(item.SourcePath)?.RefreshChildren();
+
+                string oldId = $"{item.SourcePath}!{item.Name}";
+                foreach (var tab in OpenTabs.Where(t => t.VirtualSourceId == oldId))
+                {
+                    tab.VirtualSourceId = $"{item.SourcePath}!{newName}";
+                    tab.DisplayName = newName;
+                }
+                return true;
+            }
+
+            string newPath = Path.Combine(Path.GetDirectoryName(item.FullPath)!, newName);
+            if (item.IsFolder)
+            {
+                Directory.Move(item.FullPath, newPath);
+                foreach (var tab in OpenTabs.Where(t => t.FilePath != null && t.FilePath.StartsWith(item.FullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)))
+                    tab.FilePath = newPath + tab.FilePath![item.FullPath.Length..];
+            }
+            else
+            {
+                File.Move(item.FullPath, newPath);
+                foreach (var tab in OpenTabs.Where(t => string.Equals(t.FilePath, item.FullPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    tab.FilePath = newPath;
+                    tab.Kind = FileClassifier.Classify(newPath, isFolder: false);
+                    tab.Language = LanguageClassifier.Classify(newPath);
+                }
+            }
+
+            RefreshFolderContaining(item.FullPath);
+            OnPropertyChanged(nameof(WindowTitle));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Rename", $"Could not rename \"{item.Name}\": {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Permanently deletes a file, folder, or disk-image entry (the caller confirms first),
+    /// closing any tab that was showing it.
+    /// </summary>
+    public bool DeleteItem(FileTreeItem item)
+    {
+        try
+        {
+            if (item.IsVirtual)
+            {
+                if (item.SourcePath == null) return false;
+                byte[] diskBytes = File.ReadAllBytes(item.SourcePath);
+                var kind = FileClassifier.Classify(item.SourcePath, isFolder: false);
+                File.WriteAllBytes(item.SourcePath, DiskImage.ForKind(kind).DeleteEntry(diskBytes, item.Name));
+
+                string id = $"{item.SourcePath}!{item.Name}";
+                foreach (var tab in OpenTabs.Where(t => t.VirtualSourceId == id).ToList())
+                {
+                    tab.IsModified = false;
+                    CloseTab(tab);
+                }
+
+                FindItemByPath(item.SourcePath)?.RefreshChildren();
+                return true;
+            }
+
+            if (item.IsFolder)
+            {
+                Directory.Delete(item.FullPath, recursive: true);
+                foreach (var tab in OpenTabs.Where(t => t.FilePath != null && t.FilePath.StartsWith(item.FullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)).ToList())
+                {
+                    tab.IsModified = false;
+                    CloseTab(tab);
+                }
+            }
+            else
+            {
+                File.Delete(item.FullPath);
+                foreach (var tab in OpenTabs.Where(t => string.Equals(t.FilePath, item.FullPath, StringComparison.OrdinalIgnoreCase)).ToList())
+                {
+                    tab.IsModified = false;
+                    CloseTab(tab);
+                }
+            }
+
+            // Remove the node directly so other expanded folders stay expanded.
+            var parent = FindParentFolder(item);
+            if (parent != null) parent.Children.Remove(item);
+            else FolderItems.Remove(item);
+            SetStatus($"Deleted {item.Name}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Delete", $"Could not delete \"{item.Name}\": {ex.Message}");
+            return false;
+        }
+    }
+
+    #endregion
+
+    #region Public Methods - VICE
 
     /// <summary>Loads the active tab's program into VICE without running it.</summary>
     public Task TransferToViceAsync() => SendToViceAsync(run: false);
 
     /// <summary>Loads and runs the active tab's program in VICE.</summary>
     public Task RunOnViceAsync() => SendToViceAsync(run: true);
+
+    /// <summary>
+    /// Loads (or loads and runs) an explorer item in VICE without opening it: an .asm file is
+    /// assembled, a .bas listing is tokenized, and a .prg/.ml file's bytes are sent as-is.
+    /// </summary>
+    public async Task SendFileToViceAsync(FileTreeItem item, bool run)
+    {
+        if (!EnsureVicePathConfigured()) return;
+
+        byte[] raw;
+        try
+        {
+            raw = item.Content ?? File.ReadAllBytes(item.FullPath);
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Load/Run File", $"Error reading file: {ex.Message}");
+            return;
+        }
+
+        byte[] prgBytes;
+        if (item.Kind == C64UFileKind.Asm)
+        {
+            var result = new Asm6502Assembler().Assemble(
+                CompareFileResolver.DecodeSourceText(raw), Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress);
+            if (!result.Success)
+            {
+                ErrorRaised?.Invoke("Assembly Errors",
+                    string.Join(Environment.NewLine, result.Errors.Select(e => $"Line {e.LineNumber}: {e.Message}")));
+                SetStatus($"Assembly failed with {result.Errors.Count} error(s).", StatusType.Error);
+                return;
+            }
+            prgBytes = result.PrgBytes!;
+        }
+        else if (item.Kind == C64UFileKind.Bas)
+        {
+            prgBytes = new PrgConverter().ConvertToPrg(CompareFileResolver.DecodeSourceText(raw));
+        }
+        else
+        {
+            prgBytes = raw;
+        }
+
+        try
+        {
+            var client = new ViceClient(Settings.ViceMonitorHost, Settings.ViceMonitorPort);
+            SetStatus($"Transferring '{item.Name}' to VICE…");
+
+            if (!run)
+            {
+                await client.TransferAsync(Settings.ViceEmulatorPath, prgBytes, item.Name, Settings.ViceBringToForeground);
+                SetStatus($"'{item.Name}' transferred to VICE. Type RUN in the emulator to start it.");
+            }
+            else if (new PrgConverter().NeedsSysToRun(prgBytes, out ushort origin))
+            {
+                await client.TransferAsync(Settings.ViceEmulatorPath, prgBytes, item.Name, Settings.ViceBringToForeground);
+                await Task.Delay(_sysCommandDelay);
+                await client.TypeAsync($"SYS{origin}\r");
+                SetStatus($"'{item.Name}' transferred and running on VICE (SYS{origin}).");
+            }
+            else
+            {
+                await client.RunAsync(Settings.ViceEmulatorPath, prgBytes, item.Name, Settings.ViceBringToForeground);
+                SetStatus($"'{item.Name}' transferred and running on VICE.");
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"VICE transfer failed: {ex.Message}", StatusType.Error);
+        }
+    }
 
     /// <summary>Performs a machine action (reset, reboot, pause, resume, power off) on VICE.</summary>
     public async Task ViceMachineActionAsync(Func<ViceClient, Task> action, string successMessage)
@@ -263,13 +755,6 @@ public class MainViewModel : INotifyPropertyChanged
         {
             SetStatus($"VICE action failed: {ex.Message}", StatusType.Error);
         }
-    }
-
-    /// <summary>Persists settings to disk.</summary>
-    public void SaveSettings()
-    {
-        try { Settings.Save(); }
-        catch (Exception ex) { SetStatus($"Couldn't save settings: {ex.Message}", StatusType.Warning); }
     }
 
     #endregion
@@ -289,6 +774,42 @@ public class MainViewModel : INotifyPropertyChanged
                 : [];
 
         settings.ViceEmulatorPath = candidates.FirstOrDefault(File.Exists) ?? "";
+    }
+
+    // Adds a tab, replacing a pristine untitled tab rather than leaving it hanging around.
+    private void AddTab(EditorTab tab)
+    {
+        if (OpenTabs.Count == 1 && OpenTabs[0].FilePath == null && !OpenTabs[0].IsVirtual
+            && !OpenTabs[0].IsModified && OpenTabs[0].Document.TextLength == 0)
+            OpenTabs.Clear();
+
+        OpenTabs.Add(tab);
+    }
+
+    private static FileTreeItem? FindItemByPath(IEnumerable<FileTreeItem> items, string path)
+    {
+        foreach (var item in items)
+        {
+            if (!item.IsVirtual && string.Equals(item.FullPath, path, StringComparison.OrdinalIgnoreCase))
+                return item;
+            if (item.IsFolder && path.StartsWith(item.FullPath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                var found = FindItemByPath(item.Children, path);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+
+    private static FileTreeItem? FindParentFolderRecursive(IEnumerable<FileTreeItem> items, FileTreeItem target)
+    {
+        foreach (var container in items.Where(i => i.IsFolder || i.IsDiskImage))
+        {
+            if (container.Children.Contains(target)) return container;
+            var found = FindParentFolderRecursive(container.Children, target);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     private bool EnsureVicePathConfigured()

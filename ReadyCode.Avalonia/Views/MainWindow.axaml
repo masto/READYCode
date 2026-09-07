@@ -3,11 +3,32 @@
         xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
         xmlns:vm="using:ReadyCode.Avalonia.ViewModels"
         xmlns:models="using:ReadyCode.Avalonia.Models"
+        xmlns:core="using:ReadyCode.Models"
+        xmlns:conv="using:ReadyCode.Avalonia.Converters"
         x:Class="ReadyCode.Avalonia.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
         Width="1000" Height="700"
         MinWidth="480" MinHeight="320">
+
+    <Window.Styles>
+        <Style Selector="Button.explorerTool">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+        <Style Selector="Button.explorerTool PathIcon">
+            <Setter Property="Width" Value="14" />
+            <Setter Property="Height" Value="14" />
+        </Style>
+        <Style Selector="TreeView#FileTree TreeViewItem" x:DataType="core:FileTreeItem">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding" Value="2,1" />
+        </Style>
+    </Window.Styles>
 
     <DockPanel>
 
@@ -15,7 +36,9 @@
             <MenuItem Header="_File">
                 <MenuItem Header="_New BASIC File"    Click="FileNew_Click"    HotKey="{OnPlatform Ctrl+N, macOS=Cmd+N}" InputGesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
                 <MenuItem Header="New _Assembly File" Click="FileNewAsm_Click" HotKey="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" InputGesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
-                <MenuItem Header="_Open…"      Click="FileOpen_Click"   HotKey="{OnPlatform Ctrl+O, macOS=Cmd+O}" InputGesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
+                <MenuItem Header="_Open…"             Click="FileOpen_Click"   HotKey="{OnPlatform Ctrl+O, macOS=Cmd+O}" InputGesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
+                <MenuItem Header="Open _Folder…"      Click="FileOpenFolder_Click" HotKey="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" InputGesture="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" />
+                <MenuItem Header="Close Fol_der"      Click="FileCloseFolder_Click" IsEnabled="{Binding IsFolderOpen}" />
                 <Separator />
                 <MenuItem Header="_Save"       Click="FileSave_Click"   HotKey="{OnPlatform Ctrl+S, macOS=Cmd+S}" InputGesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />
                 <MenuItem Header="Save _As…"   Click="FileSaveAs_Click" HotKey="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" InputGesture="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" />
@@ -23,6 +46,9 @@
                 <MenuItem Header="_Close Tab"  Click="FileClose_Click"  HotKey="{OnPlatform Ctrl+W, macOS=Cmd+W}" InputGesture="{OnPlatform Ctrl+W, macOS=Cmd+W}" />
                 <Separator />
                 <MenuItem Header="E_xit"       Click="FileExit_Click" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
             </MenuItem>
             <MenuItem Header="_VICE">
                 <MenuItem Header="_Run"        Click="ViceRun_Click"      HotKey="F5" InputGesture="F5" />
@@ -44,25 +70,89 @@
             <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" />
         </Border>
 
-        <TabStrip DockPanel.Dock="Top" x:Name="Tabs"
-                  ItemsSource="{Binding OpenTabs}"
-                  SelectedItem="{Binding ActiveTab, Mode=TwoWay}">
-            <TabStrip.ItemTemplate>
-                <DataTemplate x:DataType="models:EditorTab">
-                    <TextBlock Text="{Binding Header}" FontSize="12" Margin="6,2" />
-                </DataTemplate>
-            </TabStrip.ItemTemplate>
-        </TabStrip>
+        <Grid x:Name="MainGrid" ColumnDefinitions="230,4,*">
 
-        <ae:TextEditor x:Name="Editor"
-                       Padding="10"
-                       FontSize="16"
-                       Foreground="Black"
-                       Background="White"
-                       WordWrap="False"
-                       ShowLineNumbers="False"
-                       HorizontalScrollBarVisibility="Auto"
-                       VerticalScrollBarVisibility="Auto" />
+            <!-- Folder explorer -->
+            <DockPanel Grid.Column="0" x:Name="ExplorerPanel" Background="#F3F3F3" IsVisible="{Binding IsExplorerOpen}">
+                <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="{Binding ExplorerTitle}" FontSize="11" FontWeight="Bold"
+                                   VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"
+                                    IsVisible="{Binding IsFolderOpen}">
+                            <Button Classes="explorerTool" ToolTip.Tip="New File" Click="ExplorerNewFile_Click">
+                                <PathIcon Data="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z" />
+                            </Button>
+                            <Button Classes="explorerTool" ToolTip.Tip="New Folder" Click="ExplorerNewFolder_Click">
+                                <PathIcon Data="M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
+                            </Button>
+                            <Button Classes="explorerTool" ToolTip.Tip="Refresh" Click="ExplorerRefresh_Click">
+                                <PathIcon Data="M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5v3l4-4-4-4z" />
+                            </Button>
+                            <Button Classes="explorerTool" ToolTip.Tip="Collapse All" Click="ExplorerCollapse_Click">
+                                <PathIcon Data="M10 4l6 6-1.4 1.4L10 6.8l-4.6 4.6L4 10z M10 9l6 6-1.4 1.4L10 11.8l-4.6 4.6L4 15z" />
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Panel>
+                    <StackPanel Margin="12" Spacing="8" IsVisible="{Binding !IsFolderOpen}">
+                        <TextBlock Text="No folder open." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
+                        <Button Content="Open Folder…" Click="FileOpenFolder_Click" HorizontalAlignment="Left" />
+                    </StackPanel>
+
+                    <TreeView x:Name="FileTree"
+                              ItemsSource="{Binding FolderItems}"
+                              IsVisible="{Binding IsFolderOpen}"
+                              Background="Transparent" BorderThickness="0"
+                              DoubleTapped="FileTree_DoubleTapped"
+                              KeyDown="FileTree_KeyDown"
+                              PointerPressed="FileTree_PointerPressed">
+                        <TreeView.ItemTemplate>
+                            <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
+                                <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                    <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
+                                              Data="{Binding ., Converter={x:Static conv:FileTreeConverters.Icon}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
+                                            IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
+                                            Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
+                                        <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
+                                    </Border>
+                                </Grid>
+                            </TreeDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Panel>
+            </DockPanel>
+
+            <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="#DDDDDD" IsVisible="{Binding IsExplorerOpen}" />
+
+            <!-- Editor -->
+            <DockPanel Grid.Column="2">
+                <TabStrip DockPanel.Dock="Top" x:Name="Tabs"
+                          ItemsSource="{Binding OpenTabs}"
+                          SelectedItem="{Binding ActiveTab, Mode=TwoWay}">
+                    <TabStrip.ItemTemplate>
+                        <DataTemplate x:DataType="models:EditorTab">
+                            <TextBlock Text="{Binding Header}" FontSize="12" Margin="6,2" />
+                        </DataTemplate>
+                    </TabStrip.ItemTemplate>
+                </TabStrip>
+
+                <ae:TextEditor x:Name="Editor"
+                               Padding="10"
+                               FontSize="16"
+                               Foreground="Black"
+                               Background="White"
+                               WordWrap="False"
+                               ShowLineNumbers="False"
+                               HorizontalScrollBarVisibility="Auto"
+                               VerticalScrollBarVisibility="Auto" />
+            </DockPanel>
+        </Grid>
 
     </DockPanel>
 </Window>
