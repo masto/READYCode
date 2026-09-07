@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- .NET's CoreCLR compiles IL to machine code at run time, so the hardened runtime has to
+         allow JIT and the writable-executable memory the JIT needs. Without these the app signs
+         and notarizes fine but crashes on launch. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- A self-contained .NET app loads its own runtime dylibs (libcoreclr, libSkiaSharp, ...)
+         from inside the bundle. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- "Bring VICE to the foreground" asks System Events to raise the emulator's window, which
+         is an Apple Event. Under the hardened runtime that needs this entitlement as well as the
+         NSAppleEventsUsageDescription string in Info.plist. macOS still asks the user to approve
+         the automation the first time. -->
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+</dict>
+</plist>

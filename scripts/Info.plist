@@ -26,6 +26,8 @@
     <string>12.0</string>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>READYCode brings the VICE emulator window to the front after loading or running a program. You can turn this off in Preferences.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Moonspace Labs, LLC. MIT License.</string>
     <key>CFBundleDocumentTypes</key>
