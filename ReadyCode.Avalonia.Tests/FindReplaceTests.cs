@@ -74,6 +74,50 @@ public class FindReplaceTests
         Assert.False(bar.IsVisible);
     }
 
+    [AvaloniaFact]
+    public void Replace_StepsThroughEveryMatch_EvenAfterTheDebouncedResearch_AndUpperCasesForBasic()
+    {
+        var vm = new MainViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 900, Height = 400 };
+        window.Show();
+        var editor = window.FindControl<AvaloniaEdit.TextEditor>("Editor")!;
+        var bar = window.FindControl<FindBarControl>("FindBar")!;
+        editor.Document.Text = "10 A=FIRE\n20 B=FIRE\n30 C=FIRE";
+        editor.CaretOffset = 0;
+        Dispatcher.UIThread.RunJobs();
+
+        window.KeyPressQwerty(PhysicalKey.F, OperatingSystem.IsMacOS() ? RawInputModifiers.Meta : RawInputModifiers.Control);
+        Dispatcher.UIThread.RunJobs();
+        bar.FindControl<ToggleButton>("ExpandBtn")!.IsChecked = true;
+        bar.FindControl<TextBox>("SearchBox")!.Text = "fire";
+        bar.FindControl<TextBox>("ReplaceBox")!.Text = "zapper";
+        Dispatcher.UIThread.RunJobs();
+
+        // Typing the term selects the first match.
+        Assert.Equal("FIRE", editor.SelectedText);
+        Assert.Equal(5, editor.SelectionStart);
+
+        var replace = bar.GetVisualDescendants().OfType<Button>().First(b => (b.Content as string) == "Replace");
+        void ClickReplace()
+        {
+            replace.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            window.UpdateFindMatchesNow(); // the post-edit debounce must not advance the current match
+            Dispatcher.UIThread.RunJobs();
+        }
+
+        ClickReplace();
+        Assert.Equal("10 A=ZAPPER\n20 B=FIRE\n30 C=FIRE", editor.Document.Text);
+        Assert.Equal("FIRE", editor.SelectedText);
+        Assert.Equal(17, editor.SelectionStart); // line 20's match is current, not line 30's
+
+        ClickReplace();
+        Assert.Equal("10 A=ZAPPER\n20 B=ZAPPER\n30 C=FIRE", editor.Document.Text);
+
+        ClickReplace();
+        Assert.Equal("10 A=ZAPPER\n20 B=ZAPPER\n30 C=ZAPPER", editor.Document.Text);
+    }
+
     private static void Save(Window window, string name)
     {
         if (string.IsNullOrEmpty(_renderDir)) return;
