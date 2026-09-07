@@ -16,6 +16,7 @@ using ReadyCode.Avalonia.Editor;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Models;
+using ReadyCode.Search;
 using ReadyCode.Tokenizer;
 
 namespace ReadyCode.Avalonia.Views;
@@ -45,6 +46,14 @@ public partial class MainWindow : Window
     private readonly BasicFoldingStrategy _basicFoldingStrategy = new();
     private readonly AsmFoldingStrategy _asmFoldingStrategy = new();
     private readonly DispatcherTimer _foldingTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    private readonly FindHighlightColorizer _findHighlightColorizer = new()
+    {
+        MatchBrush = Brush("#EEEE77"), MatchFgBrush = Brush("#000000"),
+        CurrentMatchBrush = Brush("#DD8855"), CurrentMatchFgBrush = Brush("#000000"),
+    };
+    private readonly DispatcherTimer _findUpdateTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly List<(int Offset, int Length)> _findMatches = new();
+    private int _findMatchIndex = -1;
 
     private FoldingManager? _foldingManager;
     private double _explorerWidth = 230;
@@ -63,8 +72,20 @@ public partial class MainWindow : Window
         Editor.TextArea.TextEntering += Editor_TextEntering;
         Editor.AddHandler(KeyDownEvent, Editor_PreviewKeyDown, global::Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Editor.TextArea.Caret.PositionChanged += (_, _) => UpdateActiveLine();
-        Editor.TextChanged += (_, _) => { _foldingTimer.Stop(); _foldingTimer.Start(); };
+        Editor.TextChanged += (_, _) =>
+        {
+            _foldingTimer.Stop(); _foldingTimer.Start();
+            if (FindBar.IsVisible) { _findUpdateTimer.Stop(); _findUpdateTimer.Start(); }
+        };
         _foldingTimer.Tick += (_, _) => { _foldingTimer.Stop(); UpdateFoldings(); };
+        _findUpdateTimer.Tick += (_, _) => { _findUpdateTimer.Stop(); UpdateFindMatches(); };
+
+        FindBar.CloseRequested        += (_, _) => CloseFind();
+        FindBar.SearchChanged         += (_, _) => UpdateFindMatches();
+        FindBar.FindNextRequested     += (_, _) => FindNext();
+        FindBar.FindPreviousRequested += (_, _) => FindPrev();
+        FindBar.ReplaceRequested      += (_, _) => ExecuteReplace();
+        FindBar.ReplaceAllRequested   += (_, _) => ExecuteReplaceAll();
 
         DataContextChanged += (_, _) => AttachViewModel();
     }
@@ -179,9 +200,11 @@ public partial class MainWindow : Window
         tab.PropertyChanged += BoundTab_PropertyChanged;
 
         UninstallFolding();
+        _findHighlightColorizer.Clear();
         Editor.Document = tab.Document;
         ApplyLanguageStyling(tab);
         InstallFolding(tab);
+        if (FindBar.IsVisible) UpdateFindMatches();
         Editor.Focus();
     }
 
@@ -212,6 +235,8 @@ public partial class MainWindow : Window
             transformers.Add(_stringLiteralColorizer);
             transformers.Add(_remCommentColorizer);
         }
+
+        transformers.Add(_findHighlightColorizer);
 
         // A .bas file is plain ASCII source; a detokenized .prg is styled to look like what ends
         // up on a real C64 screen, which needs the PETSCII font and glyph substitution.
@@ -607,6 +632,125 @@ public partial class MainWindow : Window
         BuildTreeContextMenu(item).Open(container ?? (Control)FileTree);
         e.Handled = true;
     }
+
+    // ── Find / replace ────────────────────────────────────────────────────────
+
+    private void OpenFind(bool replaceMode)
+    {
+        FindBar.Open(Editor.SelectedText, replaceMode);
+        UpdateFindMatches();
+    }
+
+    private void CloseFind()
+    {
+        var previous = _findMatches.ToArray();
+        _findMatches.Clear();
+        _findMatchIndex = -1;
+        _findHighlightColorizer.Clear();
+        RedrawMatches(previous);
+        Editor.Focus();
+    }
+
+    private void UpdateFindMatches()
+    {
+        var previousMatches = _findMatches.Count > 0 ? _findMatches.ToArray() : null;
+        _findMatches.Clear();
+        string searchText = FindBar.SearchText;
+
+        if (string.IsNullOrEmpty(searchText))
+        {
+            _findHighlightColorizer.Clear();
+            if (previousMatches != null) RedrawMatches(previousMatches);
+            _findMatchIndex = -1;
+            FindBar.SetMatchCount(0, 0);
+            return;
+        }
+
+        _findMatches.AddRange(ProjectSearcher.FindMatches(Editor.Document.Text, searchText, FindBar.MatchCase, FindBar.WholeWord, FindBar.UseRegex));
+
+        _findMatchIndex = FindNearestMatchIndex(Editor.CaretOffset);
+        _findHighlightColorizer.SetMatches(Editor.Document, _findMatches, _findMatchIndex);
+        if (previousMatches != null) RedrawMatches(previousMatches);
+        RedrawMatches(_findMatches);
+        FindBar.SetMatchCount(_findMatchIndex + 1, _findMatches.Count);
+    }
+
+    // Redraws only the visual lines overlapping the given segments rather than the whole view.
+    private void RedrawMatches(IEnumerable<(int Offset, int Length)> matches)
+    {
+        foreach (var (offset, length) in matches)
+            Editor.TextArea.TextView.Redraw(offset, length);
+    }
+
+    private int FindNearestMatchIndex(int caretOffset)
+    {
+        if (_findMatches.Count == 0) return -1;
+        for (int i = 0; i < _findMatches.Count; i++)
+            if (_findMatches[i].Offset >= caretOffset) return i;
+        return 0;
+    }
+
+    private void FindNext()
+    {
+        if (!FindBar.IsVisible) { OpenFind(replaceMode: false); return; }
+        if (_findMatches.Count == 0) return;
+        _findMatchIndex = (_findMatchIndex + 1) % _findMatches.Count;
+        NavigateToCurrentMatch();
+    }
+
+    private void FindPrev()
+    {
+        if (!FindBar.IsVisible) { OpenFind(replaceMode: false); return; }
+        if (_findMatches.Count == 0) return;
+        _findMatchIndex = (_findMatchIndex - 1 + _findMatches.Count) % _findMatches.Count;
+        NavigateToCurrentMatch();
+    }
+
+    private void NavigateToCurrentMatch()
+    {
+        if (_findMatchIndex < 0 || _findMatchIndex >= _findMatches.Count) return;
+        var (offset, length) = _findMatches[_findMatchIndex];
+
+        Editor.Select(offset, length);
+        _findHighlightColorizer.SetMatches(Editor.Document, _findMatches, _findMatchIndex);
+        Editor.TextArea.Caret.BringCaretToView();
+        // A second pass after layout corrects for line heights that weren't measured yet.
+        Dispatcher.UIThread.Post(() => Editor.TextArea.Caret.BringCaretToView(), DispatcherPriority.Loaded);
+        RedrawMatches(_findMatches);
+        FindBar.SetMatchCount(_findMatchIndex + 1, _findMatches.Count);
+    }
+
+    private void ExecuteReplace()
+    {
+        if (_findMatchIndex < 0 || _findMatchIndex >= _findMatches.Count)
+        {
+            UpdateFindMatches();
+            if (_findMatches.Count == 0) return;
+        }
+
+        var (offset, length) = _findMatches[_findMatchIndex];
+        Editor.Document.Replace(offset, length, FindBar.ReplaceText);
+        UpdateFindMatches();
+        NavigateToCurrentMatch();
+    }
+
+    private void ExecuteReplaceAll()
+    {
+        if (_findMatches.Count == 0) UpdateFindMatches();
+        if (_findMatches.Count == 0) return;
+
+        using (Editor.Document.RunUpdate())
+        {
+            for (int i = _findMatches.Count - 1; i >= 0; i--)
+                Editor.Document.Replace(_findMatches[i].Offset, _findMatches[i].Length, FindBar.ReplaceText);
+        }
+        UpdateFindMatches();
+    }
+
+    private void EditFind_Click(object? sender, RoutedEventArgs e) => OpenFind(replaceMode: false);
+    private void EditReplace_Click(object? sender, RoutedEventArgs e) => OpenFind(replaceMode: true);
+    private void EditFindNext_Click(object? sender, RoutedEventArgs e) => FindNext();
+    private void EditFindPrevious_Click(object? sender, RoutedEventArgs e) => FindPrev();
 
     // ── Editor input ──────────────────────────────────────────────────────────
 

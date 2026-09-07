@@ -12,12 +12,13 @@ It is a work in progress. What works today:
   `.d64`/`.d81` images whose programs open and save back in place, new file/folder, rename,
   delete, Reveal in Finder, Copy Path, and Run/Load on VICE straight from the tree
 - BASIC syntax highlighting, PETSCII rendering with the embedded Pet Me 64 font, code folding
+- Find and replace (Cmd+F / Cmd+Alt+F) with match case, whole word, and regex options
 - VICE: Run, Transfer (load only), Reset, Reboot, Pause, Resume, Power Off, over VICE's binary
   monitor - the emulator is launched automatically if it isn't already running
 - Preferences for the VICE path/monitor and basic editor options, stored in the same
   `settings.json` format as the Windows app (`~/Library/Application Support/READYCode/` on macOS, `~/.config/READYCode/` on Linux)
 
-Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, find/replace, diagnostics squiggles, the hex editor,
+Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, project-wide search, diagnostics squiggles, the hex editor,
 file compare, the debugger UI, reference panels, printing, and the C64U menu.
 
 ## Prerequisites

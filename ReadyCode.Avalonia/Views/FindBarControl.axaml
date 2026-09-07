@@ -1,0 +1,57 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ReadyCode.Avalonia.Views.FindBarControl"
+             Width="460">
+
+    <UserControl.Styles>
+        <Style Selector="ToggleButton.findOpt, Button.findBtn">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.find">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="4,2" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.find.noResults">
+            <Setter Property="BorderBrush" Value="#D03030" />
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#F0F0F0" BorderBrush="#C8C8C8" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4"
+            Padding="6,5" BoxShadow="0 3 6 0 #40000000">
+        <StackPanel Spacing="4">
+            <DockPanel LastChildFill="True">
+                <ToggleButton x:Name="ExpandBtn" DockPanel.Dock="Left" Classes="findOpt" Width="22" Padding="0"
+                              ToolTip.Tip="Toggle Replace" IsCheckedChanged="ExpandBtn_IsCheckedChanged">
+                    <TextBlock x:Name="ExpandArrow" Text="▸" FontSize="10" />
+                </ToggleButton>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0">
+                    <ToggleButton x:Name="MatchCaseBtn" Classes="findOpt" Content="Aa" ToolTip.Tip="Match Case" IsCheckedChanged="Option_Changed" />
+                    <ToggleButton x:Name="WholeWordBtn" Classes="findOpt" Content="ab" ToolTip.Tip="Match Whole Word" IsCheckedChanged="Option_Changed" />
+                    <ToggleButton x:Name="RegexBtn" Classes="findOpt" Content=".*" FontFamily="Menlo,Consolas,monospace" ToolTip.Tip="Use Regular Expression" IsCheckedChanged="Option_Changed" />
+                    <TextBlock x:Name="MatchCountText" VerticalAlignment="Center" FontSize="11" Margin="6,0" MinWidth="56" />
+                    <Button Classes="findBtn" Content="◀" ToolTip.Tip="Previous Match (Shift+Enter)" Click="PrevMatch_Click" />
+                    <Button Classes="findBtn" Content="▶" ToolTip.Tip="Next Match (Enter)" Click="NextMatch_Click" />
+                    <Button Classes="findBtn" Content="✕" ToolTip.Tip="Close (Escape)" Click="Close_Click" Margin="4,0,0,0" />
+                </StackPanel>
+                <TextBox x:Name="SearchBox" Classes="find" Margin="4,0,0,0" PlaceholderText="Find"
+                         KeyDown="SearchBox_KeyDown" TextChanged="SearchBox_TextChanged" />
+            </DockPanel>
+            <DockPanel x:Name="ReplaceRow" IsVisible="False" LastChildFill="True">
+                <Panel DockPanel.Dock="Left" Width="22" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="4" Margin="4,0,0,0">
+                    <Button Classes="findBtn" Content="Replace" ToolTip.Tip="Replace (Enter)" Click="Replace_Click" />
+                    <Button Classes="findBtn" Content="Replace All" Click="ReplaceAll_Click" />
+                </StackPanel>
+                <TextBox x:Name="ReplaceBox" Classes="find" Margin="4,0,0,0" PlaceholderText="Replace"
+                         KeyDown="ReplaceBox_KeyDown" />
+            </DockPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
