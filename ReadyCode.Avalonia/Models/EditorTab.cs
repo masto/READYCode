@@ -4,6 +4,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using AvaloniaEdit.Document;
+using ReadyCode.Diagnostics;
 using ReadyCode.Models;
 
 namespace ReadyCode.Avalonia.Models;
@@ -83,6 +84,12 @@ public class EditorTab : INotifyPropertyChanged
 
     /// <summary>Gets whether this tab is a disk-image entry rather than a file on disk.</summary>
     public bool IsVirtual => VirtualSourceId != null;
+
+    /// <summary>
+    /// Gets or sets the diagnostics last computed for this tab's text, kept so the Problems
+    /// panel can list every open tab's issues, not just the active one's.
+    /// </summary>
+    public IReadOnlyList<EditorDiagnostic> Diagnostics { get; set; } = Array.Empty<EditorDiagnostic>();
 
     /// <summary>
     /// Gets or sets the file kind (BASIC listing, tokenized PRG, assembly...), which decides how

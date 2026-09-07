@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using ReadyCode.Assembler;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.C64U;
+using ReadyCode.Diagnostics;
 using ReadyCode.Diff;
 using ReadyCode.Minify;
 using ReadyCode.Models;
@@ -118,6 +119,31 @@ public class MainViewModel : INotifyPropertyChanged
         get => _explorerTitle;
         private set { if (_explorerTitle == value) return; _explorerTitle = value; OnPropertyChanged(); }
     }
+
+    // ── Problems panel ────────────────────────────────────────────────────────
+
+    /// <summary>Gets the diagnostics of every open tab, for the Problems panel.</summary>
+    public ObservableCollection<ErrorListRow> ErrorListRows { get; } = new();
+
+    /// <summary>Gets or sets whether the Problems panel is shown. Persisted in settings.</summary>
+    public bool IsProblemsPanelOpen
+    {
+        get => Settings.IsBottomPanelOpen;
+        set
+        {
+            if (Settings.IsBottomPanelOpen == value) return;
+            Settings.IsBottomPanelOpen = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>Gets the Problems panel header, including the issue count.</summary>
+    public string ProblemsTitle => ErrorListRows.Count == 0 ? "PROBLEMS" : $"PROBLEMS ({ErrorListRows.Count})";
+
+    /// <summary>Gets the text shown when the Problems panel has no rows.</summary>
+    public string ProblemsEmptyText => Settings.EnableLinting
+        ? "No issues found."
+        : "Linting is disabled - enable it in Preferences to see errors here.";
 
     /// <summary>Gets or sets whether the explorer panel is shown. Persisted in settings.</summary>
     public bool IsExplorerOpen
@@ -386,6 +412,57 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (ReferenceEquals(ActiveTab, tab) || ActiveTab == null)
             ActiveTab = OpenTabs[Math.Min(index, OpenTabs.Count - 1)];
+
+        RefreshErrorList();
+    }
+
+    /// <summary>
+    /// Analyzes <paramref name="tab"/>'s text (BASIC or assembly) and caches the result on it.
+    /// Returns no diagnostics when linting is disabled.
+    /// </summary>
+    public IReadOnlyList<EditorDiagnostic> AnalyzeTab(EditorTab tab)
+    {
+        string text = tab.Document.Text;
+        tab.Diagnostics = !Settings.EnableLinting
+            ? Array.Empty<EditorDiagnostic>()
+            : tab.Language == EditorLanguage.Asm
+                ? AsmDiagnostics.Analyze(text, new Asm6502Assembler().Assemble(text, Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress))
+                : BasicDiagnostics.Analyze(text);
+        RefreshErrorList();
+        return tab.Diagnostics;
+    }
+
+    /// <summary>Rebuilds the Problems rows from every open tab's cached diagnostics.</summary>
+    public void RefreshErrorList()
+    {
+        ErrorListRows.Clear();
+
+        if (Settings.EnableLinting)
+        {
+            foreach (var tab in OpenTabs)
+            {
+                foreach (var diag in tab.Diagnostics)
+                {
+                    var documentLine = tab.Document.GetLineByOffset(Math.Min(diag.Offset, tab.Document.TextLength));
+                    int? basicLineNumber = null;
+                    if (tab.Language == EditorLanguage.Basic &&
+                        BasicDiagnostics.TryParseLineNumber(tab.Document.GetText(documentLine), out int n, out _, out _, out _))
+                        basicLineNumber = n;
+
+                    ErrorListRows.Add(new ErrorListRow
+                    {
+                        Tab = tab,
+                        Message = diag.Message,
+                        Offset = diag.Offset,
+                        Line = documentLine.LineNumber,
+                        BasicLineNumber = basicLineNumber,
+                    });
+                }
+            }
+        }
+
+        OnPropertyChanged(nameof(ProblemsTitle));
+        OnPropertyChanged(nameof(ProblemsEmptyText));
     }
 
     #endregion

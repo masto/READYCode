@@ -466,8 +466,13 @@ public class AppSettings
     /// <summary>
     /// Gets the file path for the settings file.
     /// </summary>
+    // READYCODE_SETTINGS_DIR redirects the settings file (used by the UI tests so they never
+    // touch the developer's real settings); otherwise the per-user application data folder.
     private static string SettingsFilePath =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "READYCode", "settings.json");
+        Path.Combine(
+            Environment.GetEnvironmentVariable("READYCODE_SETTINGS_DIR")
+                ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "READYCode"),
+            "settings.json");
 
     #endregion
 }

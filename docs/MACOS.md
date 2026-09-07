@@ -13,12 +13,14 @@ It is a work in progress. What works today:
   delete, Reveal in Finder, Copy Path, and Run/Load on VICE straight from the tree
 - BASIC syntax highlighting, PETSCII rendering with the embedded Pet Me 64 font, code folding
 - Find and replace (Cmd+F / Cmd+Alt+F) with match case, whole word, and regex options
+- Live diagnostics: squiggles for missing GOTO/GOSUB targets, unmatched FOR/NEXT, and
+  assembly errors, with hover tooltips and a Problems panel (Cmd+Shift+M) that jumps to the issue
 - VICE: Run, Transfer (load only), Reset, Reboot, Pause, Resume, Power Off, over VICE's binary
   monitor - the emulator is launched automatically if it isn't already running
 - Preferences for the VICE path/monitor and basic editor options, stored in the same
   `settings.json` format as the Windows app (`~/Library/Application Support/READYCode/` on macOS, `~/.config/READYCode/` on Linux)
 
-Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, project-wide search, diagnostics squiggles, the hex editor,
+Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, project-wide search, the hex editor,
 file compare, the debugger UI, reference panels, printing, and the C64U menu.
 
 ## Prerequisites
@@ -52,6 +54,8 @@ dotnet test ReadyCode.Avalonia.Tests        # headless UI rendering smoke tests
 
 Set `READYCODE_RENDER_DIR=/some/dir` before the UI tests to have them write the frames they
 capture as PNGs, which is handy for checking font and highlighting changes without a screen.
+The UI tests redirect settings to a temporary folder (`READYCODE_SETTINGS_DIR`, which the app
+honours too) so they never touch your real settings.
 
 ## Project layout
 

@@ -17,6 +17,8 @@ using ReadyCode.Avalonia.Models;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Models;
 using ReadyCode.Search;
+using ReadyCode.Diagnostics;
+using AvaloniaEdit.Rendering;
 using ReadyCode.Tokenizer;
 
 namespace ReadyCode.Avalonia.Views;
@@ -52,6 +54,10 @@ public partial class MainWindow : Window
         CurrentMatchBrush = Brush("#DD8855"), CurrentMatchFgBrush = Brush("#000000"),
     };
     private readonly DispatcherTimer _findUpdateTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private readonly DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
+    private ErrorSquiggleRenderer _errorSquiggleRenderer = null!;
+    private IReadOnlyList<EditorDiagnostic> _currentDiagnostics = Array.Empty<EditorDiagnostic>();
+    private double _problemsHeight = 160;
     private readonly List<(int Offset, int Length)> _findMatches = new();
     private int _findMatchIndex = -1;
 
@@ -69,12 +75,19 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
+        _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor) ;
+        _errorSquiggleRenderer.SetColor(Color.Parse("#E51400"));
+        Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
+        Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
+        Editor.TextArea.TextView.PointerHoverStopped += (_, _) => ToolTip.SetIsOpen(Editor, false);
+        _diagnosticsTimer.Tick += (_, _) => { _diagnosticsTimer.Stop(); RunDiagnostics(); };
         Editor.TextArea.TextEntering += Editor_TextEntering;
         Editor.AddHandler(KeyDownEvent, Editor_PreviewKeyDown, global::Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Editor.TextArea.Caret.PositionChanged += (_, _) => UpdateActiveLine();
         Editor.TextChanged += (_, _) =>
         {
             _foldingTimer.Stop(); _foldingTimer.Start();
+            _diagnosticsTimer.Stop(); _diagnosticsTimer.Start();
             if (FindBar.IsVisible) { _findUpdateTimer.Stop(); _findUpdateTimer.Start(); }
         };
         _foldingTimer.Tick += (_, _) => { _foldingTimer.Stop(); UpdateFoldings(); };
@@ -165,6 +178,8 @@ public partial class MainWindow : Window
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
+        _problemsHeight = vm.Settings.BottomPanelHeight > 60 ? vm.Settings.BottomPanelHeight : 160;
+        ApplyProblemsLayout();
         BindActiveTab();
     }
 
@@ -180,6 +195,9 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsExplorerOpen):
                 ApplyExplorerLayout();
+                break;
+            case nameof(MainViewModel.IsProblemsPanelOpen):
+                ApplyProblemsLayout();
                 break;
         }
     }
@@ -204,6 +222,8 @@ public partial class MainWindow : Window
         Editor.Document = tab.Document;
         ApplyLanguageStyling(tab);
         InstallFolding(tab);
+        _diagnosticsTimer.Stop();
+        RunDiagnostics();
         if (FindBar.IsVisible) UpdateFindMatches();
         Editor.Focus();
     }
@@ -323,8 +343,105 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ApplyProblemsLayout()
+    {
+        var row = EditorGrid.RowDefinitions[2];
+        if (ViewModel.IsProblemsPanelOpen)
+        {
+            row.Height = new GridLength(_problemsHeight);
+            row.MinHeight = 60;
+            EditorGrid.RowDefinitions[1].Height = new GridLength(4);
+        }
+        else
+        {
+            if (row.Height.IsAbsolute && row.Height.Value > 0) _problemsHeight = row.Height.Value;
+            row.MinHeight = 0;
+            row.Height = new GridLength(0);
+            EditorGrid.RowDefinitions[1].Height = new GridLength(0);
+        }
+    }
+
+    // ── Diagnostics ───────────────────────────────────────────────────────────
+
+    /// <summary>Runs the debounced document analysis immediately (for tests).</summary>
+    internal void RunDiagnosticsNow()
+    {
+        _diagnosticsTimer.Stop();
+        RunDiagnostics();
+    }
+
+    private void RunDiagnostics()
+    {
+        var tab = ViewModel.ActiveTab;
+        _currentDiagnostics = tab == null ? Array.Empty<EditorDiagnostic>() : ViewModel.AnalyzeTab(tab);
+        _errorSquiggleRenderer.SetDiagnostics(_currentDiagnostics);
+        Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+    }
+
+    // After a save or a transfer, surface the Problems panel if the tab has issues - but never
+    // from the live-typing path, so it doesn't pop up mid-edit.
+    private void ShowProblemsIfAny(EditorTab tab)
+    {
+        if (ReferenceEquals(tab, ViewModel.ActiveTab))
+        {
+            _diagnosticsTimer.Stop();
+            RunDiagnostics();
+        }
+        if (tab.Diagnostics.Count > 0)
+            ViewModel.IsProblemsPanelOpen = true;
+    }
+
+    private bool TryGetDiagnosticAt(int offset, out EditorDiagnostic diagnostic)
+    {
+        foreach (var d in _currentDiagnostics)
+        {
+            if (offset >= d.Offset && offset < d.Offset + d.Length) { diagnostic = d; return true; }
+        }
+        diagnostic = default;
+        return false;
+    }
+
+    private void Editor_PointerHover(object? sender, PointerEventArgs e)
+    {
+        var position = Editor.GetPositionFromPoint(e.GetPosition(Editor));
+        if (position == null) { ToolTip.SetIsOpen(Editor, false); return; }
+
+        var line = Editor.Document.GetLineByNumber(position.Value.Line);
+        int offset = line.Offset + Math.Min(position.Value.Column - 1, line.Length);
+        if (!TryGetDiagnosticAt(offset, out var diagnostic)) { ToolTip.SetIsOpen(Editor, false); return; }
+
+        ToolTip.SetTip(Editor, diagnostic.Message);
+        ToolTip.SetIsOpen(Editor, true);
+    }
+
+    private void JumpToProblem(ErrorListRow row)
+    {
+        ViewModel.ActiveTab = row.Tab;
+        int offset = Math.Min(row.Offset, Editor.Document.TextLength);
+        Editor.CaretOffset = offset;
+        Editor.TextArea.Caret.BringCaretToView();
+        Editor.Focus();
+    }
+
+    private void ViewProblems_Click(object? sender, RoutedEventArgs e) => ViewModel.IsProblemsPanelOpen = !ViewModel.IsProblemsPanelOpen;
+
+    private void ProblemsList_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (ProblemsList.SelectedItem is ErrorListRow row) JumpToProblem(row);
+    }
+
+    private void ProblemsList_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && ProblemsList.SelectedItem is ErrorListRow row) { JumpToProblem(row); e.Handled = true; }
+    }
+
     private void PersistLayout(MainViewModel vm)
     {
+        var problemsRow = EditorGrid.RowDefinitions[2];
+        if (vm.IsProblemsPanelOpen && problemsRow.Height.IsAbsolute && problemsRow.Height.Value > 0)
+            _problemsHeight = problemsRow.Height.Value;
+        vm.Settings.BottomPanelHeight = _problemsHeight;
+
         var column = MainGrid.ColumnDefinitions[0];
         if (vm.IsExplorerOpen && column.Width.IsAbsolute && column.Width.Value > 0)
             _explorerWidth = column.Width.Value;
@@ -473,7 +590,11 @@ public partial class MainWindow : Window
     private async Task<bool> SaveTabAsync(EditorTab tab, bool forceDialog)
     {
         if (tab.IsVirtual && !forceDialog)
-            return ViewModel.SaveVirtualTab(tab);
+        {
+            bool savedVirtual = ViewModel.SaveVirtualTab(tab);
+            if (savedVirtual) ShowProblemsIfAny(tab);
+            return savedVirtual;
+        }
 
         string? path = tab.FilePath;
 
@@ -498,7 +619,9 @@ public partial class MainWindow : Window
             if (path == null) return false;
         }
 
-        return ViewModel.SaveTab(tab, path);
+        bool saved = ViewModel.SaveTab(tab, path);
+        if (saved) ShowProblemsIfAny(tab);
+        return saved;
     }
 
     #endregion
@@ -863,8 +986,17 @@ public partial class MainWindow : Window
     private void EditDelete_Click(object? sender, RoutedEventArgs e) => Editor.Delete();
     private void EditSelectAll_Click(object? sender, RoutedEventArgs e) => Editor.SelectAll();
 
-    private async void ViceRun_Click(object? sender, RoutedEventArgs e) => await ViewModel.RunOnViceAsync();
-    private async void ViceTransfer_Click(object? sender, RoutedEventArgs e) => await ViewModel.TransferToViceAsync();
+    private async void ViceRun_Click(object? sender, RoutedEventArgs e)
+    {
+        await ViewModel.RunOnViceAsync();
+        if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
+    }
+
+    private async void ViceTransfer_Click(object? sender, RoutedEventArgs e)
+    {
+        await ViewModel.TransferToViceAsync();
+        if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
+    }
     private async void ViceReset_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResetAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine reset.");
     private async void ViceReboot_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.RebootAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine rebooted.");
     private async void VicePause_Click(object? sender, RoutedEventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PauseAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine paused.");

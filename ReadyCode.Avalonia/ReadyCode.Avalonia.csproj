@@ -34,4 +34,8 @@
     <ProjectReference Include="..\ReadyCode.Core\ReadyCode.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ReadyCode.Avalonia.Tests" />
+  </ItemGroup>
+
 </Project>
