@@ -5,6 +5,7 @@
         xmlns:models="using:ReadyCode.Avalonia.Models"
         xmlns:core="using:ReadyCode.Models"
         xmlns:conv="using:ReadyCode.Avalonia.Converters"
+        xmlns:views="using:ReadyCode.Avalonia.Views"
         x:Class="ReadyCode.Avalonia.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="{Binding WindowTitle}"
@@ -57,6 +58,11 @@
                 <MenuItem Header="_Delete"     Click="EditDelete_Click"    InputGesture="Delete" />
                 <Separator />
                 <MenuItem Header="Select _All" Click="EditSelectAll_Click" InputGesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
+                <Separator />
+                <MenuItem Header="_Find…"         Click="EditFind_Click"         HotKey="{OnPlatform Ctrl+F, macOS=Cmd+F}" InputGesture="{OnPlatform Ctrl+F, macOS=Cmd+F}" />
+                <MenuItem Header="Find and Re_place…" Click="EditReplace_Click" HotKey="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" InputGesture="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" />
+                <MenuItem Header="Find _Next"     Click="EditFindNext_Click"     HotKey="{OnPlatform F3, macOS=Cmd+G}" InputGesture="{OnPlatform F3, macOS=Cmd+G}" />
+                <MenuItem Header="Find Pre_vious" Click="EditFindPrevious_Click" HotKey="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" InputGesture="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
@@ -153,16 +159,20 @@
                     </TabStrip.ItemTemplate>
                 </TabStrip>
 
-                <ae:TextEditor x:Name="Editor"
-                               Padding="10"
-                               ContextRequested="Editor_ContextRequested"
-                               FontSize="16"
-                               Foreground="Black"
-                               Background="White"
-                               WordWrap="False"
-                               ShowLineNumbers="False"
-                               HorizontalScrollBarVisibility="Auto"
-                               VerticalScrollBarVisibility="Auto" />
+                <Panel>
+                    <ae:TextEditor x:Name="Editor"
+                                   Padding="10"
+                                   ContextRequested="Editor_ContextRequested"
+                                   FontSize="16"
+                                   Foreground="Black"
+                                   Background="White"
+                                   WordWrap="False"
+                                   ShowLineNumbers="False"
+                                   HorizontalScrollBarVisibility="Auto"
+                                   VerticalScrollBarVisibility="Auto" />
+                    <views:FindBarControl x:Name="FindBar" IsVisible="False"
+                                          HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" />
+                </Panel>
             </DockPanel>
         </Grid>
 
