@@ -5,7 +5,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
-using System.Windows.Threading;
 using ReadyCode.C64U;
 
 namespace ReadyCode.Models;
@@ -15,6 +14,18 @@ namespace ReadyCode.Models;
 /// </summary>
 public class FileTreeItem : INotifyPropertyChanged
 {
+    #region Public Fields
+
+    /// <summary>
+    /// Runs an action on the UI thread after the current UI pass completes. Each front end
+    /// installs its own dispatcher here at startup (WPF: Dispatcher.BeginInvoke at Background
+    /// priority; Avalonia: Dispatcher.UIThread.Post). The default runs the action synchronously,
+    /// which is what unit tests want.
+    /// </summary>
+    public static Action<Action> DeferToUiThread { get; set; } = action => action();
+
+    #endregion
+
     #region Private Fields
 
     private bool _isExpanded;
@@ -278,7 +289,7 @@ public class FileTreeItem : INotifyPropertyChanged
             // Stage 1's testing (always a real, non-empty disk); an empty one - going from the
             // placeholder's 1 item straight to 0 - is what actually triggers it. Posting at
             // Background priority lets that pass finish first.
-            Dispatcher.CurrentDispatcher.BeginInvoke(DispatcherPriority.Background, () =>
+            DeferToUiThread(() =>
             {
                 Children.Clear();
                 try

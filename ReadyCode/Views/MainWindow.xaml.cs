@@ -5064,7 +5064,7 @@ public partial class MainWindow : Window
 
         ComparableFileRef? clicked = clickedItem switch
         {
-            FileTreeItem local => local.ToComparableFileRef(),
+            FileTreeItem local => ComparableFileRef.FromLocal(local),
             C64UFileItem remote => ComparableFileRef.FromC64U(remote),
             _ => null,
         };
@@ -5101,7 +5101,7 @@ public partial class MainWindow : Window
     }
 
     private static ComparableFileRef? GetClickedComparableFile(object sender) =>
-        GetContextItem(sender) is { } local ? local.ToComparableFileRef()
+        GetContextItem(sender) is { } local ? ComparableFileRef.FromLocal(local)
         : GetC64UContextItem(sender) is { } remote ? ComparableFileRef.FromC64U(remote)
         : null;
 
