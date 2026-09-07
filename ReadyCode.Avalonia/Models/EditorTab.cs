@@ -1,0 +1,117 @@
+// Copyright (c) 2026 Moonspace Labs, LLC
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using AvaloniaEdit.Document;
+using ReadyCode.Models;
+
+namespace ReadyCode.Avalonia.Models;
+
+/// <summary>
+/// One open document: its AvaloniaEdit <see cref="TextDocument"/> plus the file it came from and
+/// how it should be treated (language, file kind). The Avalonia counterpart of the WPF app's
+/// <c>EditorTab</c>, trimmed to what the cross-platform front end supports so far.
+/// </summary>
+public class EditorTab : INotifyPropertyChanged
+{
+    #region Private Fields
+
+    private string? _filePath;
+    private bool _isModified;
+    private EditorLanguage _language = EditorLanguage.Basic;
+    private C64UFileKind _kind = C64UFileKind.Bas;
+
+    #endregion
+
+    #region Constructors
+
+    public EditorTab()
+    {
+        Document.TextChanged += (_, _) => IsModified = true;
+    }
+
+    #endregion
+
+    #region Public Properties
+
+    /// <summary>
+    /// Gets the document backing this tab's text content.
+    /// </summary>
+    public TextDocument Document { get; } = new();
+
+    /// <summary>
+    /// Gets or sets the full path of the file this tab was opened from, or null for a new file.
+    /// </summary>
+    public string? FilePath
+    {
+        get => _filePath;
+        set
+        {
+            if (_filePath == value) return;
+            _filePath = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(FileName));
+            OnPropertyChanged(nameof(Header));
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the file kind (BASIC listing, tokenized PRG, assembly...), which decides how
+    /// the text is rendered and saved.
+    /// </summary>
+    public C64UFileKind Kind
+    {
+        get => _kind;
+        set { if (_kind == value) return; _kind = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Gets or sets the language the editor treats this tab's text as.
+    /// </summary>
+    public EditorLanguage Language
+    {
+        get => _language;
+        set { if (_language == value) return; _language = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// Gets the display file name ("Untitled" for a new file).
+    /// </summary>
+    public string FileName => FilePath != null ? Path.GetFileName(FilePath) : "Untitled";
+
+    /// <summary>
+    /// Gets the tab header text: the file name plus a trailing marker when unsaved.
+    /// </summary>
+    public string Header => IsModified ? FileName + " •" : FileName;
+
+    /// <summary>
+    /// Gets or sets whether the document has unsaved changes.
+    /// </summary>
+    public bool IsModified
+    {
+        get => _isModified;
+        set
+        {
+            if (_isModified == value) return;
+            _isModified = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(Header));
+        }
+    }
+
+    #endregion
+
+    #region Events
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    #endregion
+
+    #region Private Methods
+
+    private void OnPropertyChanged([CallerMemberName] string? name = null) =>
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+    #endregion
+}

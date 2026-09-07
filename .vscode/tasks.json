@@ -42,14 +42,51 @@
             "args": [
                 "publish",
                 "${workspaceFolder}/ReadyCode/ReadyCode.csproj",
-                "-c", "Release",
-                "-r", "win-x64",
-                "--self-contained", "true",
+                "-c",
+                "Release",
+                "-r",
+                "win-x64",
+                "--self-contained",
+                "true",
                 "-p:GenerateAppxPackageOnBuild=true",
                 "-p:AppxPackageDir=${workspaceFolder}/Packages/",
                 "-p:UapAppxPackageBuildMode=StoreUpload"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build READYCode (Avalonia)",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "build",
+                "${workspaceFolder}/ReadyCode.Avalonia/ReadyCode.Avalonia.csproj",
+                "-c",
+                "Debug"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "Run READYCode (Avalonia)",
+            "command": "dotnet",
+            "type": "process",
+            "args": [
+                "run",
+                "--project",
+                "${workspaceFolder}/ReadyCode.Avalonia/ReadyCode.Avalonia.csproj",
+                "-c",
+                "Debug",
+                "--no-build"
+            ],
+            "group": "test",
+            "dependsOn": "Build READYCode (Avalonia)"
+        },
+        {
+            "label": "Make READYCode.app (macOS)",
+            "command": "${workspaceFolder}/scripts/make-app-bundle.sh",
+            "type": "shell",
+            "problemMatcher": []
         }
     ]
 }
