@@ -47,6 +47,17 @@
                 <Separator />
                 <MenuItem Header="E_xit"       Click="FileExit_Click" />
             </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Undo"       Click="EditUndo_Click"      InputGesture="{OnPlatform Ctrl+Z, macOS=Cmd+Z}" />
+                <MenuItem Header="_Redo"       Click="EditRedo_Click"      InputGesture="{OnPlatform Ctrl+Y, macOS=Cmd+Shift+Z}" />
+                <Separator />
+                <MenuItem Header="Cu_t"        Click="EditCut_Click"       InputGesture="{OnPlatform Ctrl+X, macOS=Cmd+X}" />
+                <MenuItem Header="_Copy"       Click="EditCopy_Click"      InputGesture="{OnPlatform Ctrl+C, macOS=Cmd+C}" />
+                <MenuItem Header="_Paste"      Click="EditPaste_Click"     InputGesture="{OnPlatform Ctrl+V, macOS=Cmd+V}" />
+                <MenuItem Header="_Delete"     Click="EditDelete_Click"    InputGesture="Delete" />
+                <Separator />
+                <MenuItem Header="Select _All" Click="EditSelectAll_Click" InputGesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
+            </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
             </MenuItem>
@@ -108,7 +119,7 @@
                               Background="Transparent" BorderThickness="0"
                               DoubleTapped="FileTree_DoubleTapped"
                               KeyDown="FileTree_KeyDown"
-                              PointerPressed="FileTree_PointerPressed">
+                              ContextRequested="FileTree_ContextRequested">
                         <TreeView.ItemTemplate>
                             <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
                                 <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
@@ -144,6 +155,7 @@
 
                 <ae:TextEditor x:Name="Editor"
                                Padding="10"
+                               ContextRequested="Editor_ContextRequested"
                                FontSize="16"
                                Foreground="Black"
                                Background="White"
