@@ -46,7 +46,7 @@ public class DiagnosticsTests
         var editor = window.FindControl<AvaloniaEdit.TextEditor>("Editor")!;
 
         editor.Document.Text = "10 PRINT \"HELLO\"\n20 GOTO 99\n30 GOSUB 500";
-        vm.IsProblemsPanelOpen = true;
+        vm.IsBottomPanelOpen = true;
         window.RunDiagnosticsNow(); // instead of waiting for the 300 ms debounce
         Dispatcher.UIThread.RunJobs();
 

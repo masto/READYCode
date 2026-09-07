@@ -3,6 +3,8 @@
 
 using Avalonia.Data.Converters;
 using Avalonia.Media;
+using ReadyCode.Avalonia.ViewModels;
+using ReadyCode.Debugger;
 using ReadyCode.Models;
 
 namespace ReadyCode.Avalonia.Converters;
@@ -37,6 +39,10 @@ public static class FileTreeConverters
         C64UFileKind.Bas => _badgeBas,
         _ => _badgeDefault,
     });
+
+    /// <summary>Formats a debug variable's value.</summary>
+    public static readonly IValueConverter VariableValue = new FuncValueConverter<BasicVariable?, string>(v =>
+        v == null ? "" : MainViewModel.FormatVariableValue(v));
 
     /// <summary>True when the item has a badge to show.</summary>
     public static readonly IValueConverter HasBadge = new FuncValueConverter<string?, bool>(badge => !string.IsNullOrEmpty(badge));

@@ -21,6 +21,8 @@ using ReadyCode.Diagnostics;
 using AvaloniaEdit.Rendering;
 using ReadyCode.Tokenizer;
 using ReadyCode.Formatting;
+using ReadyCode.Debugger;
+using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 
 namespace ReadyCode.Avalonia.Views;
@@ -59,6 +61,9 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private ErrorSquiggleRenderer _errorSquiggleRenderer = null!;
     private readonly ColumnGuideRenderer _columnGuideRenderer = new();
+    private readonly DebugCurrentLineRenderer _debugCurrentLineRenderer = new();
+    private readonly BreakpointMargin _breakpointMargin = new();
+    private BasicLineAddressTable? _activeTabLineAddressTable;
     private IReadOnlyList<EditorDiagnostic> _currentDiagnostics = Array.Empty<EditorDiagnostic>();
     private double _problemsHeight = 160;
     private static readonly Regex _leadingLineNumberPattern = new(@"^(\s*)(\d+)", RegexOptions.Compiled);
@@ -83,6 +88,8 @@ public partial class MainWindow : Window
         _errorSquiggleRenderer.SetColor(Color.Parse("#E51400"));
         Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
+        Editor.TextArea.TextView.BackgroundRenderers.Add(_debugCurrentLineRenderer);
+        _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
         _diagnosticsTimer.Tick += (_, _) => { _diagnosticsTimer.Stop(); RunDiagnostics(); };
@@ -144,6 +151,8 @@ public partial class MainWindow : Window
 
         PersistLayout(vm);
 
+        if (vm.IsDebugging) _ = vm.DebugStopAsync();
+
         var dirty = vm.OpenTabs.Where(t => t.IsModified).ToList();
         if (dirty.Count == 0)
         {
@@ -184,12 +193,16 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm) return;
 
         vm.PropertyChanged += ViewModel_PropertyChanged;
+        vm.BreakpointStore.Breakpoints.CollectionChanged += BreakpointStore_CollectionChanged;
+        foreach (var breakpoint in vm.BreakpointStore.Breakpoints)
+            breakpoint.PropertyChanged += Breakpoint_PropertyChanged;
         vm.ErrorRaised += (title, message) => Dispatcher.UIThread.Post(async () => await MessageDialog.ShowAsync(this, title, message));
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
         _problemsHeight = vm.Settings.BottomPanelHeight > 60 ? vm.Settings.BottomPanelHeight : 160;
         ApplyProblemsLayout();
+        UpdateDebugPanelText();
         BindActiveTab();
     }
 
@@ -206,12 +219,22 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.IsExplorerOpen):
                 ApplyExplorerLayout();
                 break;
-            case nameof(MainViewModel.IsProblemsPanelOpen):
+            case nameof(MainViewModel.IsBottomPanelOpen):
                 ApplyProblemsLayout();
                 break;
             case nameof(MainViewModel.ShowColumnGuide):
             case nameof(MainViewModel.WordWrap):
                 ApplyEditorSettings();
+                break;
+            case nameof(MainViewModel.DebugCurrentDocumentLine):
+                ApplyDebugCurrentLine();
+                break;
+            case nameof(MainViewModel.IsDebugging):
+                UpdateDebugPanelText();
+                if (ViewModel.IsDebugging) { ViewModel.IsBottomPanelOpen = true; ViewModel.BottomPanelTabIndex = 1; }
+                break;
+            case nameof(MainViewModel.IsDebugStopped):
+                UpdateDebugPanelText();
                 break;
         }
     }
@@ -254,6 +277,9 @@ public partial class MainWindow : Window
         transformers.Clear();
 
         bool isAsm = tab.Language == EditorLanguage.Asm;
+        var margins = Editor.TextArea.LeftMargins;
+        if (!isAsm && !margins.Contains(_breakpointMargin)) margins.Insert(0, _breakpointMargin);
+        if (isAsm) margins.Remove(_breakpointMargin);
         if (isAsm)
         {
             transformers.Add(_asmMnemonicColorizer);
@@ -367,7 +393,7 @@ public partial class MainWindow : Window
     private void ApplyProblemsLayout()
     {
         var row = EditorGrid.RowDefinitions[2];
-        if (ViewModel.IsProblemsPanelOpen)
+        if (ViewModel.IsBottomPanelOpen)
         {
             row.Height = new GridLength(_problemsHeight);
             row.MinHeight = 60;
@@ -397,6 +423,195 @@ public partial class MainWindow : Window
         _currentDiagnostics = tab == null ? Array.Empty<EditorDiagnostic>() : ViewModel.AnalyzeTab(tab);
         _errorSquiggleRenderer.SetDiagnostics(_currentDiagnostics);
         Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+        RefreshBreakpointMargin();
+    }
+
+    // ── Debugger ──────────────────────────────────────────────────────────────
+
+    private void RefreshBreakpointMargin()
+    {
+        var tab = ViewModel.ActiveTab;
+        if (tab is not { Language: EditorLanguage.Basic })
+        {
+            _activeTabLineAddressTable = null;
+            _breakpointMargin.EnabledBreakpointLines = new HashSet<int>();
+            _breakpointMargin.DisabledBreakpointLines = new HashSet<int>();
+            _breakpointMargin.InvalidateVisual();
+            return;
+        }
+
+        var lineTable = BasicLineAddressTable.Build(tab.Document.Text);
+        _activeTabLineAddressTable = lineTable;
+        string fileKey = MainViewModel.BreakpointFileKey(tab);
+
+        var enabled = new HashSet<int>();
+        foreach (ushort basicLine in ViewModel.BreakpointStore.EnabledLinesFor(fileKey))
+            if (lineTable.BasicLineToDocumentLine.TryGetValue(basicLine, out int documentLine)) enabled.Add(documentLine);
+
+        var disabled = new HashSet<int>();
+        foreach (ushort basicLine in ViewModel.BreakpointStore.DisabledLinesFor(fileKey))
+            if (lineTable.BasicLineToDocumentLine.TryGetValue(basicLine, out int documentLine)) disabled.Add(documentLine);
+
+        _breakpointMargin.EnabledBreakpointLines = enabled;
+        _breakpointMargin.DisabledBreakpointLines = disabled;
+        _breakpointMargin.InvalidateVisual();
+    }
+
+    private bool TryGetBasicLineAtDocumentLine(int documentLine, out ushort basicLine)
+    {
+        basicLine = 0;
+        var tab = ViewModel.ActiveTab;
+        if (tab is not { Language: EditorLanguage.Basic }) return false;
+        var lineTable = _activeTabLineAddressTable ?? BasicLineAddressTable.Build(tab.Document.Text);
+        return lineTable.DocumentLineToBasicLine.TryGetValue(documentLine, out basicLine);
+    }
+
+    private async Task ToggleBreakpointAtDocumentLineAsync(int documentLine)
+    {
+        if (ViewModel.ActiveTab is not { } tab) return;
+        if (!TryGetBasicLineAtDocumentLine(documentLine, out ushort basicLine)) return; // no code on that line
+        await ViewModel.ToggleBreakpointAsync(tab, basicLine);
+        RefreshBreakpointMargin();
+    }
+
+    private void ApplyDebugCurrentLine()
+    {
+        int? line = ViewModel.DebugCurrentDocumentLine;
+        _debugCurrentLineRenderer.CurrentLine = line;
+
+        if (line is { } documentLine)
+        {
+            if (ViewModel.DebugTab != null && !ReferenceEquals(ViewModel.ActiveTab, ViewModel.DebugTab))
+                ViewModel.ActiveTab = ViewModel.DebugTab;
+            if (documentLine <= Editor.Document.LineCount)
+            {
+                Editor.CaretOffset = Editor.Document.GetLineByNumber(documentLine).Offset;
+                RevealCaretLine();
+            }
+        }
+
+        Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
+    }
+
+    private void UpdateDebugPanelText()
+    {
+        string text = !ViewModel.IsDebugging
+            ? "Not debugging. Use Debug > Start Debugging to run the active BASIC tab in VICE with breakpoints."
+            : ViewModel.IsDebugStopped ? "No variables yet." : "Running… pause or hit a breakpoint to inspect.";
+        VariablesEmptyText.Text = text;
+        CallStackEmptyText.Text = !ViewModel.IsDebugging ? "Not debugging." : ViewModel.IsDebugStopped ? "Not inside a GOSUB." : "Running…";
+    }
+
+    private void MoveCaretToDocumentLine(int documentLine)
+    {
+        if (documentLine < 1 || documentLine > Editor.Document.LineCount) return;
+        Editor.CaretOffset = Editor.Document.GetLineByNumber(documentLine).Offset;
+        RevealCaretLine();
+        Editor.Focus();
+    }
+
+    private void BreakpointStore_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems != null)
+            foreach (Breakpoint breakpoint in e.OldItems) breakpoint.PropertyChanged -= Breakpoint_PropertyChanged;
+        if (e.NewItems != null)
+            foreach (Breakpoint breakpoint in e.NewItems) breakpoint.PropertyChanged += Breakpoint_PropertyChanged;
+        if (e.Action == NotifyCollectionChangedAction.Reset)
+            foreach (var breakpoint in ViewModel.BreakpointStore.Breakpoints) { breakpoint.PropertyChanged -= Breakpoint_PropertyChanged; breakpoint.PropertyChanged += Breakpoint_PropertyChanged; }
+        RefreshBreakpointMargin();
+    }
+
+    private async void Breakpoint_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(Breakpoint.IsEnabled) || sender is not Breakpoint breakpoint) return;
+        RefreshBreakpointMargin();
+        await ViewModel.OnBreakpointEnabledChangedAsync(breakpoint);
+    }
+
+    private async void DebugStart_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStartOrContinueAsync();
+    private async void DebugPause_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugPauseAsync();
+    private async void DebugRestart_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugRestartAsync();
+    private async void DebugStop_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStopAsync();
+    private async void DebugStepOver_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepOverAsync();
+    private async void DebugStepInto_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepIntoAsync();
+    private async void DebugStepOut_Click(object? sender, RoutedEventArgs e) => await ViewModel.DebugStepOutAsync();
+
+    private async void DebugRunToCursor_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!TryGetBasicLineAtDocumentLine(Editor.TextArea.Caret.Line, out ushort basicLine))
+        {
+            ViewModel.SetStatus("Run to Cursor requires the caret to be on a line with code.", StatusType.Error);
+            return;
+        }
+        await ViewModel.RunToLineAsync(basicLine);
+    }
+
+    private async void DebugToggleBreakpoint_Click(object? sender, RoutedEventArgs e) => await ToggleBreakpointAtDocumentLineAsync(Editor.TextArea.Caret.Line);
+
+    private void DebugToggleBreakpointEnabled_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel.ActiveTab is { } tab && TryGetBasicLineAtDocumentLine(Editor.TextArea.Caret.Line, out ushort basicLine))
+            ViewModel.ToggleBreakpointEnabled(tab, basicLine);
+    }
+
+    private async void DebugDeleteAllBreakpoints_Click(object? sender, RoutedEventArgs e)
+    {
+        await ViewModel.DeleteAllBreakpointsAsync();
+        RefreshBreakpointMargin();
+    }
+
+    private void ViewDebugPanel_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel.IsBottomPanelOpen && ViewModel.BottomPanelTabIndex == 1) { ViewModel.IsBottomPanelOpen = false; return; }
+        ViewModel.IsBottomPanelOpen = true;
+        ViewModel.BottomPanelTabIndex = 1;
+    }
+
+    private void ViewBottomPanelClose_Click(object? sender, RoutedEventArgs e) => ViewModel.IsBottomPanelOpen = false;
+
+    private async void VariablesList_DoubleTapped(object? sender, TappedEventArgs e) => await EditSelectedVariableAsync();
+
+    private async void VariablesList_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter) { e.Handled = true; await EditSelectedVariableAsync(); }
+    }
+
+    private async Task EditSelectedVariableAsync()
+    {
+        if (VariablesList.SelectedItem is not BasicVariable variable) return;
+        if (!ViewModel.IsDebugStopped)
+        {
+            ViewModel.SetStatus($"Can't update {variable.Name} while running - pause first.", StatusType.Error);
+            return;
+        }
+
+        string current = MainViewModel.FormatVariableValue(variable);
+        if (variable.Type == BasicVariableType.String && current.Length >= 2) current = current[1..^1];
+        string? text = await TextPromptDialog.ShowAsync(this, "Set Variable", $"New value for {variable.Name}:", current);
+        if (text == null) return;
+        await ViewModel.SetVariableAsync(variable, text);
+    }
+
+    private void BreakpointsList_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (BreakpointsList.SelectedItem is not Breakpoint breakpoint) return;
+        var tab = ViewModel.OpenTabs.FirstOrDefault(t =>
+            string.Equals(t.FilePath, breakpoint.FilePath, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(t.FileName, breakpoint.FilePath, StringComparison.OrdinalIgnoreCase));
+        if (tab == null) return;
+
+        ViewModel.ActiveTab = tab;
+        var lineTable = BasicLineAddressTable.Build(tab.Document.Text);
+        if (lineTable.BasicLineToDocumentLine.TryGetValue(breakpoint.LineNumber, out int documentLine))
+            MoveCaretToDocumentLine(documentLine);
+    }
+
+    private void CallStackList_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (CallStackList.SelectedItem is not GosubFrame { DocumentLine: int documentLine }) return;
+        if (ViewModel.DebugTab == null) return;
+        ViewModel.ActiveTab = ViewModel.DebugTab;
+        MoveCaretToDocumentLine(documentLine);
     }
 
     // After a save or a transfer, surface the Problems panel if the tab has issues - but never
@@ -409,7 +624,10 @@ public partial class MainWindow : Window
             RunDiagnostics();
         }
         if (tab.Diagnostics.Count > 0)
-            ViewModel.IsProblemsPanelOpen = true;
+        {
+            ViewModel.IsBottomPanelOpen = true;
+            ViewModel.BottomPanelTabIndex = 0;
+        }
     }
 
     private bool TryGetDiagnosticAt(int offset, out EditorDiagnostic diagnostic)
@@ -486,7 +704,12 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(Reveal, DispatcherPriority.Loaded);
     }
 
-    private void ViewProblems_Click(object? sender, RoutedEventArgs e) => ViewModel.IsProblemsPanelOpen = !ViewModel.IsProblemsPanelOpen;
+    private void ViewProblems_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel.IsBottomPanelOpen && ViewModel.BottomPanelTabIndex == 0) { ViewModel.IsBottomPanelOpen = false; return; }
+        ViewModel.IsBottomPanelOpen = true;
+        ViewModel.BottomPanelTabIndex = 0;
+    }
 
     private void ProblemsList_DoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -501,7 +724,7 @@ public partial class MainWindow : Window
     private void PersistLayout(MainViewModel vm)
     {
         var problemsRow = EditorGrid.RowDefinitions[2];
-        if (vm.IsProblemsPanelOpen && problemsRow.Height.IsAbsolute && problemsRow.Height.Value > 0)
+        if (vm.IsBottomPanelOpen && problemsRow.Height.IsAbsolute && problemsRow.Height.Value > 0)
             _problemsHeight = problemsRow.Height.Value;
         vm.Settings.BottomPanelHeight = _problemsHeight;
 
