@@ -5,6 +5,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
+using Avalonia.Input;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Avalonia.Views;
 using ReadyCode.Models;
@@ -66,6 +67,43 @@ public class EditorInputTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("loop: lda #$00", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
+    public void BasicTab_SpacePadsLineNumber_AndEnterAutoNumbers()
+    {
+        var (window, editor) = ShowEditor(EditorLanguage.Basic);
+        var vm = (MainViewModel)window.DataContext!;
+        vm.Settings.LineNumberPadding = 4;
+        vm.Settings.AutoNumberLines = true;
+        vm.Settings.AutoNumberIncrement = 10;
+
+        window.KeyTextInput("10");
+        window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.None);
+        window.KeyTextInput(" ");
+        window.KeyTextInput("PRINT 1");
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("0010 PRINT 1" + Environment.NewLine + "0020 ", editor.Document.Text);
+        Assert.Equal(editor.Document.TextLength, editor.CaretOffset);
+    }
+
+    [AvaloniaFact]
+    public void AsmTab_EnterAutoIndentsAndNormalizesMnemonic()
+    {
+        var (window, editor) = ShowEditor(EditorLanguage.Asm);
+        var vm = (MainViewModel)window.DataContext!;
+        vm.Settings.AsmAutoIndent = true;
+        vm.Settings.AsmMnemonicIndentColumn = 9;
+        vm.Settings.AsmCommentAlignColumn = 24;
+
+        window.KeyTextInput("lda #0 ; zero");
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+
+        // Column 24 (index 23) holds the ";": 8 spaces of indent, "LDA #0", then padding to 23.
+        Assert.Equal("        LDA #0         ; zero" + Environment.NewLine + "        ", editor.Document.Text);
     }
 
     private static (MainWindow Window, AvaloniaEdit.TextEditor Editor) ShowEditor(EditorLanguage language)

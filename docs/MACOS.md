@@ -17,7 +17,10 @@ It is a work in progress. What works today:
   assembly errors, with hover tooltips and a Problems panel (Cmd+Shift+M) that jumps to the issue
 - VICE: Run, Transfer (load only), Reset, Reboot, Pause, Resume, Power Off, over VICE's binary
   monitor - the emulator is launched automatically if it isn't already running
-- Preferences for the VICE path/monitor and basic editor options, stored in the same
+- Editor conveniences from the Windows app: zero-padded line numbers, auto-numbering on Enter,
+  assembly auto-indent, column guide, word wrap, and reopening last session's tabs
+- Preferences (Application, Text Editor, BASIC, Assembly, VICE) covering everything above plus
+  minify-on-transfer and assembler output options, stored in the same
   `settings.json` format as the Windows app (`~/Library/Application Support/READYCode/` on macOS, `~/.config/READYCode/` on Linux)
 
 Not yet ported: the C64U explorer, drag and drop and cut/copy/paste in the explorer, project-wide search, the hex editor,

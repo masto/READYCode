@@ -54,6 +54,8 @@ public class MainViewModel : INotifyPropertyChanged
 
         if (Directory.Exists(Settings.LastFolderPath))
             LoadFolder(Settings.LastFolderPath);
+
+        RestoreOpenTabs();
     }
 
     #endregion
@@ -145,6 +147,36 @@ public class MainViewModel : INotifyPropertyChanged
         ? "No issues found."
         : "Linting is disabled - enable it in Preferences to see errors here.";
 
+    /// <summary>Gets or sets whether the column guide is drawn. Persisted in settings.</summary>
+    public bool ShowColumnGuide
+    {
+        get => Settings.ShowColumnGuide;
+        set { if (Settings.ShowColumnGuide == value) return; Settings.ShowColumnGuide = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Gets or sets whether the editor wraps long lines. Persisted in settings.</summary>
+    public bool WordWrap
+    {
+        get => Settings.WordWrap;
+        set { if (Settings.WordWrap == value) return; Settings.WordWrap = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Gets or sets whether the status bar is shown. Persisted in settings.</summary>
+    public bool ShowStatusBar
+    {
+        get => Settings.ShowStatusBar;
+        set { if (Settings.ShowStatusBar == value) return; Settings.ShowStatusBar = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Re-raises change notifications for every settings-backed property (after Preferences).</summary>
+    public void NotifySettingsChanged()
+    {
+        OnPropertyChanged(nameof(ShowColumnGuide));
+        OnPropertyChanged(nameof(WordWrap));
+        OnPropertyChanged(nameof(ShowStatusBar));
+        OnPropertyChanged(nameof(ProblemsEmptyText));
+    }
+
     /// <summary>Gets or sets whether the explorer panel is shown. Persisted in settings.</summary>
     public bool IsExplorerOpen
     {
@@ -178,6 +210,18 @@ public class MainViewModel : INotifyPropertyChanged
     {
         StatusText = text;
         StatusType = type;
+    }
+
+    /// <summary>
+    /// Records which files are open (for <see cref="AppSettings.RestoreOpenTabsOnStartup"/>) and
+    /// persists settings to disk.
+    /// </summary>
+    public void SaveSettingsAndSession()
+    {
+        Settings.OpenTabPaths = Settings.RestoreOpenTabsOnStartup
+            ? OpenTabs.Where(t => t.FilePath != null).Select(t => t.FilePath!).ToList()
+            : new List<string>();
+        SaveSettings();
     }
 
     /// <summary>Persists settings to disk.</summary>
@@ -837,6 +881,23 @@ public class MainViewModel : INotifyPropertyChanged
     #endregion
 
     #region Private Methods
+
+    // Reopens the files that were open when the app last closed, skipping any that have since
+    // moved or been deleted, and activates the first of them as it was.
+    private void RestoreOpenTabs()
+    {
+        if (!Settings.RestoreOpenTabsOnStartup) return;
+
+        EditorTab? first = null;
+        foreach (string path in Settings.OpenTabPaths)
+        {
+            if (!File.Exists(path)) continue;
+            if (OpenFile(path)) first ??= ActiveTab;
+        }
+
+        if (first != null) ActiveTab = first;
+        SetStatus("Ready.");
+    }
 
     // Sensible first-run defaults for the current OS - the settings file itself is shared in
     // format with the WPF app, but a Windows-style empty emulator path helps nobody on a Mac.
