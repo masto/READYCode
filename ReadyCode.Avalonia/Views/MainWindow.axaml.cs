@@ -16,6 +16,7 @@ using ReadyCode.Avalonia.Editor;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Models;
+using ReadyCode.Tokenizer;
 
 namespace ReadyCode.Avalonia.Views;
 
@@ -59,6 +60,8 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
+        Editor.TextArea.TextEntering += Editor_TextEntering;
+        Editor.AddHandler(KeyDownEvent, Editor_PreviewKeyDown, global::Avalonia.Interactivity.RoutingStrategies.Tunnel);
         Editor.TextArea.Caret.PositionChanged += (_, _) => UpdateActiveLine();
         Editor.TextChanged += (_, _) => { _foldingTimer.Stop(); _foldingTimer.Start(); };
         _foldingTimer.Tick += (_, _) => { _foldingTimer.Stop(); UpdateFoldings(); };
@@ -593,17 +596,128 @@ public partial class MainWindow : Window
         }
     }
 
-    private void FileTree_PointerPressed(object? sender, PointerPressedEventArgs e)
+    private void FileTree_ContextRequested(object? sender, ContextRequestedEventArgs e)
     {
-        if (!e.GetCurrentPoint(FileTree).Properties.IsRightButtonPressed) return;
+        // Right-click (or the menu key) on a row: select it and show its menu. The row is found
+        // from the event source so the menu always matches the item under the pointer.
         if ((e.Source as Control)?.DataContext is not FileTreeItem item || item.Name.Length == 0) return;
 
         FileTree.SelectedItem = item;
         var container = (e.Source as Control)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
-        var menu = BuildTreeContextMenu(item);
-        menu.Open(container ?? (Control)FileTree);
+        BuildTreeContextMenu(item).Open(container ?? (Control)FileTree);
         e.Handled = true;
     }
+
+    // ── Editor input ──────────────────────────────────────────────────────────
+
+    // C64 BASIC is upper case by default - force typed text to match, the way an unshifted key
+    // on a real C64 produces an upper-case letter. A shifted letter right after an unshifted
+    // keyword prefix (e.g. g then shift-O for GOTO) is the C64's keyword abbreviation and is
+    // stored as the PETSCII graphic character the machine would show. Assembly source case is
+    // significant (labels, comments), so it's left alone.
+    private void Editor_TextEntering(object? sender, TextInputEventArgs e)
+    {
+        if (ViewModel.ActiveTab?.Language == EditorLanguage.Asm || string.IsNullOrEmpty(e.Text)) return;
+
+        string insertText = TryGetKeywordAbbreviationGlyph(e.Text) ?? e.Text.ToUpperInvariant();
+        if (insertText == e.Text) return;
+
+        e.Handled = true;
+        int start = Editor.SelectionStart;
+        int length = Editor.SelectionLength;
+        Editor.Document.Replace(start, length, insertText);
+        int caret = start + insertText.Length;
+        Editor.CaretOffset = caret;
+        Editor.Select(caret, 0);
+    }
+
+    private string? TryGetKeywordAbbreviationGlyph(string text)
+    {
+        if (Editor.SelectionLength > 0) return null;
+        if (text.Length != 1 || !char.IsAsciiLetterUpper(text[0])) return null;
+
+        var document = Editor.Document;
+        var line = document.GetLineByOffset(Editor.CaretOffset);
+        int caretCol = Editor.CaretOffset - line.Offset;
+        string lineText = document.GetText(line);
+
+        // Never inside a string literal - a shifted keystroke there is raw PETSCII content.
+        bool inString = false;
+        for (int i = 0; i < caretCol; i++)
+            if (lineText[i] == '"') inString = !inString;
+        if (inString) return null;
+
+        char shiftedLower = char.ToLowerInvariant(text[0]);
+        int prefixAvailable = Math.Min(caretCol, BasicKeywordAbbreviations.MaxLength - 1);
+        for (int prefixLen = prefixAvailable; prefixLen >= 0; prefixLen--)
+        {
+            string candidate = lineText.Substring(caretCol - prefixLen, prefixLen) + shiftedLower;
+            if (BasicKeywordAbbreviations.ToKeyword.ContainsKey(candidate))
+                return shiftedLower.ToString();
+        }
+
+        return null;
+    }
+
+    // Paste goes through here (menu, context menu, and the keyboard shortcut) so pasted BASIC
+    // is upper-cased like typed BASIC; assembly keeps its case.
+    private async Task PasteAsync()
+    {
+        if (Clipboard == null) return;
+        string? text = await Clipboard.TryGetTextAsync();
+        if (string.IsNullOrEmpty(text)) return;
+
+        if (ViewModel.ActiveTab?.Language != EditorLanguage.Asm)
+            text = text.ToUpperInvariant();
+
+        int start = Editor.SelectionStart;
+        Editor.Document.Replace(start, Editor.SelectionLength, text);
+        int caret = start + text.Length;
+        Editor.CaretOffset = caret;
+        Editor.Select(caret, 0);
+    }
+
+    private async void Editor_PreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        bool primary = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
+        if ((e.Key == Key.V && primary) || (e.Key == Key.Insert && e.KeyModifiers.HasFlag(KeyModifiers.Shift)))
+        {
+            e.Handled = true;
+            await PasteAsync();
+        }
+    }
+
+    private void Editor_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        var menu = new ContextMenu();
+        var items = menu.Items;
+        void Add(string header, Func<Task> action) => items.Add(new MenuItem { Header = header, Command = new AsyncCommand(action) });
+        void AddSync(string header, Action action) => Add(header, () => { action(); return Task.CompletedTask; });
+
+        Add("Run on VICE", ViewModel.RunOnViceAsync);
+        Add("Load on VICE", ViewModel.TransferToViceAsync);
+        items.Add(new Separator());
+        AddSync("Undo", () => Editor.Undo());
+        AddSync("Redo", () => Editor.Redo());
+        items.Add(new Separator());
+        AddSync("Cut", Editor.Cut);
+        AddSync("Copy", Editor.Copy);
+        Add("Paste", PasteAsync);
+        AddSync("Delete", Editor.Delete);
+        items.Add(new Separator());
+        AddSync("Select All", Editor.SelectAll);
+
+        menu.Open(Editor);
+        e.Handled = true;
+    }
+
+    private void EditUndo_Click(object? sender, RoutedEventArgs e) => Editor.Undo();
+    private void EditRedo_Click(object? sender, RoutedEventArgs e) => Editor.Redo();
+    private void EditCut_Click(object? sender, RoutedEventArgs e) => Editor.Cut();
+    private void EditCopy_Click(object? sender, RoutedEventArgs e) => Editor.Copy();
+    private async void EditPaste_Click(object? sender, RoutedEventArgs e) => await PasteAsync();
+    private void EditDelete_Click(object? sender, RoutedEventArgs e) => Editor.Delete();
+    private void EditSelectAll_Click(object? sender, RoutedEventArgs e) => Editor.SelectAll();
 
     private async void ViceRun_Click(object? sender, RoutedEventArgs e) => await ViewModel.RunOnViceAsync();
     private async void ViceTransfer_Click(object? sender, RoutedEventArgs e) => await ViewModel.TransferToViceAsync();
