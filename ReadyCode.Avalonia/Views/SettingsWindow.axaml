@@ -2,38 +2,171 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="ReadyCode.Avalonia.Views.SettingsWindow"
         Title="Preferences"
-        Width="560" SizeToContent="Height" CanResize="False"
+        Width="720" Height="560" MinWidth="600" MinHeight="420"
         WindowStartupLocation="CenterOwner">
 
-    <StackPanel Margin="20" Spacing="14">
+    <Window.Styles>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,10,0,0" />
+        </Style>
+        <Style Selector="TextBlock.desc">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#666666" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="0,2,0,4" />
+        </Style>
+        <Style Selector="NumericUpDown">
+            <Setter Property="Width" Value="140" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="FormatString" Value="0" />
+            <Setter Property="Increment" Value="1" />
+        </Style>
+        <Style Selector="TabControl /template/ ItemsPresenter#PART_ItemsPresenter">
+            <Setter Property="Margin" Value="0,8,8,0" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="MinHeight" Value="0" />
+        </Style>
+    </Window.Styles>
 
-        <TextBlock Text="VICE emulator" FontWeight="Bold" />
-        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Emulator executable (x64sc)" />
-            <TextBox   Grid.Row="1" Grid.Column="0" x:Name="VicePathBox" PlaceholderText="/opt/homebrew/bin/x64sc" />
-            <Button    Grid.Row="1" Grid.Column="1" Content="Browse…" Click="Browse_Click" />
-        </Grid>
-        <Grid ColumnDefinitions="*,120" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="4">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Binary monitor host" />
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="Port" />
-            <TextBox   Grid.Row="1" Grid.Column="0" x:Name="MonitorHostBox" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="MonitorPortBox" Minimum="1" Maximum="65535" Increment="1" FormatString="0" />
-        </Grid>
-        <CheckBox x:Name="BringToForegroundBox" Content="Bring VICE to the foreground after loading or running" />
-        <CheckBox x:Name="MinifyOnTransferBox" Content="Minify BASIC before transferring (uses the WPF app's minify settings)" />
-
-        <TextBlock Text="Editor" FontWeight="Bold" Margin="0,10,0,0" />
-        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="16" RowSpacing="4">
-            <TextBlock Grid.Row="0" Grid.Column="0" Text="Font size" />
-            <TextBlock Grid.Row="0" Grid.Column="1" Text="Line number padding (digits, 0 = none)" />
-            <NumericUpDown Grid.Row="1" Grid.Column="0" x:Name="FontSizeBox" Minimum="8" Maximum="48" Increment="1" FormatString="0" />
-            <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="LineNumberPaddingBox" Minimum="0" Maximum="5" Increment="1" FormatString="0" />
-        </Grid>
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,10,0,0">
+    <DockPanel Margin="12">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,10,0,0">
             <Button Content="Cancel" MinWidth="80" IsCancel="True" Click="Cancel_Click" />
             <Button Content="OK" MinWidth="80" IsDefault="True" Click="Ok_Click" />
         </StackPanel>
 
-    </StackPanel>
+        <TabControl TabStripPlacement="Left">
+
+            <TabItem Header="Application">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="On startup" />
+                        <TextBlock Classes="desc" Text="Choose what happens to your tabs when READYCode starts." />
+                        <RadioButton x:Name="RestoreTabsYes" GroupName="startup" Content="Reopen the tabs that were open last time" />
+                        <RadioButton x:Name="RestoreTabsNo" GroupName="startup" Content="Start with a new empty file" />
+
+                        <TextBlock Classes="section" Text="Status bar" Margin="0,18,0,4" />
+                        <CheckBox x:Name="ShowStatusBarBox" Content="Show the status bar" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Text Editor">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="General" />
+                        <TextBlock Classes="label" Text="Font size" />
+                        <TextBlock Classes="desc" Text="Font size used in the code editor (6 to 72)." />
+                        <NumericUpDown x:Name="FontSizeBox" Minimum="6" Maximum="72" />
+
+                        <CheckBox x:Name="WordWrapBox" Content="Word wrap" Margin="0,12,0,0" />
+                        <TextBlock Classes="desc" Text="Wrap long lines instead of scrolling horizontally (also under View)." />
+
+                        <CheckBox x:Name="ShowColumnGuideBox" Content="Show column guide" Margin="0,8,0,0" />
+                        <TextBlock Classes="desc" Text="Draws a vertical guide line at the column configured for BASIC and assembly tabs (also under View)." />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="BASIC">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="Formatting" />
+                        <TextBlock Classes="label" Text="Zero-pad line numbers to length" />
+                        <TextBlock Classes="desc" Text="When you press Space or Enter, the typed line number is left-padded with zeros to this length (e.g. 4 turns 10 into 0010). 0 disables padding." />
+                        <NumericUpDown x:Name="LineNumberPaddingBox" Minimum="0" Maximum="5" />
+
+                        <CheckBox x:Name="AutoNumberBox" Content="Auto-number lines" Margin="0,12,0,0" />
+                        <TextBlock Classes="desc" Text="Pressing Enter after a line of code inserts the next line number. Shift+Enter inserts a plain newline." />
+                        <TextBlock Classes="label" Text="Auto-number increment" />
+                        <TextBlock Classes="desc" Text="Amount added to the previous line number when auto-numbering (e.g. 10 produces 10, 20, 30…)." />
+                        <NumericUpDown x:Name="AutoNumberIncrementBox" Minimum="1" Maximum="1000" />
+
+                        <TextBlock Classes="label" Text="Column guide position" />
+                        <TextBlock Classes="desc" Text="Column at which the vertical guide line appears for BASIC tabs (40 matches the C64 screen)." />
+                        <NumericUpDown x:Name="BasicColumnGuideBox" Minimum="1" Maximum="255" />
+
+                        <TextBlock Classes="section" Text="Code analysis" Margin="0,18,0,4" />
+                        <CheckBox x:Name="EnableLintingBox" Content="Enable linting" />
+                        <TextBlock Classes="desc" Text="Flags invalid GOTO/GOSUB line numbers, duplicate line numbers, and unmatched FOR/NEXT as you type." />
+                        <CheckBox x:Name="EnableCodeFoldingBox" Content="Enable code folding" />
+                        <TextBlock Classes="desc" Text="Allows FOR/NEXT blocks and runs of REM lines to be collapsed in the editor." />
+
+                        <TextBlock Classes="section" Text="Minify" Margin="0,18,0,4" />
+                        <CheckBox x:Name="MinifyOnTransferBox" Content="Minify BASIC before transferring to VICE" />
+                        <StackPanel x:Name="MinifyOptions" Margin="24,4,0,0" Spacing="2">
+                            <CheckBox x:Name="MinifyRemoveWhitespaceBox" Content="Remove unnecessary whitespace" />
+                            <CheckBox x:Name="MinifyReplaceZeroWithDotBox" Content="Replace 0 with . where possible" />
+                            <CheckBox x:Name="MinifyUseScientificNotationBox" Content="Use scientific notation for long numbers" />
+                            <CheckBox x:Name="MinifyRemoveCommentsBox" Content="Remove REM comments" />
+                            <CheckBox x:Name="MinifySimplifyNextBox" Content="Simplify NEXT statements" />
+                            <CheckBox x:Name="MinifyRenumberLinesBox" Content="Renumber lines sequentially from 1" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="Assembly">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="Formatting" />
+                        <TextBlock Classes="label" Text="Mnemonic indent column" />
+                        <TextBlock Classes="desc" Text="Column mnemonics (LDA, STA, JMP…) are indented to when not preceded by a label (e.g. 9 for an 8-space indent)." />
+                        <NumericUpDown x:Name="AsmMnemonicIndentBox" Minimum="1" Maximum="80" />
+                        <TextBlock Classes="label" Text="Comment alignment column" />
+                        <TextBlock Classes="desc" Text="Column inline ; comments are aligned to." />
+                        <NumericUpDown x:Name="AsmCommentAlignBox" Minimum="1" Maximum="200" />
+                        <TextBlock Classes="label" Text="Column guide position" />
+                        <TextBlock Classes="desc" Text="Column at which the vertical guide line appears for assembly tabs." />
+                        <NumericUpDown x:Name="AsmColumnGuideBox" Minimum="1" Maximum="255" />
+                        <CheckBox x:Name="AsmAutoIndentBox" Content="Auto-indent" Margin="0,12,0,0" />
+                        <TextBlock Classes="desc" Text="Pressing Enter after an instruction indents the new line to the mnemonic column, normalizes the mnemonic's case and indent, and aligns its inline comment." />
+
+                        <TextBlock Classes="section" Text="Code analysis" Margin="0,18,0,4" />
+                        <CheckBox x:Name="AsmEnableCodeFoldingBox" Content="Enable code folding" />
+                        <TextBlock Classes="desc" Text="Allows runs of consecutive full-line ; comments to be collapsed in the editor." />
+
+                        <TextBlock Classes="section" Text="Assembler" Margin="0,18,0,4" />
+                        <TextBlock Classes="desc" Text="Choose how assembled code is packaged." />
+                        <RadioButton x:Name="AsmOutputAuto" GroupName="asmout" Content="Auto: add a BASIC loader stub so the program RUNs directly" />
+                        <RadioButton x:Name="AsmOutputStandalone" GroupName="asmout" Content="Standalone: raw machine code with a load-address header" />
+                        <TextBlock Classes="label" Text="Default origin address" />
+                        <TextBlock Classes="desc" Text="Memory address standalone output starts at when the source has no .org directive (hex, e.g. C000)." />
+                        <TextBox x:Name="AsmOriginBox" Width="140" HorizontalAlignment="Left" FontFamily="Menlo,Consolas,monospace" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="VICE">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="VICE emulator" />
+                        <TextBlock Classes="label" Text="Emulator executable (x64sc)" />
+                        <TextBlock Classes="desc" Text="Path to the VICE C64 emulator. Homebrew installs it as /opt/homebrew/bin/x64sc." />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox Grid.Column="0" x:Name="VicePathBox" PlaceholderText="/opt/homebrew/bin/x64sc" />
+                            <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" />
+                        </Grid>
+                        <Grid ColumnDefinitions="*,140" RowDefinitions="Auto,Auto" ColumnSpacing="8" Margin="0,10,0,0">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Binary monitor host" FontWeight="SemiBold" />
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="Port" FontWeight="SemiBold" />
+                            <TextBox Grid.Row="1" Grid.Column="0" x:Name="MonitorHostBox" Margin="0,4,0,0" />
+                            <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="MonitorPortBox" Minimum="1" Maximum="65535" Margin="0,4,0,0" />
+                        </Grid>
+                        <TextBlock Classes="desc" Text="Leave at the defaults unless VICE runs on another machine." />
+                        <CheckBox x:Name="BringToForegroundBox" Content="Bring VICE to the foreground after loading or running" Margin="0,8,0,0" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+        </TabControl>
+    </DockPanel>
 </Window>

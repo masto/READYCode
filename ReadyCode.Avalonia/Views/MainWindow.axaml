@@ -66,6 +66,11 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Explorer" Click="ViewExplorer_Click" HotKey="{OnPlatform Ctrl+B, macOS=Cmd+B}" InputGesture="{OnPlatform Ctrl+B, macOS=Cmd+B}" ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
+                <Separator />
+                <MenuItem Header="_Column Guide" Click="ViewColumnGuide_Click" ToggleType="CheckBox" IsChecked="{Binding ShowColumnGuide, Mode=OneWay}" />
+                <MenuItem Header="_Word Wrap" Click="ViewWordWrap_Click" ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" />
+                <MenuItem Header="_Status Bar" Click="ViewStatusBar_Click" ToggleType="CheckBox" IsChecked="{Binding ShowStatusBar, Mode=OneWay}" />
+                <Separator />
                 <MenuItem Header="_Problems" Click="ViewProblems_Click" HotKey="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" InputGesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" ToggleType="CheckBox" IsChecked="{Binding IsProblemsPanelOpen, Mode=OneWay}" />
             </MenuItem>
             <MenuItem Header="_VICE">
@@ -84,7 +89,7 @@
             </MenuItem>
         </Menu>
 
-        <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE">
+        <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE" IsVisible="{Binding ShowStatusBar}">
             <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" />
         </Border>
 

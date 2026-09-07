@@ -20,6 +20,8 @@ using ReadyCode.Search;
 using ReadyCode.Diagnostics;
 using AvaloniaEdit.Rendering;
 using ReadyCode.Tokenizer;
+using ReadyCode.Formatting;
+using System.Text.RegularExpressions;
 
 namespace ReadyCode.Avalonia.Views;
 
@@ -56,8 +58,10 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _findUpdateTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private ErrorSquiggleRenderer _errorSquiggleRenderer = null!;
+    private readonly ColumnGuideRenderer _columnGuideRenderer = new();
     private IReadOnlyList<EditorDiagnostic> _currentDiagnostics = Array.Empty<EditorDiagnostic>();
     private double _problemsHeight = 160;
+    private static readonly Regex _leadingLineNumberPattern = new(@"^(\s*)(\d+)", RegexOptions.Compiled);
     private readonly List<(int Offset, int Length)> _findMatches = new();
     private int _findMatchIndex = -1;
 
@@ -78,6 +82,7 @@ public partial class MainWindow : Window
         _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor) ;
         _errorSquiggleRenderer.SetColor(Color.Parse("#E51400"));
         Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
+        Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => ToolTip.SetIsOpen(Editor, false);
         _diagnosticsTimer.Tick += (_, _) => { _diagnosticsTimer.Stop(); RunDiagnostics(); };
@@ -137,7 +142,7 @@ public partial class MainWindow : Window
         var dirty = vm.OpenTabs.Where(t => t.IsModified).ToList();
         if (dirty.Count == 0)
         {
-            vm.SaveSettings();
+            vm.SaveSettingsAndSession();
             base.OnClosing(e);
             return;
         }
@@ -158,7 +163,7 @@ public partial class MainWindow : Window
             }
         }
 
-        vm.SaveSettings();
+        vm.SaveSettingsAndSession();
         _closeConfirmed = true;
         Close();
     }
@@ -198,6 +203,10 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsProblemsPanelOpen):
                 ApplyProblemsLayout();
+                break;
+            case nameof(MainViewModel.ShowColumnGuide):
+            case nameof(MainViewModel.WordWrap):
+                ApplyEditorSettings();
                 break;
         }
     }
@@ -263,13 +272,20 @@ public partial class MainWindow : Window
         bool isAsciiStyled = isAsm || tab.Kind == C64UFileKind.Bas;
         Editor.FontFamily = isAsciiStyled ? _asciiFont : _petsciiFont;
         _petsciiGlyphGenerator.IsAsmMode = isAsciiStyled;
+        ApplyEditorSettings();
         Editor.TextArea.TextView.Redraw();
     }
 
+    // Applies every setting that affects the editor control itself; safe to call repeatedly.
     private void ApplyEditorSettings()
     {
-        Editor.FontSize = ViewModel.Settings.EditorFontSize > 0 ? ViewModel.Settings.EditorFontSize + 4 : 16;
-        Editor.WordWrap = ViewModel.Settings.WordWrap;
+        var settings = ViewModel.Settings;
+        Editor.FontSize = Math.Clamp(settings.EditorFontSize, 6, 72);
+        Editor.WordWrap = settings.WordWrap;
+        _columnGuideRenderer.Column = settings.ShowColumnGuide
+            ? Math.Max(1, ViewModel.ActiveTab?.Language == EditorLanguage.Asm ? settings.AsmColumnGuideColumn : settings.BasicColumnGuideColumn)
+            : 0;
+        Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
     }
 
     private void InstallFolding(EditorTab tab)
@@ -708,6 +724,9 @@ public partial class MainWindow : Window
     private void FileCloseFolder_Click(object? sender, RoutedEventArgs e) => ViewModel.CloseFolder();
 
     private void ViewExplorer_Click(object? sender, RoutedEventArgs e) => ViewModel.IsExplorerOpen = !ViewModel.IsExplorerOpen;
+    private void ViewColumnGuide_Click(object? sender, RoutedEventArgs e) => ViewModel.ShowColumnGuide = !ViewModel.ShowColumnGuide;
+    private void ViewWordWrap_Click(object? sender, RoutedEventArgs e) => ViewModel.WordWrap = !ViewModel.WordWrap;
+    private void ViewStatusBar_Click(object? sender, RoutedEventArgs e) => ViewModel.ShowStatusBar = !ViewModel.ShowStatusBar;
 
     private async void ExplorerNewFile_Click(object? sender, RoutedEventArgs e) => await NewFileAsync();
     private async void ExplorerNewFolder_Click(object? sender, RoutedEventArgs e) => await NewFolderAsync();
@@ -951,7 +970,170 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
             await PasteAsync();
+            return;
         }
+
+        if (e.KeyModifiers is KeyModifiers.None or KeyModifiers.Shift)
+            HandleEditingKey(e);
+    }
+
+    // Line-number zero-padding and auto-numbering for BASIC, auto-indent for assembly - the
+    // behaviours behind the Formatting preferences, ported from the WPF app.
+    private void HandleEditingKey(KeyEventArgs e)
+    {
+        bool isEnter = e.Key == Key.Enter;
+        bool isSpaceOrTab = e.Key is Key.Space or Key.Tab;
+        if (!isEnter && !isSpaceOrTab) return;
+        if (Editor.SelectionLength > 0) return;
+
+        var tab = ViewModel.ActiveTab;
+        if (tab == null) return;
+
+        if (tab.Language == EditorLanguage.Asm)
+        {
+            if (isEnter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift) && ViewModel.Settings.AsmAutoIndent)
+            {
+                e.Handled = true;
+                InsertAsmNewlineWithIndent();
+            }
+            return;
+        }
+
+        var document = Editor.Document;
+        var line = document.GetLineByOffset(Editor.CaretOffset);
+        string lineText = document.GetText(line);
+        Match match = _leadingLineNumberPattern.Match(lineText);
+
+        // Zero-pad: fires on Space/Tab (at the end of the line number) and Enter (anywhere on the line).
+        int padding = ViewModel.Settings.LineNumberPadding;
+        if (padding > 0 && match.Success)
+        {
+            bool shouldPad = isEnter;
+            if (isSpaceOrTab)
+            {
+                int caretCol = Editor.CaretOffset - line.Offset;
+                int lineNumEndCol = match.Groups[2].Index + match.Groups[2].Length;
+                shouldPad = caretCol == lineNumEndCol;
+            }
+
+            if (shouldPad)
+            {
+                string digits = match.Groups[2].Value;
+                if (digits.Length < padding)
+                {
+                    string padded = digits.PadLeft(padding, '0');
+                    int numberStart = line.Offset + match.Groups[2].Index;
+                    int numberEnd = numberStart + digits.Length;
+                    int delta = padded.Length - digits.Length;
+                    int oldCaretOffset = Editor.CaretOffset;
+
+                    document.Replace(numberStart, digits.Length, padded);
+
+                    if (oldCaretOffset >= numberEnd)
+                        Editor.CaretOffset = oldCaretOffset + delta;
+                    else if (oldCaretOffset > numberStart)
+                        Editor.CaretOffset = numberStart + padded.Length;
+
+                    lineText = document.GetText(line);
+                    match = _leadingLineNumberPattern.Match(lineText);
+                }
+            }
+        }
+
+        // Auto-number: on Enter when the line has code after its number. Shift+Enter gives a
+        // plain newline.
+        bool isShiftEnter = isEnter && e.KeyModifiers.HasFlag(KeyModifiers.Shift);
+        if (!isEnter || isShiftEnter || !ViewModel.Settings.AutoNumberLines || !match.Success) return;
+
+        string afterNumber = lineText[(match.Groups[2].Index + match.Groups[2].Length)..];
+        if (string.IsNullOrWhiteSpace(afterNumber)) return;
+        if (!int.TryParse(match.Groups[2].Value, out int currentNumber)) return;
+
+        int nextNumber = currentNumber + ViewModel.Settings.AutoNumberIncrement;
+
+        // If the increment would land on or past the next existing line number, split the gap;
+        // if there's no room at all, fall back to a plain newline.
+        var nextDocLine = line.NextLine;
+        if (nextDocLine != null)
+        {
+            Match nextMatch = _leadingLineNumberPattern.Match(document.GetText(nextDocLine));
+            if (nextMatch.Success && int.TryParse(nextMatch.Groups[2].Value, out int nextExisting) && nextNumber >= nextExisting)
+            {
+                int midpoint = (currentNumber + nextExisting) / 2;
+                if (midpoint <= currentNumber) return;
+                nextNumber = midpoint;
+            }
+        }
+
+        string nextLabel = padding > 0 ? nextNumber.ToString().PadLeft(padding, '0') : nextNumber.ToString();
+        e.Handled = true;
+        int insertOffset = Editor.CaretOffset;
+        document.Insert(insertOffset, Environment.NewLine + nextLabel + " ");
+        Editor.CaretOffset = insertOffset + Environment.NewLine.Length + nextLabel.Length + 1;
+    }
+
+    // Enter in an assembly tab with Auto-indent on: normalizes the line being left (re-indents a
+    // bare mnemonic line to the mnemonic column and upper-cases the mnemonic; realigns an inline
+    // comment to the comment column), then indents the new line to the mnemonic column if the
+    // current line was an instruction.
+    private void InsertAsmNewlineWithIndent()
+    {
+        var document = Editor.Document;
+        var line = document.GetLineByOffset(Editor.CaretOffset);
+        string lineText = document.GetText(line);
+        int caretInLine = Editor.CaretOffset - line.Offset;
+        bool caretAtEnd = caretInLine == lineText.Length;
+
+        string workingLine = lineText;
+        string trimmedStart = workingLine.TrimStart();
+        int oldIndentLength = workingLine.Length - trimmedStart.Length;
+        string trimmed = trimmedStart.TrimEnd();
+
+        bool isMnemonicLine = AsmCodeFormatter.TryParseAsmMnemonicLine(trimmed, out string mnemonic, out string rest);
+        string indent = isMnemonicLine ? new string(' ', Math.Max(0, ViewModel.Settings.AsmMnemonicIndentColumn - 1)) : "";
+
+        if (isMnemonicLine)
+        {
+            string normalized = indent + mnemonic.ToUpperInvariant() + rest;
+            if (normalized != workingLine)
+            {
+                caretInLine = Math.Clamp(caretInLine + (indent.Length - oldIndentLength), 0, normalized.Length);
+                workingLine = normalized;
+            }
+        }
+
+        int semicolonIndex = workingLine.IndexOf(';');
+        if (semicolonIndex > 0)
+        {
+            string codePart = workingLine[..semicolonIndex];
+            if (!string.IsNullOrWhiteSpace(codePart))
+            {
+                string commentPart = workingLine[semicolonIndex..];
+                string trimmedCode = codePart.TrimEnd();
+                int targetLength = Math.Max(0, ViewModel.Settings.AsmCommentAlignColumn - 1);
+                string alignedCode = trimmedCode.Length < targetLength ? trimmedCode.PadRight(targetLength) : trimmedCode + "  ";
+                string realigned = alignedCode + commentPart;
+
+                if (realigned != workingLine)
+                {
+                    if (caretAtEnd)
+                        caretInLine = realigned.Length;
+                    else if (caretInLine >= semicolonIndex)
+                        caretInLine = Math.Clamp(alignedCode.Length + (caretInLine - semicolonIndex), 0, realigned.Length);
+                    else
+                        caretInLine = Math.Clamp(caretInLine, 0, realigned.Length);
+
+                    workingLine = realigned;
+                }
+            }
+        }
+
+        if (workingLine != lineText)
+            document.Replace(line.Offset, line.Length, workingLine);
+
+        int insertOffset = line.Offset + caretInLine;
+        document.Insert(insertOffset, Environment.NewLine + indent);
+        Editor.CaretOffset = insertOffset + Environment.NewLine.Length + indent.Length;
     }
 
     private void Editor_ContextRequested(object? sender, ContextRequestedEventArgs e)
@@ -1010,7 +1192,14 @@ public partial class MainWindow : Window
         if (!dialog.Accepted) return;
 
         ViewModel.SaveSettings();
+        ViewModel.NotifySettingsChanged();
         ApplyEditorSettings();
+        if (_boundTab != null)
+        {
+            UninstallFolding();
+            InstallFolding(_boundTab);
+        }
+        RunDiagnosticsNow();
         ViewModel.SetStatus("Preferences saved.");
     }
 
