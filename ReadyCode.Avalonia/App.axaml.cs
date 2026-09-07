@@ -3,6 +3,8 @@
 
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using ReadyCode.Avalonia.ViewModels;
@@ -23,6 +25,7 @@ public partial class App : Application
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
+        ConfigureMacOSApplicationMenu();
     }
 
     /// <summary>
@@ -48,6 +51,42 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
     }
+
+    #endregion
+
+    #region Private Methods
+
+    // On macOS, About and Preferences belong in the application menu rather than the menu bar.
+    // Setting a NativeMenu on the Application is what puts them there; it also replaces the
+    // default "About Avalonia" item that would otherwise be the only thing in that menu.
+    private void ConfigureMacOSApplicationMenu()
+    {
+        if (!OperatingSystem.IsMacOS()) return;
+
+        var about = new NativeMenuItem { Header = "About READYCode" };
+        about.Click += async (_, _) =>
+        {
+            if (MainWindow is { } window) await window.ShowAboutAsync();
+        };
+
+        var preferences = new NativeMenuItem
+        {
+            Header = "Preferences…",
+            Gesture = new KeyGesture(Key.OemComma, KeyModifiers.Meta),
+        };
+        preferences.Click += async (_, _) =>
+        {
+            if (MainWindow is { } window) await window.ShowPreferencesAsync();
+        };
+
+        var applicationMenu = new NativeMenu { about, new NativeMenuItemSeparator(), preferences };
+        NativeMenu.SetMenu(this, applicationMenu);
+    }
+
+    // The window is created after Initialize runs, so the menu handlers resolve it on each click
+    // rather than capturing it up front.
+    private MainWindow? MainWindow =>
+        (ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow as MainWindow;
 
     #endregion
 }

@@ -182,6 +182,9 @@ approve the automation the first time.
   Step Over/Into/Out, Run to Cursor, a highlighted current line, and Variables (editable),
   Breakpoints, and Call Stack panels. Breakpoints persist per open folder.
 - **Preferences** - Application, Text Editor, BASIC, Assembly, and VICE pages.
+- **Native menus** - the menu is declared once and rendered by whatever the platform uses: the
+  system menu bar on macOS, where About and Preferences also move into the application menu and
+  Quit comes from the system, and an in-window menu bar on Windows and Linux.
 
 Settings live in the same `settings.json` format the Windows app uses:
 
@@ -200,8 +203,8 @@ The C64 Ultimate menu and FTP explorer, project-wide search, the hex editor, fil
 disassembler tabs, the reference panels (BASIC keywords, PETSCII, Quick Keys, Music Notes), the
 Variables and Symbols side panel, ghost-text completion and `Ctrl+Space`, the Minify, Prettify and
 Renumber dialogs, printing, recent files, drag-and-drop and cut/copy/paste in the explorer, code
-statistics, the About dialog, and the Light/Dark/C64 themes (the Avalonia app currently uses
-Avalonia's own light theme).
+statistics, and the Light/Dark/C64 themes (the Avalonia app currently uses Avalonia's own light
+theme).
 
 Bringing VICE to the foreground after a transfer works on Windows and macOS. On Linux it is a
 no-op: there is no portable way to raise another application's window across the various window
@@ -249,6 +252,10 @@ Two Avalonia-specific notes:
 
 - The hybrid-MVVM split is the same as the WPF app's: bindable state lives in `MainViewModel`,
   and anything touching the AvaloniaEdit control directly lives in `MainWindow.axaml.cs`.
+- The menu is a single `NativeMenu` in `MainWindow.axaml`. Add items there rather than to a
+  platform-specific menu, and give anything with a shortcut a `Gesture`: on macOS that becomes a
+  real system key equivalent, and where the menu is drawn in-window the window binds the same
+  gestures itself, so the two can never disagree.
 - Avalonia is not WPF. It uses `.axaml`, `StyledProperty` rather than `DependencyProperty`,
   style selectors and pseudo-classes rather than triggers, `TreeDataTemplate` rather than
   `HierarchicalDataTemplate`, `avares://` rather than `pack://`, and `IsVisible` rather than
