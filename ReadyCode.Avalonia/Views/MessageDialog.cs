@@ -13,9 +13,25 @@ namespace ReadyCode.Avalonia.Views;
 /// </summary>
 public static class MessageDialog
 {
+    #region Public Methods
+
+    /// <summary>
+    /// Shows a message with a single OK button.
+    /// </summary>
+    /// <param name="owner">The window to show the dialog over.</param>
+    /// <param name="title">The dialog's title.</param>
+    /// <param name="message">The message to show.</param>
     public static Task ShowAsync(Window owner, string title, string message) =>
         ShowAsync(owner, title, message, "OK");
 
+    /// <summary>
+    /// Shows a message with the given buttons.
+    /// </summary>
+    /// <param name="owner">The window to show the dialog over.</param>
+    /// <param name="title">The dialog's title.</param>
+    /// <param name="message">The message to show.</param>
+    /// <param name="buttons">The button labels, left to right. The first is the default, the last is cancel.</param>
+    /// <returns>The label of the button pressed, or null if the dialog was dismissed.</returns>
     public static async Task<string?> ShowAsync(Window owner, string title, string message, params string[] buttons)
     {
         var dialog = new Window
@@ -51,4 +67,6 @@ public static class MessageDialog
         await dialog.ShowDialog(owner);
         return result;
     }
+
+    #endregion
 }

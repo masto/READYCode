@@ -1,5 +1,16 @@
 # Change Log
 
+## [Unreleased]
+
+### New Features
+
+- **macOS and Linux support** - a second front end, `ReadyCode.Avalonia`, built on [Avalonia](https://avaloniaui.net/). It shares all editor, tokenizer, assembler, diagnostics, and emulator logic with the Windows app through a new `ReadyCode.Core` library, so both produce byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, the folder explorer (including `.d64`/`.d81` browsing), find and replace, live diagnostics with a Problems panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. The Windows app is unchanged. See [README-Avalonia.md](README-Avalonia.md) for what is and isn't ported yet
+- **Cross-platform CI** - a GitHub Actions workflow building and testing the shared library, the Avalonia front end, and both test suites on Ubuntu and macOS, and compile-checking the WPF app on both
+
+### Bug Fixes
+
+- Fixed `FacFloat.Encode` silently accepting `NaN` on ARM64 (Apple Silicon): casting `NaN` to `int` yields `0` there rather than `int.MinValue` as on x64, so the range check that was meant to reject it never fired. `NaN` and infinity are now rejected explicitly
+
 ## [v2.3.0] - 2026-09-04
 
 ### New Features

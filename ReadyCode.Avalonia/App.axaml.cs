@@ -10,17 +10,29 @@ using ReadyCode.Avalonia.Views;
 
 namespace ReadyCode.Avalonia;
 
+/// <summary>
+/// The Avalonia application: loads the app-wide styles and opens the main window.
+/// </summary>
 public partial class App : Application
 {
+    #region Public Methods
+
+    /// <summary>
+    /// Loads the application's XAML.
+    /// </summary>
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
     }
 
+    /// <summary>
+    /// Installs the UI-thread hooks the shared models need, then opens the main window.
+    /// </summary>
     public override void OnFrameworkInitializationCompleted()
     {
-        // Shared models raise work from background threads (debug session read loop) or need to
-        // defer until after layout (disk-image expansion in the explorer tree).
+        // Shared models raise work from background threads (the debug session's read loop) or need
+        // to defer until after a layout pass (disk-image expansion in the explorer tree). Both are
+        // installed here so ReadyCode.Core stays free of any UI-framework reference.
         MainViewModel.RunOnUiThread = action =>
         {
             if (Dispatcher.UIThread.CheckAccess()) action();
@@ -36,4 +48,6 @@ public partial class App : Application
 
         base.OnFrameworkInitializationCompleted();
     }
+
+    #endregion
 }

@@ -17,7 +17,7 @@ namespace ReadyCode.Avalonia.Tests;
 /// </summary>
 public class MainWindowRenderTests
 {
-    private static readonly string? _renderDir = Environment.GetEnvironmentVariable("READYCODE_RENDER_DIR");
+    #region Public Methods
 
     [AvaloniaFact]
     public void MainWindow_RendersPetsciiStyledListing()
@@ -38,11 +38,9 @@ public class MainWindowRenderTests
         vm.SetStatus("Rendered for test.");
 
         Dispatcher.UIThread.RunJobs();
-        var frame = window.CaptureRenderedFrame();
+        var frame = RenderCapture.Save(window, "main-window-prg.png");
 
-        Assert.NotNull(frame);
-        Assert.True(frame!.PixelSize.Width > 100 && frame.PixelSize.Height > 100);
-        Save(frame, "main-window-prg.png");
+        Assert.True(frame.PixelSize.Width > 100 && frame.PixelSize.Height > 100);
     }
 
     [AvaloniaFact]
@@ -57,10 +55,7 @@ public class MainWindowRenderTests
         tab.Document.Text = "10 PRINT \"HELLO\"\n20 GOTO 10\n30 REM END";
 
         Dispatcher.UIThread.RunJobs();
-        var frame = window.CaptureRenderedFrame();
-
-        Assert.NotNull(frame);
-        Save(frame!, "main-window-bas.png");
+        RenderCapture.Save(window, "main-window-bas.png");
     }
 
     [AvaloniaFact]
@@ -76,10 +71,7 @@ public class MainWindowRenderTests
         tab.Document.Text = "; border colour demo\n; second comment line\nstart:\n        LDA #$00\n        STA $D020\n        LDX #%1010\nloop:   DEX\n        BNE loop ; spin\n        RTS";
 
         Dispatcher.UIThread.RunJobs();
-        var frame = window.CaptureRenderedFrame();
-
-        Assert.NotNull(frame);
-        Save(frame!, "main-window-asm.png");
+        RenderCapture.Save(window, "main-window-asm.png");
     }
 
     [AvaloniaFact]
@@ -89,16 +81,9 @@ public class MainWindowRenderTests
         window.Show();
 
         Dispatcher.UIThread.RunJobs();
-        var frame = window.CaptureRenderedFrame();
-
-        Assert.NotNull(frame);
-        Save(frame!, "settings-window.png");
+        RenderCapture.Save(window, "settings-window.png");
     }
 
-    private static void Save(global::Avalonia.Media.Imaging.Bitmap frame, string name)
-    {
-        if (string.IsNullOrEmpty(_renderDir)) return;
-        Directory.CreateDirectory(_renderDir);
-        frame.Save(Path.Combine(_renderDir, name));
-    }
+
+    #endregion
 }

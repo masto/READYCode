@@ -16,7 +16,25 @@ dotnet test ReadyCode.Tests/ReadyCode.Tests.csproj
 
 (Building/testing via `ReadyCode.sln` instead also works, but additionally tries to build
 `ReadyCode.Packaging`, a `.wapproj` that only builds inside Visual Studio - see the README's Build
-section for details.)
+section for details. `ReadyCode.slnf` is a solution filter that leaves out that project and the WiX
+installer, so it builds on any OS.)
+
+### The cross-platform projects
+
+The repository also contains a second front end, `ReadyCode.Avalonia`, which runs on macOS and
+Linux, and `ReadyCode.Core`, the UI-framework-free library both front ends share. See
+[README-Avalonia.md](README-Avalonia.md) for how to build and run them.
+
+The conventions below apply to those projects as well. Two things worth knowing before working in
+them:
+
+- **New non-UI logic belongs in `ReadyCode.Core`**, so both front ends get it. `ReadyCode.Core`
+  must not reference WPF, Avalonia, or AvalonEdit; where a shared model needs the UI thread it
+  exposes a hook the front ends install at startup (`FileTreeItem.DeferToUiThread`,
+  `MainViewModel.RunOnUiThread`).
+- **A change to shared behavior should land in both front ends** or explicitly say why it didn't.
+  If you change PETSCII rendering, tokenizing, or diagnostics, the WPF and Avalonia editors should
+  still agree.
 
 ## Reporting bugs / proposing features
 
@@ -72,8 +90,10 @@ style in a new file:
 
 ## Before opening a PR
 
-1. `dotnet build ReadyCode/ReadyCode.csproj -c Debug` - must build with no new warnings.
-2. `dotnet test ReadyCode.Tests/ReadyCode.Tests.csproj` - must pass. Add tests under
+1. `dotnet build ReadyCode/ReadyCode.csproj -c Debug` - must build with no new warnings. If you
+   touched `ReadyCode.Core` or `ReadyCode.Avalonia`, `dotnet build ReadyCode.slnf` as well.
+2. `dotnet test ReadyCode.Tests/ReadyCode.Tests.csproj` - must pass (plus
+   `ReadyCode.Avalonia.Tests` for changes to the Avalonia front end). Add tests under
    `ReadyCode.Tests/` for new pure-logic code (tokenizer, minify, prettify, and similar are good
    candidates; UI/AvalonEdit-coupled code is harder to unit test and isn't currently covered - manual
    verification is fine there).

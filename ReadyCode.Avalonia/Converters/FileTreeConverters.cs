@@ -14,6 +14,8 @@ namespace ReadyCode.Avalonia.Converters;
 /// </summary>
 public static class FileTreeConverters
 {
+    #region Private Fields
+
     private static readonly Geometry _folder = Geometry.Parse("M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z");
     private static readonly Geometry _file = Geometry.Parse("M5 2h7l4 4v12H5z");
     private static readonly Geometry _disk = Geometry.Parse("M3 3h14v14H3z");
@@ -24,6 +26,10 @@ public static class FileTreeConverters
     private static readonly IBrush _badgePrg = new SolidColorBrush(Color.Parse("#28B08E"));
     private static readonly IBrush _badgeAsm = new SolidColorBrush(Color.Parse("#B9A0C9"));
     private static readonly IBrush _badgeBas = new SolidColorBrush(Color.Parse("#EB8865"));
+
+    #endregion
+
+    #region Public Properties
 
     /// <summary>Maps a tree item to its icon geometry (folder, disk image, or file).</summary>
     public static readonly IValueConverter Icon = new FuncValueConverter<FileTreeItem?, Geometry?>(item =>
@@ -41,9 +47,11 @@ public static class FileTreeConverters
     });
 
     /// <summary>Formats a debug variable's value.</summary>
-    public static readonly IValueConverter VariableValue = new FuncValueConverter<BasicVariable?, string>(v =>
-        v == null ? "" : MainViewModel.FormatVariableValue(v));
+    public static readonly IValueConverter VariableValue = new FuncValueConverter<BasicVariable?, string>(variable =>
+        variable == null ? "" : MainViewModel.FormatVariableValue(variable));
 
     /// <summary>True when the item has a badge to show.</summary>
     public static readonly IValueConverter HasBadge = new FuncValueConverter<string?, bool>(badge => !string.IsNullOrEmpty(badge));
+
+    #endregion
 }

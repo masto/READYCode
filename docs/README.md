@@ -4,7 +4,9 @@
 
 READYCode is a Windows 10/11 desktop editor for writing Commodore 64 BASIC and 6502 assembly programs, built around real hardware and emulator workflows: what you write is the same tokenized `.prg` a C64 would produce itself, and it can be sent straight to a [C64 Ultimate](https://commodore.net/computer/) or [VICE](https://vice-emu.sourceforge.io/) emulator and run. This documentation covers what the application can do, organized by feature area.
 
-For installation and a build-from-source guide, see the [project README](../README.md).
+For installation and a build-from-source guide, see the [project README](../README.md). On macOS or
+Linux, see [README-Avalonia.md](../README-Avalonia.md) - this documentation describes the Windows
+application, and the cross-platform front end does not have every feature it covers yet.
 
 ## Contents
 

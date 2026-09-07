@@ -28,6 +28,9 @@ public class EditorTab : INotifyPropertyChanged
 
     #region Constructors
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EditorTab"/> class.
+    /// </summary>
     public EditorTab()
     {
         Document.TextChanged += (_, _) => IsModified = true;
@@ -157,8 +160,11 @@ public class EditorTab : INotifyPropertyChanged
 
     #endregion
 
-    #region Events
+    #region Public Events
 
+    /// <summary>
+    /// Occurs when a bindable property of this tab changes.
+    /// </summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     #endregion
