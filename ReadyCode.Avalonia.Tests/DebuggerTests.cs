@@ -41,8 +41,14 @@ internal sealed class FakeDebugSession : IDebugSession
     public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
 }
 
+/// <summary>
+/// Tests for the BASIC debug session, breakpoints, and the debugger's editor decorations, driven
+/// against <see cref="FakeDebugSession"/> rather than a real emulator.
+/// </summary>
 public class DebuggerTests
 {
+    #region Public Methods
+
     private const string Program = "10 PRINT \"A\"\n20 GOSUB 100\n30 PRINT \"B\"\n40 END\n100 PRINT \"SUB\"\n110 RETURN";
 
     [Fact]
@@ -127,9 +133,8 @@ public class DebuggerTests
 
         Assert.Equal(5, vm.DebugCurrentDocumentLine);
         Assert.True(vm.IsBottomPanelOpen);
-        var frame = window.CaptureRenderedFrame();
-        Assert.NotNull(frame);
-        string? dir = Environment.GetEnvironmentVariable("READYCODE_RENDER_DIR");
-        if (!string.IsNullOrEmpty(dir)) { Directory.CreateDirectory(dir); frame!.Save(Path.Combine(dir, "debugger.png")); }
+        RenderCapture.Save(window, "debugger.png");
     }
+
+    #endregion
 }

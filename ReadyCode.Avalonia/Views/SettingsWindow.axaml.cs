@@ -15,15 +15,30 @@ namespace ReadyCode.Avalonia.Views;
 /// </summary>
 public partial class SettingsWindow : Window
 {
+    #region Private Fields
+
     private readonly AppSettings _settings;
 
+    #endregion
+
+    #region Constructors
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SettingsWindow"/> class over throwaway
+    /// settings. Exists for the XAML designer; the app always uses the overload below.
+    /// </summary>
     public SettingsWindow() : this(new AppSettings()) { }
 
-    public SettingsWindow(AppSettings s)
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SettingsWindow"/> class.
+    /// </summary>
+    /// <param name="settings">The settings to edit. Only written when the user presses OK.</param>
+    public SettingsWindow(AppSettings settings)
     {
-        _settings = s;
+        _settings = settings;
         InitializeComponent();
 
+        var s = settings;
         RestoreTabsYes.IsChecked = s.RestoreOpenTabsOnStartup;
         RestoreTabsNo.IsChecked = !s.RestoreOpenTabsOnStartup;
         ShowStatusBarBox.IsChecked = s.ShowStatusBar;
@@ -63,8 +78,18 @@ public partial class SettingsWindow : Window
         BringToForegroundBox.IsChecked = s.ViceBringToForeground;
     }
 
-    /// <summary>Gets whether the user pressed OK (settings were applied).</summary>
+    #endregion
+
+    #region Public Properties
+
+    /// <summary>
+    /// Gets whether the user pressed OK, meaning the edits were written to the settings.
+    /// </summary>
     public bool Accepted { get; private set; }
+
+    #endregion
+
+    #region Private Methods
 
     private async void Browse_Click(object? sender, RoutedEventArgs e)
     {
@@ -124,5 +149,7 @@ public partial class SettingsWindow : Window
 
     private void Cancel_Click(object? sender, RoutedEventArgs e) => Close();
 
-    private static int Int(NumericUpDown box, int fallback) => box.Value is { } v ? (int)v : fallback;
+    private static int Int(NumericUpDown box, int fallback) => box.Value is { } value ? (int)value : fallback;
+
+    #endregion
 }

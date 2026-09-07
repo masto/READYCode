@@ -27,6 +27,11 @@ using System.Text.RegularExpressions;
 
 namespace ReadyCode.Avalonia.Views;
 
+/// <summary>
+/// The main window. Following the same hybrid-MVVM split as the WPF app, everything that has to
+/// touch the AvaloniaEdit control directly (colorizers, folding, the breakpoint gutter, find
+/// highlighting, key handling) lives here, while bindable state lives in <see cref="MainViewModel"/>.
+/// </summary>
 public partial class MainWindow : Window
 {
     #region Private Fields
@@ -79,6 +84,9 @@ public partial class MainWindow : Window
 
     #region Constructors
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainWindow"/> class.
+    /// </summary>
     public MainWindow()
     {
         InitializeComponent();

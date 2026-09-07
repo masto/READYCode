@@ -18,7 +18,8 @@ namespace ReadyCode.Avalonia.Tests;
 /// </summary>
 public class ExplorerTests : IDisposable
 {
-    private static readonly string? _renderDir = Environment.GetEnvironmentVariable("READYCODE_RENDER_DIR");
+    #region Public Methods
+
     private readonly string _root;
 
     public ExplorerTests()
@@ -126,13 +127,9 @@ public class ExplorerTests : IDisposable
         vm.OpenFile(Path.Combine(_root, "hello.prg"));
 
         Dispatcher.UIThread.RunJobs();
-        var frame = window.CaptureRenderedFrame();
 
-        Assert.NotNull(frame);
-        if (!string.IsNullOrEmpty(_renderDir))
-        {
-            Directory.CreateDirectory(_renderDir);
-            frame!.Save(Path.Combine(_renderDir, "main-window-explorer.png"));
-        }
+        RenderCapture.Save(window, "main-window-explorer.png");
     }
+
+    #endregion
 }

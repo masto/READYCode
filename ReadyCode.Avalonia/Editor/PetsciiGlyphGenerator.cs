@@ -16,6 +16,8 @@ namespace ReadyCode.Avalonia.Editor;
 /// </summary>
 public class PetsciiGlyphGenerator : VisualLineElementGenerator
 {
+    #region Public Properties
+
     /// <summary>
     /// Gets or sets whether the active document is plain ASCII source (assembly, or a .bas
     /// listing) rather than a PETSCII-styled listing. Plain source must never be reinterpreted as
@@ -23,6 +25,15 @@ public class PetsciiGlyphGenerator : VisualLineElementGenerator
     /// </summary>
     public bool IsAsmMode { get; set; }
 
+    #endregion
+
+    #region Public Methods
+
+    /// <summary>
+    /// Finds the offset of the next character that needs PETSCII glyph substitution.
+    /// </summary>
+    /// <param name="startOffset">The offset to search from.</param>
+    /// <returns>The offset of the next character to substitute, or -1 if none remain on the line.</returns>
     public override int GetFirstInterestedOffset(int startOffset)
     {
         if (IsAsmMode)
@@ -41,6 +52,11 @@ public class PetsciiGlyphGenerator : VisualLineElementGenerator
         return -1;
     }
 
+    /// <summary>
+    /// Constructs the visual element that renders the PETSCII glyph for the character at <paramref name="offset"/>.
+    /// </summary>
+    /// <param name="offset">The offset of the character to substitute.</param>
+    /// <returns>The glyph element, or null if the character is outside the representable range.</returns>
     public override VisualLineElement? ConstructElement(int offset)
     {
         char ch = CurrentContext.Document.GetCharAt(offset);
@@ -51,6 +67,8 @@ public class PetsciiGlyphGenerator : VisualLineElementGenerator
         string glyph = ((char)(0xE000 + screenCode)).ToString();
         return new PetsciiGlyphElement(glyph);
     }
+
+    #endregion
 
     private sealed class PetsciiGlyphElement : VisualLineElement
     {

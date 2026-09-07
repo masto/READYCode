@@ -15,6 +15,8 @@ namespace ReadyCode.Avalonia.Editor;
 /// </summary>
 public class NumberLiteralColorizer : DocumentColorizingTransformer
 {
+    #region Private Fields
+
     private static readonly Regex _leadingLineNumberPattern = new(@"^(\s*)(\d+)", RegexOptions.Compiled);
 
     // A period with no adjacent digits (e.g. the "." in "KP=.") is CBM BASIC shorthand for the
@@ -23,11 +25,23 @@ public class NumberLiteralColorizer : DocumentColorizingTransformer
     private static readonly Regex _numberPattern =
         new(@"(\d+(\.\d+)?|\.\d*)([Ee][+-]?\d+)?", RegexOptions.Compiled);
 
+    #endregion
+
+    #region Public Properties
+
     /// <summary>
     /// Gets or sets the brush used to draw numeric literals.
     /// </summary>
     public IBrush NumberBrush { get; set; } = Brushes.Teal;
 
+    #endregion
+
+    #region Protected Methods
+
+    /// <summary>
+    /// Colorizes every numeric literal on the given line.
+    /// </summary>
+    /// <param name="line">The document line to colorize.</param>
     protected override void ColorizeLine(DocumentLine line)
     {
         string text = CurrentContext.Document.GetText(line);
@@ -103,9 +117,15 @@ public class NumberLiteralColorizer : DocumentColorizingTransformer
         }
     }
 
+    #endregion
+
+    #region Private Methods
+
     // Returns the length of the longest keyword matching at position i, or 0 if none match.
     private static int MatchKeywordLength(string text, int i) =>
         BasicTokens.TryMatchKeyword(text, i, BasicTokens.WordKeywordsLongestFirst, out string keyword)
             ? keyword.Length
             : 0;
+
+    #endregion
 }

@@ -29,7 +29,7 @@ public partial class MainViewModel
 
     #endregion
 
-    #region Public Fields
+    #region Public Properties
 
     /// <summary>
     /// Runs an action on the UI thread: debug session events arrive on a background read loop.
@@ -43,10 +43,6 @@ public partial class MainViewModel
 
     /// <summary>Lets tests skip the program transfer to VICE.</summary>
     internal Func<EditorTab, byte[], Task>? DebugTransferOverride { get; set; }
-
-    #endregion
-
-    #region Public Properties
 
     /// <summary>Gets the breakpoints for every file, keyed by file path (or name for unsaved tabs).</summary>
     public BreakpointStore BreakpointStore { get; } = new();
@@ -199,10 +195,27 @@ public partial class MainViewModel
         await DebugStartAsync();
     }
 
-    public Task DebugPauseAsync() => RunDebugCommandAsync(s => s.PauseAsync(), "Pause");
-    public Task DebugStepIntoAsync() => RunDebugCommandAsync(s => s.StepIntoAsync(), "Step");
-    public Task DebugStepOverAsync() => RunDebugCommandAsync(s => s.StepOverAsync(), "Step over");
-    public Task DebugStepOutAsync() => RunDebugCommandAsync(s => s.StepOutAsync(), "Step out");
+    /// <summary>
+    /// Arms a trap that halts at the start of the next BASIC line without resuming - valid only
+    /// while the program is already running.
+    /// </summary>
+    public Task DebugPauseAsync() => RunDebugCommandAsync(session => session.PauseAsync(), "Pause");
+
+    /// <summary>
+    /// Executes one BASIC line and halts again, entering a GOSUB called along the way, if any.
+    /// </summary>
+    public Task DebugStepIntoAsync() => RunDebugCommandAsync(session => session.StepIntoAsync(), "Step");
+
+    /// <summary>
+    /// Executes one BASIC line and halts again, running any GOSUB called along the way to
+    /// completion rather than stopping inside it.
+    /// </summary>
+    public Task DebugStepOverAsync() => RunDebugCommandAsync(session => session.StepOverAsync(), "Step over");
+
+    /// <summary>
+    /// Runs until execution returns from the innermost GOSUB or FOR loop active at the stop point.
+    /// </summary>
+    public Task DebugStepOutAsync() => RunDebugCommandAsync(session => session.StepOutAsync(), "Step out");
 
     /// <summary>Continues to a BASIC line, arming a temporary breakpoint there if none exists.</summary>
     public async Task RunToLineAsync(ushort basicLine)

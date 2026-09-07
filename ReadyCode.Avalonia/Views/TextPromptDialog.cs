@@ -13,6 +13,16 @@ namespace ReadyCode.Avalonia.Views;
 /// </summary>
 public static class TextPromptDialog
 {
+    #region Public Methods
+
+    /// <summary>
+    /// Prompts for a single line of text.
+    /// </summary>
+    /// <param name="owner">The window to show the dialog over.</param>
+    /// <param name="title">The dialog's title.</param>
+    /// <param name="label">The label shown above the text box.</param>
+    /// <param name="initialText">The text the box starts with.</param>
+    /// <returns>The trimmed text, or null if cancelled or left empty.</returns>
     public static async Task<string?> ShowAsync(Window owner, string title, string label, string initialText = "")
     {
         var dialog = new Window
@@ -63,4 +73,6 @@ public static class TextPromptDialog
         await dialog.ShowDialog(owner);
         return string.IsNullOrWhiteSpace(result) ? null : result;
     }
+
+    #endregion
 }

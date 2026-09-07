@@ -11,8 +11,13 @@ using Xunit;
 
 namespace ReadyCode.Avalonia.Tests;
 
+/// <summary>
+/// Tests for <see cref="MainViewModel"/>'s tab and file handling.
+/// </summary>
 public class MainViewModelTests
 {
+    #region Public Methods
+
     [Fact]
     public void NewBasicTab_DefaultsToPrgKind_SoItRendersAsPetsciiFromTheStart()
     {
@@ -69,4 +74,6 @@ public class MainViewModelTests
             File.Delete(path);
         }
     }
+
+    #endregion
 }

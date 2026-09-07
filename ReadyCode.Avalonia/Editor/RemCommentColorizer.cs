@@ -13,11 +13,21 @@ namespace ReadyCode.Avalonia.Editor;
 /// </summary>
 public class RemCommentColorizer : DocumentColorizingTransformer
 {
+    #region Public Properties
+
     /// <summary>
     /// Gets or sets the brush used to draw comments.
     /// </summary>
     public IBrush CommentBrush { get; set; } = Brushes.Green;
 
+    #endregion
+
+    #region Protected Methods
+
+    /// <summary>
+    /// Colorizes a REM comment on the given line, if one starts outside a string literal.
+    /// </summary>
+    /// <param name="line">The document line to colorize.</param>
     protected override void ColorizeLine(DocumentLine line)
     {
         string text = CurrentContext.Document.GetText(line);
@@ -33,8 +43,8 @@ public class RemCommentColorizer : DocumentColorizingTransformer
 
             if (inString) continue;
 
-            // Greedy match: REM at this exact position (no word-boundary guards -
-            // CBM BASIC tokenizes LOREM as L·O·REM, coloring from REM to end of line).
+            // Greedy match: REM at this exact position (no word-boundary guards - CBM BASIC
+            // tokenizes LOREM as L·O·REM, coloring from REM to end of line).
             if (i + 3 > text.Length) break;
 
             bool isRem = char.ToUpperInvariant(text[i])     == 'R'
@@ -44,8 +54,10 @@ public class RemCommentColorizer : DocumentColorizingTransformer
 
             int start = line.Offset + i;
             int end   = line.Offset + text.Length;
-            ChangeLinePart(start, end, e => e.TextRunProperties.SetForegroundBrush(CommentBrush));
+            ChangeLinePart(start, end, element => element.TextRunProperties.SetForegroundBrush(CommentBrush));
             return;
         }
     }
+
+    #endregion
 }

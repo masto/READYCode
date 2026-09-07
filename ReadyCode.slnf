@@ -4,7 +4,9 @@
     "projects": [
       "ReadyCode.Core\\ReadyCode.Core.csproj",
       "ReadyCode\\ReadyCode.csproj",
-      "ReadyCode.Tests\\ReadyCode.Tests.csproj"
+      "ReadyCode.Tests\\ReadyCode.Tests.csproj",
+      "ReadyCode.Avalonia\\ReadyCode.Avalonia.csproj",
+      "ReadyCode.Avalonia.Tests\\ReadyCode.Avalonia.Tests.csproj"
     ]
   }
 }

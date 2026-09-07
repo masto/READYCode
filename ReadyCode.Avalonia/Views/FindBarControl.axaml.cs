@@ -14,25 +14,88 @@ namespace ReadyCode.Avalonia.Views;
 /// </summary>
 public partial class FindBarControl : UserControl
 {
+    #region Constructors
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="FindBarControl"/> class.
+    /// </summary>
     public FindBarControl()
     {
         InitializeComponent();
     }
 
+    #endregion
+
+    #region Public Events
+
+    /// <summary>
+    /// Occurs when the bar is closed, so the owner can clear its highlights.
+    /// </summary>
     public event EventHandler? CloseRequested;
+
+    /// <summary>
+    /// Occurs when the search text or any option changes.
+    /// </summary>
     public event EventHandler? SearchChanged;
+
+    /// <summary>
+    /// Occurs when the user asks for the next match.
+    /// </summary>
     public event EventHandler? FindNextRequested;
+
+    /// <summary>
+    /// Occurs when the user asks for the previous match.
+    /// </summary>
     public event EventHandler? FindPreviousRequested;
+
+    /// <summary>
+    /// Occurs when the user asks to replace the current match.
+    /// </summary>
     public event EventHandler? ReplaceRequested;
+
+    /// <summary>
+    /// Occurs when the user asks to replace every match.
+    /// </summary>
     public event EventHandler? ReplaceAllRequested;
 
-    public string SearchText  => SearchBox.Text ?? "";
-    public string ReplaceText => ReplaceBox.Text ?? "";
-    public bool MatchCase     => MatchCaseBtn.IsChecked == true;
-    public bool WholeWord     => WholeWordBtn.IsChecked == true;
-    public bool UseRegex      => RegexBtn.IsChecked == true;
+    #endregion
 
-    /// <summary>Shows the bar, seeding the search box with the given text, and focuses it.</summary>
+    #region Public Properties
+
+    /// <summary>
+    /// Gets the text to search for.
+    /// </summary>
+    public string SearchText => SearchBox.Text ?? "";
+
+    /// <summary>
+    /// Gets the text matches are replaced with.
+    /// </summary>
+    public string ReplaceText => ReplaceBox.Text ?? "";
+
+    /// <summary>
+    /// Gets whether the search is case sensitive.
+    /// </summary>
+    public bool MatchCase => MatchCaseBtn.IsChecked == true;
+
+    /// <summary>
+    /// Gets whether the search matches whole words only.
+    /// </summary>
+    public bool WholeWord => WholeWordBtn.IsChecked == true;
+
+    /// <summary>
+    /// Gets whether the search text is a regular expression.
+    /// </summary>
+    public bool UseRegex => RegexBtn.IsChecked == true;
+
+    #endregion
+
+    #region Public Methods
+
+    /// <summary>
+    /// Shows the bar, seeding the search box with the given text, and focuses it.
+    /// </summary>
+    /// <param name="initialText">Text to seed the search box with (usually the editor's selection).</param>
+    /// <param name="replaceMode">Whether to show the replace row as well.</param>
     public void Open(string initialText, bool replaceMode)
     {
         if (!string.IsNullOrEmpty(initialText) && !initialText.Contains('\n'))
@@ -46,6 +109,9 @@ public partial class FindBarControl : UserControl
         }, DispatcherPriority.Render);
     }
 
+    /// <summary>
+    /// Hides the bar and raises <see cref="CloseRequested"/>.
+    /// </summary>
     public void Close()
     {
         if (!IsVisible) return;
@@ -53,6 +119,11 @@ public partial class FindBarControl : UserControl
         CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Updates the "n of m" match counter, flagging the search box when nothing matched.
+    /// </summary>
+    /// <param name="current">The 1-based index of the current match.</param>
+    /// <param name="total">The total number of matches.</param>
     public void SetMatchCount(int current, int total)
     {
         if (string.IsNullOrEmpty(SearchBox.Text))
@@ -71,6 +142,10 @@ public partial class FindBarControl : UserControl
             SearchBox.Classes.Remove("noResults");
         }
     }
+
+    #endregion
+
+    #region Private Methods
 
     private void SearchBox_KeyDown(object? sender, KeyEventArgs e)
     {
@@ -112,4 +187,6 @@ public partial class FindBarControl : UserControl
     private void Replace_Click(object? sender, RoutedEventArgs e) => ReplaceRequested?.Invoke(this, EventArgs.Empty);
     private void ReplaceAll_Click(object? sender, RoutedEventArgs e) => ReplaceAllRequested?.Invoke(this, EventArgs.Empty);
     private void Close_Click(object? sender, RoutedEventArgs e) => Close();
+
+    #endregion
 }
