@@ -1,12 +1,12 @@
 name: Cross-platform build and test
 
-# Covers the parts of the repository that build outside Windows: the shared ReadyCode.Core library
-# and the test suite over it. The WPF application is compiled (not run) here too, so a change to the
-# core that breaks the Windows front end shows up without waiting for a Windows build.
+# Covers the projects that build outside Windows: the shared ReadyCode.Core library, the Avalonia
+# front end, and both test suites. The WPF app is checked on Windows too (it compiles anywhere with
+# EnableWindowsTargeting, but only Windows can run its tests meaningfully alongside it).
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, avalonia-ui ]
   pull_request:
   workflow_dispatch:
 
@@ -28,17 +28,29 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build - shared core library
-        run: dotnet build ReadyCode.Core/ReadyCode.Core.csproj -c Release -warnaserror
+      - name: Build - Avalonia front end
+        run: dotnet build ReadyCode.Avalonia -c Release -warnaserror
 
-      - name: Build - tests
-        run: dotnet build ReadyCode.Tests/ReadyCode.Tests.csproj -c Release -warnaserror
+      - name: Build - test projects
+        run: |
+          dotnet build ReadyCode.Tests/ReadyCode.Tests.csproj -c Release -warnaserror
+          dotnet build ReadyCode.Avalonia.Tests/ReadyCode.Avalonia.Tests.csproj -c Release -warnaserror
 
-      # The WPF app can't run here, but compiling it catches changes to ReadyCode.Core that would
-      # break the Windows front end. Debug only: its Release configuration is a self-contained
-      # win-x64 publish, which needs the Windows runtime packs.
+      # The WPF app can't run here, but compiling it catches changes to the shared ReadyCode.Core
+      # library that would break the Windows front end. Debug only: its Release configuration is a
+      # self-contained win-x64 publish, which needs the Windows runtime packs.
       - name: Compile-check the WPF front end
         run: dotnet build ReadyCode/ReadyCode.csproj -c Debug -warnaserror -p:EnableWindowsTargeting=true
 
       - name: Test - shared core logic
         run: dotnet test ReadyCode.Tests/ReadyCode.Tests.csproj -c Release --no-build
+
+      # Runs on Avalonia's headless platform with Skia, so no display is needed.
+      - name: Test - Avalonia UI
+        run: dotnet test ReadyCode.Avalonia.Tests/ReadyCode.Avalonia.Tests.csproj -c Release --no-build
+
+      - name: Publish self-contained binary
+        run: >
+          dotnet publish ReadyCode.Avalonia -c Release --self-contained true
+          -r ${{ matrix.os == 'macos-latest' && 'osx-arm64' || 'linux-x64' }}
+          -o publish

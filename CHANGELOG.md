@@ -2,17 +2,28 @@
 
 ## [Unreleased]
 
+### New Features
+
+- **Avalonia UI** - a second, cross-platform front end, `ReadyCode.Avalonia`, built on
+  [Avalonia](https://avaloniaui.net/). It shares all editor, tokenizer, assembler, diagnostics, and
+  emulator logic with the Windows app through a new `ReadyCode.Core` library, so both produce
+  byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, the folder
+  explorer (including `.d64`/`.d81` browsing), find and replace, live diagnostics with a Problems
+  panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. The
+  Windows app is unchanged. Currently released as a macOS binary; see
+  [README-Avalonia.md](README-Avalonia.md) for platform support and what is and isn't ported yet
+
 ### Improvements
 
 - **`ReadyCode.Core`** - the editor's non-UI logic (tokenizer, assembler and disassembler,
   diagnostics, minify/prettify, the diff engine, the BASIC debugger, and the VICE and C64 Ultimate
   clients) now lives in a `net8.0` class library the Windows application references, rather than
   inside the WPF project. Behavior is unchanged; the library and its tests build and run on Windows,
-  macOS, and Linux, so that logic can be exercised without a Windows machine and shared with future
+  macOS, and Linux, so that logic can be exercised without a Windows machine and shared with other
   front ends
-- **Cross-platform CI** - a GitHub Actions workflow that builds the shared library and its tests on
-  Ubuntu and macOS and compile-checks the WPF application on both, so a change to the core can't
-  silently break the Windows build
+- **Cross-platform CI** - a GitHub Actions workflow building and testing the shared library, the
+  Avalonia UI, and both test suites on Ubuntu and macOS, and compile-checking the WPF app on both, so
+  a change to the core can't silently break the Windows build
 
 ### Bug Fixes
 

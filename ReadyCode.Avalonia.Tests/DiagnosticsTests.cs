@@ -12,9 +12,12 @@ using Xunit;
 
 namespace ReadyCode.Avalonia.Tests;
 
+/// <summary>
+/// Tests for the live diagnostics pass and the Problems panel rows it feeds.
+/// </summary>
 public class DiagnosticsTests
 {
-    private static readonly string? _renderDir = Environment.GetEnvironmentVariable("READYCODE_RENDER_DIR");
+    #region Public Methods
 
     [Fact]
     public void AnalyzeTab_FindsMissingGotoTarget_AndListsIt()
@@ -51,12 +54,8 @@ public class DiagnosticsTests
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal(2, vm.ErrorListRows.Count);
-        var frame = window.CaptureRenderedFrame();
-        Assert.NotNull(frame);
-        if (!string.IsNullOrEmpty(_renderDir))
-        {
-            Directory.CreateDirectory(_renderDir);
-            frame!.Save(Path.Combine(_renderDir, "diagnostics.png"));
-        }
+        RenderCapture.Save(window, "diagnostics.png");
     }
+
+    #endregion
 }

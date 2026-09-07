@@ -5,19 +5,31 @@ using Avalonia;
 
 namespace ReadyCode.Avalonia;
 
+/// <summary>
+/// Application entry point.
+/// </summary>
 internal static class Program
 {
-    // Initialization code. Don't use any Avalonia, third-party APIs or any
-    // SynchronizationContext-reliant code before AppMain is called: things aren't initialized
-    // yet and stuff might break.
+    #region Public Methods
+
+    /// <summary>
+    /// Starts the application. Don't use any Avalonia, third-party, or SynchronizationContext-
+    /// reliant code before <see cref="BuildAvaloniaApp"/> runs - nothing is initialized yet.
+    /// </summary>
+    /// <param name="args">Command-line arguments.</param>
     [STAThread]
     public static void Main(string[] args) => BuildAvaloniaApp()
         .StartWithClassicDesktopLifetime(args);
 
-    // Avalonia configuration, don't remove; also used by visual designer.
+    /// <summary>
+    /// Builds the Avalonia application. Also used by the visual designer, so it must stay a
+    /// public parameterless method with this exact name.
+    /// </summary>
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    #endregion
 }

@@ -19,7 +19,20 @@ using ReadyCode.Vice;
 
 namespace ReadyCode.Avalonia.ViewModels;
 
-public enum StatusType { Info, Warning, Error }
+/// <summary>
+/// Severity of a status-bar message, which decides the bar's colors.
+/// </summary>
+public enum StatusType
+{
+    /// <summary>An ordinary progress or completion message.</summary>
+    Info,
+
+    /// <summary>Something the user should notice but that didn't fail.</summary>
+    Warning,
+
+    /// <summary>An operation failed.</summary>
+    Error,
+}
 
 /// <summary>
 /// Application state and the file, folder-explorer, and VICE operations behind the main
@@ -43,6 +56,10 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     #region Constructors
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="MainViewModel"/> class, loading the persisted
+    /// settings, the last open folder, and the previous session's tabs.
+    /// </summary>
     public MainViewModel()
     {
         Settings = AppSettings.Load();
@@ -204,8 +221,11 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region Events
+    #region Public Events
 
+    /// <summary>
+    /// Occurs when a bindable property changes.
+    /// </summary>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <summary>

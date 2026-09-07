@@ -14,9 +14,12 @@ using Xunit;
 
 namespace ReadyCode.Avalonia.Tests;
 
+/// <summary>
+/// Tests for the find/replace bar and the window's search, navigation, and replace handling.
+/// </summary>
 public class FindReplaceTests
 {
-    private static readonly string? _renderDir = Environment.GetEnvironmentVariable("READYCODE_RENDER_DIR");
+    #region Public Methods
 
     [AvaloniaFact]
     public void Find_CountsAndNavigatesMatches_ThenReplaceAll()
@@ -40,8 +43,7 @@ public class FindReplaceTests
         search.Text = "hello";
         Dispatcher.UIThread.RunJobs();
         Assert.Equal("1 of 2", count.Text);
-        Assert.NotNull(window.CaptureRenderedFrame());
-        Save(window, "find-bar.png");
+        RenderCapture.Save(window, "find-bar.png");
 
         // Enter in the search box = next match; the match becomes the selection.
         search.Focus();
@@ -118,10 +120,6 @@ public class FindReplaceTests
         Assert.Equal("10 A=ZAPPER\n20 B=ZAPPER\n30 C=ZAPPER", editor.Document.Text);
     }
 
-    private static void Save(Window window, string name)
-    {
-        if (string.IsNullOrEmpty(_renderDir)) return;
-        Directory.CreateDirectory(_renderDir);
-        window.CaptureRenderedFrame()!.Save(Path.Combine(_renderDir, name));
-    }
+
+    #endregion
 }

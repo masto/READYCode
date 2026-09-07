@@ -19,6 +19,8 @@ namespace ReadyCode.Avalonia.Tests;
 /// </summary>
 public class EditorInputTests
 {
+    #region Public Methods
+
     [AvaloniaFact]
     public void BasicTab_TypedTextIsUpperCased()
     {
@@ -119,4 +121,6 @@ public class EditorInputTests
         Dispatcher.UIThread.RunJobs();
         return (window, editor);
     }
+
+    #endregion
 }
