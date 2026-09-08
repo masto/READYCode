@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+      - '!v*-*'  # excludes suffixed tags (v2.3.0-macos, v2.3.0-rc1, ...) - this workflow builds
+                 # only the Windows installer, and those tags are for other releases/pre-releases.
 
 permissions:
   contents: write
