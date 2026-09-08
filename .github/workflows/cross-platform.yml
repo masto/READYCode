@@ -23,10 +23,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # The projects themselves target net8.0 (RollForward=Major lets that run on any newer
+      # runtime), but *building* ReadyCode.Avalonia needs a newer SDK than that: Avalonia
+      # 12.1.2's source generator requires a C# compiler newer than the one the 8.0 SDK bundles,
+      # and fails with CS9057 (and then a cascade of missing-InitializeComponent errors) under a
+      # pure 8.0 SDK. This has been passing here only because GitHub-hosted runner images also
+      # carry newer preinstalled SDKs the .NET muxer picks up with no global.json to say
+      # otherwise - installing 9.0.x explicitly makes that a stated requirement rather than an
+      # accident of the runner image.
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '9.0.x'
 
       - name: Build - Avalonia front end
         run: dotnet build ReadyCode.Avalonia -c Release -warnaserror
