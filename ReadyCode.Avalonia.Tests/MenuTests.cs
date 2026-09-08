@@ -120,9 +120,11 @@ public class MenuTests
         Assert.NotEmpty(expected);
         Assert.All(expected, gesture => Assert.Contains(gesture, bound));
 
-        // The window also binds one shortcut that is not on the menu: an alternate for Find and
-        // Replace, because Cmd+Alt+F is easy for another app to claim first.
-        Assert.Equal(expected.Count + 1, bound.Count);
+        // On macOS the window also binds one shortcut that is not on the menu: an alternate for
+        // Find and Replace (Cmd+Shift+H), because Cmd+Alt+F is easy for another app to claim
+        // first. That binding is macOS-only, so the extra count only applies there.
+        int extra = OperatingSystem.IsMacOS() ? 1 : 0;
+        Assert.Equal(expected.Count + extra, bound.Count);
     }
 
     #endregion

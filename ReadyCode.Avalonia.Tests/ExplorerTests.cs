@@ -68,7 +68,22 @@ public class ExplorerTests : IDisposable
         var d64 = games.Children.Single(c => c.Name == "test.d64");
         Assert.True(d64.IsDiskImage);
 
-        d64.IsExpanded = true; // DeferToUiThread is synchronous in tests
+        // FileTreeItem.DeferToUiThread is a static hook, and any [AvaloniaFact] test that has
+        // already run in this process will have pointed it at a real Dispatcher.UIThread.Post
+        // (via App's initialization) rather than the synchronous default - which test runs first
+        // in the same assembly, and thus whether this still races, is not something to depend on.
+        // Force it synchronous for this one assertion regardless of what ran before it.
+        var previousHook = FileTreeItem.DeferToUiThread;
+        FileTreeItem.DeferToUiThread = action => action();
+        try
+        {
+            d64.IsExpanded = true;
+        }
+        finally
+        {
+            FileTreeItem.DeferToUiThread = previousHook;
+        }
+
         var entry = Assert.Single(d64.Children);
         Assert.Equal("GAME", entry.Name);
         Assert.True(entry.IsVirtual);
