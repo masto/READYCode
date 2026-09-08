@@ -76,6 +76,8 @@ public partial class SettingsWindow : Window
         MonitorHostBox.Text = s.ViceMonitorHost;
         MonitorPortBox.Value = s.ViceMonitorPort;
         BringToForegroundBox.IsChecked = s.ViceBringToForeground;
+
+        C64UUrlBox.Text = s.C64UUrl;
     }
 
     #endregion
@@ -142,6 +144,8 @@ public partial class SettingsWindow : Window
         s.ViceMonitorHost = string.IsNullOrWhiteSpace(MonitorHostBox.Text) ? "127.0.0.1" : MonitorHostBox.Text.Trim();
         s.ViceMonitorPort = Int(MonitorPortBox, s.ViceMonitorPort);
         s.ViceBringToForeground = BringToForegroundBox.IsChecked == true;
+
+        s.C64UUrl = C64UUrlBox.Text?.Trim() ?? "";
 
         Accepted = true;
         Close();

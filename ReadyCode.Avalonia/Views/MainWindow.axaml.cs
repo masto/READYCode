@@ -229,6 +229,7 @@ public partial class MainWindow : Window
         if (dirty.Count == 0)
         {
             vm.SaveSettingsAndSession();
+            vm.DisconnectC64U();
             base.OnClosing(e);
             return;
         }
@@ -250,6 +251,7 @@ public partial class MainWindow : Window
         }
 
         vm.SaveSettingsAndSession();
+        vm.DisconnectC64U();
         _closeConfirmed = true;
         Close();
     }
@@ -925,6 +927,8 @@ public partial class MainWindow : Window
             {
                 Add("Run on VICE", () => ViewModel.SendFileToViceAsync(item, run: true));
                 Add("Load on VICE", () => ViewModel.SendFileToViceAsync(item, run: false));
+                Add("Run on C64U", () => ViewModel.SendFileToC64UAsync(item, run: true));
+                Add("Load on C64U", () => ViewModel.SendFileToC64UAsync(item, run: false));
             }
             Sep();
         }
@@ -944,12 +948,266 @@ public partial class MainWindow : Window
         return menu;
     }
 
+    // ── C64U explorer ─────────────────────────────────────────────────────────
+
+    private C64UFileItem? SelectedC64UTreeItem => C64UFileTree.SelectedItem as C64UFileItem;
+
+    // The folder a C64U explorer "new" action should target: the selected folder, the selected
+    // file's folder, or the root when nothing is selected. Mirrors ExplorerTargetFolder above,
+    // but works in remote path strings rather than FileTreeItem parent lookups.
+    private (string ParentPath, C64UFileItem? Folder) C64UExplorerTargetFolder()
+    {
+        var selected = SelectedC64UTreeItem;
+        if (selected == null || selected.IsVirtual) return ("/", null);
+        if (selected.IsFolder) return (selected.FullPath, selected);
+
+        string trimmed = selected.FullPath.TrimEnd('/');
+        int slash = trimmed.LastIndexOf('/');
+        string parentPath = slash <= 0 ? "/" : trimmed[..slash];
+        return (parentPath, ViewModel.FindC64UItemByPath(parentPath));
+    }
+
+    private async Task OpenC64UTreeItemAsync(C64UFileItem item)
+    {
+        if (item.IsFolder || item.IsDiskImage)
+        {
+            item.IsExpanded = !item.IsExpanded;
+            return;
+        }
+
+        await ViewModel.OpenC64UItemAsync(item);
+    }
+
+    private async Task NewC64UFolderAsync()
+    {
+        if (!ViewModel.IsC64UConnected) return;
+        var (parentPath, folder) = C64UExplorerTargetFolder();
+        string? name = await TextPromptDialog.ShowAsync(this, "New Folder", "Folder name:");
+        if (name == null) return;
+        if (folder != null) folder.IsExpanded = true;
+        await ViewModel.CreateC64UFolderAsync(parentPath, name);
+    }
+
+    private async Task NewC64UDiskImageAsync(C64UFileKind kind)
+    {
+        if (!ViewModel.IsC64UConnected) return;
+        var (parentPath, folder) = C64UExplorerTargetFolder();
+        string extension = kind == C64UFileKind.D64 ? ".d64" : ".d81";
+        string? name = await TextPromptDialog.ShowAsync(this, kind == C64UFileKind.D64 ? "New .d64 Disk Image" : "New .d81 Disk Image", "Disk name:", "disk" + extension);
+        if (name == null) return;
+        if (folder != null) folder.IsExpanded = true;
+        await ViewModel.CreateC64UDiskImageAsync(parentPath, name, kind);
+    }
+
+    private async Task RenameC64UItemAsync(C64UFileItem item)
+    {
+        string? name = await TextPromptDialog.ShowAsync(this, "Rename", $"New name for \"{item.Name}\":", item.Name);
+        if (name == null || name == item.Name) return;
+        await ViewModel.RenameC64UItemAsync(item, name);
+    }
+
+    private async Task DeleteC64UItemAsync(C64UFileItem item)
+    {
+        string what = item.IsFolder ? $"folder \"{item.Name}\" and all its contents" : $"\"{item.Name}\"";
+        string? choice = await MessageDialog.ShowAsync(this, "Delete", $"Permanently delete {what} from the C64 Ultimate?", "Delete", "Cancel");
+        if (choice != "Delete") return;
+        await ViewModel.DeleteC64UItemAsync(item);
+    }
+
+    private async Task DownloadC64UFileAsync(C64UFileItem item)
+    {
+        var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "Download File",
+            SuggestedFileName = item.Name,
+            SuggestedStartLocation = await SuggestedFolderAsync(),
+        });
+
+        string? path = file?.TryGetLocalPath();
+        if (path == null) return;
+
+        try
+        {
+            byte[] bytes = item.Content ?? (ViewModel.C64UFtp != null
+                ? await ViewModel.C64UFtp.DownloadBytesAsync(item.FullPath)
+                : throw new InvalidOperationException("Not connected to the C64 Ultimate."));
+            await File.WriteAllBytesAsync(path, bytes);
+            ViewModel.SetStatus($"Downloaded {item.Name}.");
+        }
+        catch (Exception ex)
+        {
+            await MessageDialog.ShowAsync(this, "Download", $"Could not download \"{item.Name}\": {ex.Message}");
+        }
+    }
+
+    private async Task AddFileToC64UDiskImageAsync(C64UFileItem diskItem)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Add File to Disk Image",
+            AllowMultiple = false,
+            SuggestedStartLocation = await SuggestedFolderAsync(),
+            FileTypeFilter = [_c64Files, FilePickerFileTypes.All],
+        });
+
+        if (files.Count != 1 || files[0].TryGetLocalPath() is not { } path) return;
+
+        byte[] raw = await File.ReadAllBytesAsync(path);
+        var kind = FileClassifier.Classify(path, isFolder: false, () => raw);
+        await ViewModel.AddFileToC64UDiskImageAsync(diskItem, Path.GetFileName(path), raw, kind);
+    }
+
+    private ContextMenu BuildC64UTreeContextMenu(C64UFileItem item)
+    {
+        var menu = new ContextMenu();
+        var items = menu.Items;
+
+        void Add(string header, Func<Task> action) =>
+            items.Add(new MenuItem { Header = header, Command = new AsyncCommand(action) });
+        void AddSync(string header, Action action) => Add(header, () => { action(); return Task.CompletedTask; });
+        void Sep() => items.Add(new Separator());
+
+        if (item.IsFolder)
+        {
+            Add("New Folder…", async () => { C64UFileTree.SelectedItem = item; await NewC64UFolderAsync(); });
+            Add("New .d64 Disk Image…", async () => { C64UFileTree.SelectedItem = item; await NewC64UDiskImageAsync(C64UFileKind.D64); });
+            Add("New .d81 Disk Image…", async () => { C64UFileTree.SelectedItem = item; await NewC64UDiskImageAsync(C64UFileKind.D81); });
+            Sep();
+            Add("Refresh", item.RefreshChildrenAsync);
+            Sep();
+        }
+        else if (item.IsDiskImage)
+        {
+            Add("Add File…", () => AddFileToC64UDiskImageAsync(item));
+            Add("Mount to Drive A", () => ViewModel.MountC64UDriveAsync("a", item.FullPath));
+            Add("Mount to Drive B", () => ViewModel.MountC64UDriveAsync("b", item.FullPath));
+            Sep();
+            Add("Download…", () => DownloadC64UFileAsync(item));
+            Add("Refresh", item.RefreshChildrenAsync);
+            Sep();
+        }
+        else
+        {
+            if (item.IsOpenable)
+                AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenC64UTreeItem(item));
+            if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
+            {
+                Add("Run on C64U", () => ViewModel.SendC64UItemAsync(item, run: true));
+                Add("Load on C64U", () => ViewModel.SendC64UItemAsync(item, run: false));
+                Add("Run on VICE", () => SendC64UTreeItemToViceAsync(item, run: true));
+                Add("Load on VICE", () => SendC64UTreeItemToViceAsync(item, run: false));
+            }
+            if (!item.IsVirtual)
+            {
+                Sep();
+                Add("Download…", () => DownloadC64UFileAsync(item));
+            }
+            Sep();
+        }
+
+        Add("Rename…", () => RenameC64UItemAsync(item));
+        Add("Delete", () => DeleteC64UItemAsync(item));
+        return menu;
+    }
+
+    private void OpenC64UTreeItem(C64UFileItem item) => _ = OpenC64UTreeItemAsync(item);
+
+    // Sends an item from the C64U tree to VICE instead: downloads it first (if not already in
+    // memory as a disk-image entry), same as SendC64UItemAsync does for its own target.
+    private async Task SendC64UTreeItemToViceAsync(C64UFileItem item, bool run)
+    {
+        if (item.Content == null && ViewModel.C64UFtp == null) return;
+
+        try
+        {
+            byte[] bytes = item.Content ?? await ViewModel.C64UFtp!.DownloadBytesAsync(item.FullPath);
+            var localItem = new FileTreeItem(item.Name, bytes, item.Kind, item.FullPath);
+            await ViewModel.SendFileToViceAsync(localItem, run);
+        }
+        catch (Exception ex)
+        {
+            ViewModel.SetStatus($"Error downloading file: {ex.Message}", StatusType.Error);
+        }
+    }
+
+    private void LeftPanelExplorerTab_Click(object? sender, RoutedEventArgs e) => ViewModel.ActiveLeftPanelTab = "Explorer";
+
+    // Deliberately does not auto-connect: matches the WPF app, which leaves the "Not connected"
+    // state until the user clicks Connect, even with a URL already configured.
+    private void LeftPanelC64UTab_Click(object? sender, RoutedEventArgs e) => ViewModel.ActiveLeftPanelTab = "C64U";
+
+    private async void C64UConnect_Click(object? sender, RoutedEventArgs e) => await ViewModel.ConnectToC64UAsync();
+    private async void C64URefresh_Click(object? sender, RoutedEventArgs e) => await ViewModel.RefreshC64UFolderAsync();
+    private async void C64UNewFolder_Click(object? sender, RoutedEventArgs e) => await NewC64UFolderAsync();
+    private async void C64UEjectA_Click(object? sender, RoutedEventArgs e) => await ViewModel.EjectC64UDriveAsync("a");
+    private async void C64UEjectB_Click(object? sender, RoutedEventArgs e) => await ViewModel.EjectC64UDriveAsync("b");
+
+    private async void C64UUpload_Click(object? sender, RoutedEventArgs e)
+    {
+        if (!ViewModel.IsC64UConnected) return;
+
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Upload to C64 Ultimate",
+            AllowMultiple = true,
+            SuggestedStartLocation = await SuggestedFolderAsync(),
+        });
+
+        var (parentPath, _) = C64UExplorerTargetFolder();
+        foreach (var file in files)
+        {
+            if (file.TryGetLocalPath() is not { } path) continue;
+            byte[] data = await File.ReadAllBytesAsync(path);
+            await ViewModel.UploadFileToC64UAsync(parentPath, Path.GetFileName(path), data);
+        }
+    }
+
+    private void C64UFileTree_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if ((e.Source as Control)?.DataContext is not C64UFileItem item) return;
+        if (item.IsFolder || item.IsDiskImage) return; // TreeView already toggles expansion
+        _ = OpenC64UTreeItemAsync(item);
+        e.Handled = true;
+    }
+
+    private async void C64UFileTree_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (SelectedC64UTreeItem is not { } item) return;
+
+        switch (e.Key)
+        {
+            case Key.Enter:
+                await OpenC64UTreeItemAsync(item);
+                e.Handled = true;
+                break;
+            case Key.F2:
+                e.Handled = true;
+                await RenameC64UItemAsync(item);
+                break;
+            case Key.Delete:
+            case Key.Back when e.KeyModifiers.HasFlag(KeyModifiers.Meta):
+                e.Handled = true;
+                await DeleteC64UItemAsync(item);
+                break;
+        }
+    }
+
+    private void C64UFileTree_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        if ((e.Source as Control)?.DataContext is not C64UFileItem item || item.Name.Length == 0) return;
+
+        C64UFileTree.SelectedItem = item;
+        var container = (e.Source as Control)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
+        BuildC64UTreeContextMenu(item).Open(container ?? (Control)C64UFileTree);
+        e.Handled = true;
+    }
+
     // Saves a tab to its existing path, or prompts for one when it has none (or when forced).
     private async Task<bool> SaveTabAsync(EditorTab tab, bool forceDialog)
     {
         if (tab.IsVirtual && !forceDialog)
         {
-            bool savedVirtual = ViewModel.SaveVirtualTab(tab);
+            bool savedVirtual = tab.IsC64UVirtual ? await ViewModel.SaveC64UVirtualTabAsync(tab) : ViewModel.SaveVirtualTab(tab);
             if (savedVirtual) ShowProblemsIfAny(tab);
             return savedVirtual;
         }
@@ -1510,6 +1768,8 @@ public partial class MainWindow : Window
 
         Add("Run on VICE", ViewModel.RunOnViceAsync);
         Add("Load on VICE", ViewModel.TransferToViceAsync);
+        Add("Run on C64U", ViewModel.RunOnC64UAsync);
+        Add("Load on C64U", ViewModel.TransferToC64UAsync);
         items.Add(new Separator());
         AddSync("Undo", () => Editor.Undo());
         AddSync("Redo", () => Editor.Redo());
@@ -1549,6 +1809,33 @@ public partial class MainWindow : Window
     private async void VicePause_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PauseAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine paused.");
     private async void ViceResume_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResumeAsync(), "VICE machine resumed.");
     private async void VicePowerOff_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PowerOffAsync(ViewModel.Settings.ViceEmulatorPath), "VICE emulator closed.");
+
+    private async void C64URun_Click(object? sender, EventArgs e)
+    {
+        await ViewModel.RunOnC64UAsync();
+        if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
+    }
+
+    private async void C64UTransfer_Click(object? sender, EventArgs e)
+    {
+        await ViewModel.TransferToC64UAsync();
+        if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
+    }
+
+    private async void C64UDebugStart_Click(object? sender, EventArgs e) => await ViewModel.DebugStartOrContinueOnC64UAsync();
+    private async void C64UReset_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("reset", "C64 Ultimate machine reset.");
+    private async void C64UReboot_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("reboot", "C64 Ultimate machine rebooted.");
+    private async void C64UPause_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("pause", "C64 Ultimate machine paused.");
+    private async void C64UResume_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("resume", "C64 Ultimate machine resumed.");
+    private async void C64UPowerOff_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("poweroff", "C64 Ultimate powered off.");
+
+    private async void C64UAbout_Click(object? sender, EventArgs e) => await ShowAboutC64UAsync();
+
+    private async Task ShowAboutC64UAsync()
+    {
+        var info = await ViewModel.FetchC64UInfoAsync();
+        if (info != null) await new AboutC64UWindow(info).ShowDialog(this);
+    }
 
     /// <summary>
     /// Shows the About box. Public so the macOS application menu, which App owns, can invoke it.

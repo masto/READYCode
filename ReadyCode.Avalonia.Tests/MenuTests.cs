@@ -70,7 +70,7 @@ public class MenuTests
         var noGestureExpected = new HashSet<string>
         {
             "Close Folder", "Exit", "Delete", "Reset", "Reboot", "Pause", "Resume", "Power Off",
-            "Column Guide", "Word Wrap", "Status Bar", "About READYCode",
+            "Column Guide", "Word Wrap", "Status Bar", "About READYCode", "About My C64 Ultimate…",
         };
 
         var missing = new List<string>();

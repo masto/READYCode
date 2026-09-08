@@ -1,0 +1,51 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ReadyCode.Avalonia.Views.AboutC64UWindow"
+        Title="About My C64 Ultimate"
+        Width="380" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="#6E6E6E" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="#B00020" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="24" Spacing="2">
+        <TextBlock x:Name="ProductText" Text="Commodore 64 Ultimate" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+        <TextBlock Classes="label" Text="Firmware version" />
+        <TextBlock x:Name="FirmwareVersionText" Classes="value" />
+
+        <TextBlock Classes="label" Text="FPGA version" />
+        <TextBlock x:Name="FpgaVersionText" Classes="value" />
+
+        <TextBlock x:Name="CoreVersionLabel" Classes="label" Text="Core version" />
+        <TextBlock x:Name="CoreVersionText" Classes="value" />
+
+        <Border Background="#DDDDDD" Height="1" Margin="0,0,0,10" />
+
+        <TextBlock Classes="label" Text="Hostname" />
+        <TextBlock x:Name="HostnameText" Classes="value" />
+
+        <TextBlock x:Name="UniqueIdLabel" Classes="label" Text="Unique ID" />
+        <TextBlock x:Name="UniqueIdText" Classes="value" />
+
+        <TextBlock x:Name="ErrorText" Classes="error" Margin="0,0,0,10" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" MinWidth="80" IsDefault="True" IsCancel="True" Click="Ok_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

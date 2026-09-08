@@ -28,7 +28,11 @@ This is a work in progress and is not a full replacement for the Windows app yet
   `/usr/local/bin`, `/usr/bin`, `/snap/bin`). If it isn't found, set the path in
   Preferences → VICE.
 
-A C64 Ultimate is not required. The Avalonia front end currently targets VICE only.
+Neither VICE nor a C64 Ultimate is required to run the app - only to actually load and run
+programs. A C64 Ultimate needs no extra setup beyond its own network configuration: set its
+REST API's base URL in Preferences → C64U (e.g. `http://192.168.1.50/`), then connect from the
+C64U tab of the left panel. The FTP explorer connects to the same host on port 21 using the
+device's default `admin` account with a blank password, matching the Windows app.
 
 ## Build and run
 
@@ -171,17 +175,26 @@ approve the automation the first time.
   abbreviations, zero-padded line numbers, auto-numbering, assembly auto-indent, and a column guide.
 - **Folder explorer** - lazy folder tree with file-type badges. `.d64` and `.d81` images expand in
   place, and the programs inside them open and save back into the image. New file and folder,
-  rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE straight from the tree.
+  rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE or the C64 Ultimate
+  straight from the tree.
 - **Find and replace** - `Cmd`/`Ctrl+F`, with match case, whole word, and regex.
 - **Diagnostics** - live squiggles for invalid `GOTO`/`GOSUB` targets, unmatched `FOR`/`NEXT`,
   unterminated strings, duplicate line numbers, and assembly errors, with hover messages and a
   Problems panel that jumps to the issue.
 - **VICE** - Run, Transfer, Reset, Reboot, Pause, Resume, and Power Off over VICE's binary monitor.
   The emulator is launched automatically if it isn't already running.
-- **BASIC debugger on VICE** - breakpoints in the gutter or with `F9`, Start/Continue, Pause,
-  Step Over/Into/Out, Run to Cursor, a highlighted current line, and Variables (editable),
-  Breakpoints, and Call Stack panels. Breakpoints persist per open folder.
-- **Preferences** - Application, Text Editor, BASIC, Assembly, and VICE pages.
+- **C64 Ultimate** - Run, Transfer, Reset, Reboot, Pause, Resume, Power Off, and an About My C64
+  Ultimate box over its REST API, plus a C64U explorer tab in the left panel: browse the device's
+  storage over FTP, `.d64`/`.d81` images expand in place with programs opening and saving back
+  into them, new folder and new blank disk image, upload and download, add a local file to a disk
+  image, rename, delete, and mount/eject drives A and B. Every runnable item in either explorer
+  tree, and the editor itself, offers Run/Load on both VICE and the C64 Ultimate side by side.
+- **BASIC debugger on VICE and the C64 Ultimate** - breakpoints in the gutter or with `F9`,
+  Start/Continue, Pause, Step Into, Run to Cursor, a highlighted current line, and Variables
+  (editable) panel. Step Over/Out and the Call Stack panel are VICE only - the C64 Ultimate's
+  REST API has no way to read the 6502 stack pointer they depend on. Breakpoints persist per
+  open folder.
+- **Preferences** - Application, Text Editor, BASIC, Assembly, VICE, and C64U pages.
 - **Native menus** - the menu is declared once and rendered by whatever the platform uses: the
   system menu bar on macOS, where About and Preferences also move into the application menu and
   Quit comes from the system, and an in-window menu bar on Windows and Linux.
@@ -199,12 +212,16 @@ your real settings.
 
 ## Not ported yet
 
-The C64 Ultimate menu and FTP explorer, project-wide search, the hex editor, file compare, the
-disassembler tabs, the reference panels (BASIC keywords, PETSCII, Quick Keys, Music Notes), the
-Variables and Symbols side panel, ghost-text completion and `Ctrl+Space`, the Minify, Prettify and
-Renumber dialogs, printing, recent files, drag-and-drop and cut/copy/paste in the explorer, code
-statistics, and the Light/Dark/C64 themes (the Avalonia app currently uses Avalonia's own light
-theme).
+Project-wide search, the hex editor, file compare, the disassembler tabs, the reference panels
+(BASIC keywords, PETSCII, Quick Keys, Music Notes), the Variables and Symbols side panel,
+ghost-text completion and `Ctrl+Space`, the Minify, Prettify and Renumber dialogs, printing,
+recent files, drag-and-drop and cut/copy/paste in either explorer tree, code statistics, and the
+Light/Dark/C64 themes (the Avalonia app currently uses Avalonia's own light theme).
+
+The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
+Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
+drive-mount highlighting in the tree are still WPF-only. New/rename use a modal text prompt
+rather than WPF's inline tree editing, matching how the local Explorer already works here.
 
 Bringing VICE to the foreground after a transfer works on Windows and macOS. On Linux it is a
 no-op: there is no portable way to raise another application's window across the various window
@@ -242,8 +259,14 @@ and `MainViewModel.RunOnUiThread`.
 ## Platform support
 
 Developed and tested on macOS 15 (Apple Silicon) against VICE 3.10. The Linux build is verified in
-CI - it compiles and publishes a working self-contained binary - but has not been exercised on a
-Linux desktop. Reports welcome.
+CI, and has additionally been built, tested, and run headless (via Xvfb) on Ubuntu 24.04, but has
+not yet been exercised on a Linux desktop with a display. Reports welcome.
+
+The C64 Ultimate integration was ported from the Windows app's without access to real hardware to
+test against - the REST API and FTP client code is unchanged from what the Windows app has used in
+production, but the Avalonia-side UI wiring (the C64U explorer tab, the C64U menu, the debugger's
+C64U target) has only been exercised against the app's own logic and headless UI tests, not a
+physical device. Reports from C64 Ultimate owners are especially welcome.
 
 ## Contributing
 
