@@ -3,6 +3,7 @@
 
 using System.Collections.ObjectModel;
 using ReadyCode.Avalonia.Models;
+using ReadyCode.C64U;
 using ReadyCode.Debugger;
 using ReadyCode.Models;
 using ReadyCode.Settings;
@@ -12,9 +13,9 @@ using ReadyCode.Vice;
 namespace ReadyCode.Avalonia.ViewModels;
 
 /// <summary>
-/// The debugger half of <see cref="MainViewModel"/>: breakpoints, the live VICE session, and the
-/// halted-state data (current line, variables, GOSUB call stack). Ported from the WPF view model
-/// with the C64 Ultimate target left out.
+/// The debugger half of <see cref="MainViewModel"/>: breakpoints, the live debug session (VICE or
+/// a C64 Ultimate), and the halted-state data (current line, variables, GOSUB call stack). Ported
+/// from the WPF view model.
 /// </summary>
 public partial class MainViewModel
 {
@@ -61,6 +62,7 @@ public partial class MainViewModel
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsDebugging));
             OnPropertyChanged(nameof(IsDebugRunning));
+            OnPropertyChanged(nameof(IsStepOverOutEnabled));
         }
     }
 
@@ -77,11 +79,18 @@ public partial class MainViewModel
             _isDebugStopped = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsDebugRunning));
+            OnPropertyChanged(nameof(IsStepOverOutEnabled));
         }
     }
 
     /// <summary>Gets whether a session is active and the program is running (Pause is possible).</summary>
     public bool IsDebugRunning => IsDebugging && !IsDebugStopped;
+
+    /// <summary>
+    /// Gets whether Step Over/Step Out can be used: halted, and on a target that can read the
+    /// 6502 stack pointer (VICE - not the C64 Ultimate, whose REST API has no register access).
+    /// </summary>
+    public bool IsStepOverOutEnabled => IsDebugStopped && (DebugSession?.SupportsCallStackAndStepOut ?? false);
 
     /// <summary>Gets the tab whose program the session is debugging.</summary>
     public EditorTab? DebugTab
@@ -186,14 +195,27 @@ public partial class MainViewModel
     #region Public Methods - Session
 
     /// <summary>Starts debugging the active BASIC tab on VICE, or continues a halted session.</summary>
-    public Task DebugStartOrContinueAsync() => IsDebugging ? RunDebugCommandAsync(s => s.ContinueAsync(), "Continue") : DebugStartAsync();
+    public Task DebugStartOrContinueAsync() => IsDebugging ? RunDebugCommandAsync(s => s.ContinueAsync(), "Continue") : DebugStartOnViceAsync();
 
-    /// <summary>Stops the session and starts a fresh one.</summary>
+    /// <summary>
+    /// Stops the session and starts a fresh one on whichever target was active (VICE by default,
+    /// e.g. when nothing was running yet) - shared by the generic Debug menu's "Restart
+    /// Debugging", so it restarts the right target even when a C64U session is the one active.
+    /// </summary>
     public async Task DebugRestartAsync()
     {
+        bool wasC64U = DebugSession is C64UDebugSession;
         await DebugStopAsync();
-        await DebugStartAsync();
+        if (wasC64U) await DebugStartOnC64UAsync();
+        else await DebugStartOnViceAsync();
     }
+
+    /// <summary>
+    /// Starts debugging the active BASIC tab on the C64 Ultimate, or continues a halted session.
+    /// "Restart Debugging" has no C64U-specific counterpart: the generic Debug menu's own
+    /// <see cref="DebugRestartAsync"/> already restarts whichever target was active.
+    /// </summary>
+    public Task DebugStartOrContinueOnC64UAsync() => IsDebugging ? RunDebugCommandAsync(s => s.ContinueAsync(), "Continue") : DebugStartOnC64UAsync();
 
     /// <summary>
     /// Arms a trap that halts at the start of the next BASIC line without resuming - valid only
@@ -390,14 +412,68 @@ public partial class MainViewModel
         }
     }
 
-    // Builds the line table and tokenized program from the exact editor text (no minify, so the
-    // lines the user set breakpoints on are the lines that run), transfers it, opens the session,
-    // arms every enabled breakpoint, and types RUN over the session's own connection.
-    private async Task DebugStartAsync()
+    // Starts a new BASIC debug session on VICE for the active tab. Test hooks
+    // (DebugTransferOverride/DebugSessionFactoryOverride) let unit tests substitute a fake
+    // session and skip the real transfer.
+    private Task DebugStartOnViceAsync()
+    {
+        if (DebugTransferOverride == null && !EnsureVicePathConfigured()) return Task.CompletedTask;
+
+        return StartDebugSessionAsync(
+            "VICE",
+            async (tab, prgData) =>
+            {
+                if (DebugTransferOverride != null)
+                    await DebugTransferOverride(tab, prgData);
+                else
+                    await new ViceClient(Settings.ViceMonitorHost, Settings.ViceMonitorPort)
+                        .TransferAsync(Settings.ViceEmulatorPath, prgData, tab.FileName, Settings.ViceBringToForeground);
+            },
+            async () => DebugSessionFactoryOverride != null
+                ? await DebugSessionFactoryOverride()
+                : (IDebugSession)await ViceDebugSession.StartAsync(Settings.ViceMonitorHost, Settings.ViceMonitorPort),
+            session => session is ViceDebugSession vice ? vice.TypeAsync("RUN\r") : Task.CompletedTask);
+    }
+
+    // Starts a new BASIC debug session on a C64 Ultimate for the active tab. Unlike VICE's
+    // persistent binary-monitor connection, every C64U REST call is an independent, stateless
+    // HTTP request, so typing RUN\r through a fresh C64UltimateClient (rather than routing it
+    // through the session) is safe here.
+    private Task DebugStartOnC64UAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Settings.C64UUrl))
+        {
+            SetStatus("Please set the Commodore 64 Ultimate URL in Settings first.", StatusType.Error);
+            return Task.CompletedTask;
+        }
+
+        var client = new C64UltimateClient();
+
+        return StartDebugSessionAsync(
+            "the C64 Ultimate",
+            async (_, prgData) =>
+            {
+                await client.LoadPrgAsync(Settings.C64UUrl, prgData);
+                // A load appears to trigger a machine reset, same as VICE's autostart - without
+                // settling first, uploading the debug stub and patching the GONE vector
+                // immediately afterward races that reset.
+                await Task.Delay(_sysCommandDelay);
+            },
+            async () => (IDebugSession)await C64UDebugSession.StartAsync(Settings.C64UUrl),
+            _ => client.TypeAsync(Settings.C64UUrl, "RUN\r"));
+    }
+
+    // Shared session-start orchestration for both targets: builds the line table and tokenized
+    // program from the exact editor text (no minify, so the lines the user set breakpoints on
+    // are the lines that run), transfers it, opens the session, arms every enabled breakpoint,
+    // and types RUN.
+    private async Task StartDebugSessionAsync(
+        string targetName,
+        Func<EditorTab, byte[], Task> transferAsync,
+        Func<Task<IDebugSession>> createSessionAsync,
+        Func<IDebugSession, Task> typeRunAsync)
     {
         if (DebugSession != null) return;
-
-        if (DebugTransferOverride == null && !EnsureVicePathConfigured()) return;
 
         if (ActiveTab is not { Language: EditorLanguage.Basic } tab)
         {
@@ -419,17 +495,11 @@ public partial class MainViewModel
             var lineTable = BasicLineAddressTable.Build(text);
             byte[] prgData = new PrgConverter().ConvertToPrg(text);
 
-            SetStatus("Transferring program to VICE…");
-            if (DebugTransferOverride != null)
-                await DebugTransferOverride(tab, prgData);
-            else
-                await new ViceClient(Settings.ViceMonitorHost, Settings.ViceMonitorPort)
-                    .TransferAsync(Settings.ViceEmulatorPath, prgData, tab.FileName, Settings.ViceBringToForeground);
+            SetStatus($"Transferring program to {targetName}…");
+            await transferAsync(tab, prgData);
 
             SetStatus("Opening debug connection…");
-            session = DebugSessionFactoryOverride != null
-                ? await DebugSessionFactoryOverride()
-                : await ViceDebugSession.StartAsync(Settings.ViceMonitorHost, Settings.ViceMonitorPort);
+            session = await createSessionAsync();
 
             var enabledLines = BreakpointStore.EnabledLinesFor(BreakpointFileKey(tab))
                 .Where(line => lineTable.LineAddresses.ContainsKey(line))
@@ -454,9 +524,9 @@ public partial class MainViewModel
             // The transfer resets the machine; typing before the KERNAL polls the keyboard again
             // would drop the keystrokes.
             await Task.Delay(_sysCommandDelay);
-            if (session is ViceDebugSession vice) await vice.TypeAsync("RUN\r");
+            await typeRunAsync(session);
 
-            SetStatus("Debugging on VICE. Running…");
+            SetStatus($"Debugging on {targetName}. Running…");
         }
         catch (Exception ex)
         {

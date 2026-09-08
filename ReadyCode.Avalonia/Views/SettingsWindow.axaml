@@ -167,6 +167,17 @@
                 </ScrollViewer>
             </TabItem>
 
+            <TabItem Header="C64U">
+                <ScrollViewer>
+                    <StackPanel Margin="8,0">
+                        <TextBlock Classes="section" Text="Commodore 64 Ultimate" />
+                        <TextBlock Classes="label" Text="Device URL" />
+                        <TextBlock Classes="desc" Text="Base URL of the C64 Ultimate's REST API, e.g. http://192.168.1.50/. The FTP explorer connects to the same host on port 21." />
+                        <TextBox x:Name="C64UUrlBox" PlaceholderText="http://192.168.1.50/" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
         </TabControl>
     </DockPanel>
 </Window>

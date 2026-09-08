@@ -31,6 +31,24 @@
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
             <Setter Property="Padding" Value="2,1" />
         </Style>
+        <Style Selector="TreeView#C64UFileTree TreeViewItem" x:DataType="core:C64UFileItem">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding" Value="2,1" />
+        </Style>
+        <Style Selector="Button.leftPanelTab">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#777777" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.leftPanelTab.active">
+            <Setter Property="Foreground" Value="#000000" />
+        </Style>
     </Window.Styles>
 
     <NativeMenu.Menu>
@@ -107,6 +125,26 @@
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
 
+            <NativeMenuItem Header="C64U">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Run"                  Click="C64URun_Click"      Gesture="{OnPlatform Ctrl+F5, macOS=Cmd+F5}" />
+                        <NativeMenuItem Header="Transfer (load only)" Click="C64UTransfer_Click" Gesture="{OnPlatform Ctrl+F6, macOS=Cmd+F6}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Start Debugging / Continue" Click="C64UDebugStart_Click" Gesture="{OnPlatform Ctrl+Alt+F5, macOS=Cmd+Alt+F5}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Reset"     Click="C64UReset_Click" />
+                        <NativeMenuItem Header="Reboot"    Click="C64UReboot_Click" />
+                        <NativeMenuItem Header="Pause"     Click="C64UPause_Click" />
+                        <NativeMenuItem Header="Resume"    Click="C64UResume_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Power Off" Click="C64UPowerOff_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="About My C64 Ultimate…" Click="C64UAbout_Click" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
             <NativeMenuItem Header="Debug">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
@@ -115,9 +153,9 @@
                         <NativeMenuItem Header="Restart Debugging"          Click="DebugRestart_Click" Gesture="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" IsEnabled="{Binding IsDebugging}" />
                         <NativeMenuItem Header="Stop Debugging"             Click="DebugStop_Click"    Gesture="Alt+Shift+F5" IsEnabled="{Binding IsDebugging}" />
                         <NativeMenuItemSeparator />
-                        <NativeMenuItem Header="Step Over"     Click="DebugStepOver_Click"    Gesture="F10"       IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItem Header="Step Over"     Click="DebugStepOver_Click"    Gesture="F10"       IsEnabled="{Binding IsStepOverOutEnabled}" />
                         <NativeMenuItem Header="Step Into"     Click="DebugStepInto_Click"    Gesture="F11"       IsEnabled="{Binding IsDebugStopped}" />
-                        <NativeMenuItem Header="Step Out"      Click="DebugStepOut_Click"     Gesture="Shift+F11" IsEnabled="{Binding IsDebugStopped}" />
+                        <NativeMenuItem Header="Step Out"      Click="DebugStepOut_Click"     Gesture="Shift+F11" IsEnabled="{Binding IsStepOverOutEnabled}" />
                         <NativeMenuItem Header="Run to Cursor" Click="DebugRunToCursor_Click" Gesture="{OnPlatform Ctrl+F10, macOS=Cmd+F10}" IsEnabled="{Binding IsDebugStopped}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Toggle Breakpoint"         Click="DebugToggleBreakpoint_Click"        Gesture="F9" />
@@ -154,60 +192,150 @@
 
         <Grid x:Name="MainGrid" ColumnDefinitions="230,4,*">
 
-            <!-- Folder explorer -->
+            <!-- Left panel: Folder explorer / C64U explorer -->
             <DockPanel Grid.Column="0" x:Name="ExplorerPanel" Background="#F3F3F3" IsVisible="{Binding IsExplorerOpen}">
-                <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <TextBlock Grid.Column="0" Text="{Binding ExplorerTitle}" FontSize="11" FontWeight="Bold"
-                                   VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"
-                                    IsVisible="{Binding IsFolderOpen}">
-                            <Button Classes="explorerTool" ToolTip.Tip="New File" Click="ExplorerNewFile_Click">
-                                <PathIcon Data="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z" />
-                            </Button>
-                            <Button Classes="explorerTool" ToolTip.Tip="New Folder" Click="ExplorerNewFolder_Click">
-                                <PathIcon Data="M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-                            </Button>
-                            <Button Classes="explorerTool" ToolTip.Tip="Refresh" Click="ExplorerRefresh_Click">
-                                <PathIcon Data="M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5v3l4-4-4-4z" />
-                            </Button>
-                            <Button Classes="explorerTool" ToolTip.Tip="Collapse All" Click="ExplorerCollapse_Click">
-                                <PathIcon Data="M10 4l6 6-1.4 1.4L10 6.8l-4.6 4.6L4 10z M10 9l6 6-1.4 1.4L10 11.8l-4.6 4.6L4 15z" />
-                            </Button>
-                        </StackPanel>
-                    </Grid>
+
+                <Border DockPanel.Dock="Top" Height="26" Background="#E9E9E9" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Classes="leftPanelTab" Classes.active="{Binding IsExplorerTabActive}" Content="EXPLORER" Click="LeftPanelExplorerTab_Click" />
+                        <Button Classes="leftPanelTab" Classes.active="{Binding IsC64UTabActive}" Content="C64U" Click="LeftPanelC64UTab_Click" />
+                    </StackPanel>
                 </Border>
 
-                <Panel>
-                    <StackPanel Margin="12" Spacing="8" IsVisible="{Binding !IsFolderOpen}">
-                        <TextBlock Text="No folder open." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
-                        <Button Content="Open Folder…" Click="ExplorerOpenFolder_Click" HorizontalAlignment="Left" />
-                    </StackPanel>
+                <!-- Folder explorer -->
+                <DockPanel IsVisible="{Binding IsExplorerTabActive}">
+                    <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding ExplorerTitle}" FontSize="11" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"
+                                        IsVisible="{Binding IsFolderOpen}">
+                                <Button Classes="explorerTool" ToolTip.Tip="New File" Click="ExplorerNewFile_Click">
+                                    <PathIcon Data="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z" />
+                                </Button>
+                                <Button Classes="explorerTool" ToolTip.Tip="New Folder" Click="ExplorerNewFolder_Click">
+                                    <PathIcon Data="M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
+                                </Button>
+                                <Button Classes="explorerTool" ToolTip.Tip="Refresh" Click="ExplorerRefresh_Click">
+                                    <PathIcon Data="M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5v3l4-4-4-4z" />
+                                </Button>
+                                <Button Classes="explorerTool" ToolTip.Tip="Collapse All" Click="ExplorerCollapse_Click">
+                                    <PathIcon Data="M10 4l6 6-1.4 1.4L10 6.8l-4.6 4.6L4 10z M10 9l6 6-1.4 1.4L10 11.8l-4.6 4.6L4 15z" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
 
-                    <TreeView x:Name="FileTree"
-                              ItemsSource="{Binding FolderItems}"
-                              IsVisible="{Binding IsFolderOpen}"
-                              Background="Transparent" BorderThickness="0"
-                              DoubleTapped="FileTree_DoubleTapped"
-                              KeyDown="FileTree_KeyDown"
-                              ContextRequested="FileTree_ContextRequested">
-                        <TreeView.ItemTemplate>
-                            <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
-                                <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
-                                    <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
-                                              Data="{Binding ., Converter={x:Static conv:FileTreeConverters.Icon}}" />
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                                               TextTrimming="CharacterEllipsis" />
-                                    <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
-                                            IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
-                                            Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
-                                        <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
-                                    </Border>
-                                </Grid>
-                            </TreeDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
-                </Panel>
+                    <Panel>
+                        <StackPanel Margin="12" Spacing="8" IsVisible="{Binding !IsFolderOpen}">
+                            <TextBlock Text="No folder open." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
+                            <Button Content="Open Folder…" Click="ExplorerOpenFolder_Click" HorizontalAlignment="Left" />
+                        </StackPanel>
+
+                        <TreeView x:Name="FileTree"
+                                  ItemsSource="{Binding FolderItems}"
+                                  IsVisible="{Binding IsFolderOpen}"
+                                  Background="Transparent" BorderThickness="0"
+                                  DoubleTapped="FileTree_DoubleTapped"
+                                  KeyDown="FileTree_KeyDown"
+                                  ContextRequested="FileTree_ContextRequested">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
+                                                  Data="{Binding ., Converter={x:Static conv:FileTreeConverters.Icon}}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
+                                                IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
+                                                Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
+                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
+                                        </Border>
+                                    </Grid>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Panel>
+                </DockPanel>
+
+                <!-- C64U explorer -->
+                <DockPanel IsVisible="{Binding IsC64UTabActive}">
+                    <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding C64UHeaderText}" FontSize="11" FontWeight="Bold"
+                                       VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"
+                                        IsVisible="{Binding IsC64UConnected}">
+                                <Button Classes="explorerTool" ToolTip.Tip="New Folder" Click="C64UNewFolder_Click">
+                                    <PathIcon Data="M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
+                                </Button>
+                                <Button Classes="explorerTool" ToolTip.Tip="Upload File…" Click="C64UUpload_Click">
+                                    <PathIcon Data="M10 3l5 5h-3v6H8V8H5z M4 16h12v2H4z" />
+                                </Button>
+                                <Button Classes="explorerTool" ToolTip.Tip="Refresh" Click="C64URefresh_Click">
+                                    <PathIcon Data="M10 3a7 7 0 1 0 7 7h-2a5 5 0 1 1-5-5v3l4-4-4-4z" />
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border DockPanel.Dock="Bottom" Padding="10,6" Background="#E9E9E9" BorderBrush="#CFCFCF" BorderThickness="0,1,0,0"
+                            IsVisible="{Binding IsC64UConnected}">
+                        <StackPanel Spacing="3">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" FontSize="11" Foreground="#555555" TextTrimming="CharacterEllipsis"
+                                           Text="{Binding C64UDriveALabel, StringFormat='Drive A: {0}'}" />
+                                <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Eject Drive A" Click="C64UEjectA_Click"
+                                        IsVisible="{Binding IsC64UDriveAMounted}">
+                                    <PathIcon Data="M10 3l5 8H5z M4 16h12v2H4z" />
+                                </Button>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" FontSize="11" Foreground="#555555" TextTrimming="CharacterEllipsis"
+                                           Text="{Binding C64UDriveBLabel, StringFormat='Drive B: {0}'}" />
+                                <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Eject Drive B" Click="C64UEjectB_Click"
+                                        IsVisible="{Binding IsC64UDriveBMounted}">
+                                    <PathIcon Data="M10 3l5 8H5z M4 16h12v2H4z" />
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Panel>
+                        <StackPanel Margin="12" Spacing="8" IsVisible="{Binding IsC64UNotConnected}">
+                            <TextBlock Text="Not connected. Set the device URL in Preferences, then connect." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
+                            <Button Content="Connect" Click="C64UConnect_Click" HorizontalAlignment="Left" />
+                        </StackPanel>
+
+                        <StackPanel Margin="12" Spacing="8" IsVisible="{Binding IsC64UConnecting}">
+                            <TextBlock Text="Connecting…" FontSize="12" Foreground="#666666" />
+                        </StackPanel>
+
+                        <TreeView x:Name="C64UFileTree"
+                                  ItemsSource="{Binding C64UFileItems}"
+                                  IsVisible="{Binding IsC64UConnected}"
+                                  Background="Transparent" BorderThickness="0"
+                                  DoubleTapped="C64UFileTree_DoubleTapped"
+                                  KeyDown="C64UFileTree_KeyDown"
+                                  ContextRequested="C64UFileTree_ContextRequested">
+                            <TreeView.ItemTemplate>
+                                <TreeDataTemplate x:DataType="core:C64UFileItem" ItemsSource="{Binding Children}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
+                                                  Data="{Binding ., Converter={x:Static conv:FileTreeConverters.C64UIcon}}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                        <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
+                                                IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
+                                                Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
+                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
+                                        </Border>
+                                    </Grid>
+                                </TreeDataTemplate>
+                            </TreeView.ItemTemplate>
+                        </TreeView>
+                    </Panel>
+                </DockPanel>
             </DockPanel>
 
             <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="#DDDDDD" IsVisible="{Binding IsExplorerOpen}" />
