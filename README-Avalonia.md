@@ -14,11 +14,17 @@ This is a work in progress and is not a full replacement for the Windows app yet
 
 ## Prerequisites
 
-- **[.NET SDK](https://dotnet.microsoft.com/download) 8.0 or newer.** Newer SDKs are fine: the
-  cross-platform projects target `net8.0` with `RollForward=Major`, so they run on whatever
-  runtime you have.
-  - macOS: `brew install dotnet`
-  - Linux: your distribution's `dotnet-sdk` package, or Microsoft's install script.
+- **[.NET SDK](https://dotnet.microsoft.com/download) 9.0 or newer.** The projects themselves
+  target `net8.0` with `RollForward=Major`, so the built app runs fine wherever an 8.0-or-newer
+  *runtime* is installed - but *building* `ReadyCode.Avalonia` needs a newer SDK on your `PATH`:
+  Avalonia 12.1.2's source generator requires a C# compiler newer than the one the 8.0 SDK
+  bundles. A plain "latest .NET 8 SDK" install fails partway through with a `CS9057` analyzer
+  error, then a cascade of `InitializeComponent`/missing-control errors, since the XAML source
+  generator silently didn't run. Installing .NET 9 (or newer), alongside 8.0 or instead of it,
+  fixes that - a newer SDK still builds and runs `net8.0` projects correctly.
+  - macOS: `brew install dotnet` installs a current SDK.
+  - Linux: your distribution's `dotnet-sdk` package (check it's 9.0+, not just 8.0), or
+    Microsoft's install script (`dotnet-install.sh --channel 9.0`).
 - **[VICE](https://vice-emu.sourceforge.io/)**, if you want to run your programs. READYCode drives
   the `x64sc` emulator through its binary monitor.
   - macOS: `brew install vice`
