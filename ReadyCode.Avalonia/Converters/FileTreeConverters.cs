@@ -35,6 +35,10 @@ public static class FileTreeConverters
     public static readonly IValueConverter Icon = new FuncValueConverter<FileTreeItem?, Geometry?>(item =>
         item == null ? null : item.IsFolder ? _folder : item.IsDiskImage ? _disk : _file);
 
+    /// <summary>Maps a C64U explorer item to its icon geometry (folder, disk image, or file).</summary>
+    public static readonly IValueConverter C64UIcon = new FuncValueConverter<C64UFileItem?, Geometry?>(item =>
+        item == null ? null : item.IsFolder ? _folder : item.IsDiskImage ? _disk : _file);
+
     /// <summary>Maps a file kind to the background brush of its type badge.</summary>
     public static readonly IValueConverter BadgeBrush = new FuncValueConverter<C64UFileKind, IBrush>(kind => kind switch
     {

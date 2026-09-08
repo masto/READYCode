@@ -89,6 +89,13 @@ public class EditorTab : INotifyPropertyChanged
     public bool IsVirtual => VirtualSourceId != null;
 
     /// <summary>
+    /// Gets or sets whether <see cref="VirtualSourceId"/> names a disk image on a C64 Ultimate's
+    /// remote storage rather than a local one, so Save routes to the C64U-specific write-back
+    /// path instead of the local one.
+    /// </summary>
+    public bool IsC64UVirtual { get; set; }
+
+    /// <summary>
     /// Gets or sets the diagnostics last computed for this tab's text, kept so the Problems
     /// panel can list every open tab's issues, not just the active one's.
     /// </summary>
