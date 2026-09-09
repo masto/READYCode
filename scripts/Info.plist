@@ -8,8 +8,10 @@
     <string>READYCode</string>
     <key>CFBundleIdentifier</key>
     <string>com.moonspacelabs.readycode</string>
+    <!-- Placeholders: scripts/make-app-bundle.sh overwrites both from the csproj's <Version> at
+         build time, which is the single source of truth. -->
     <key>CFBundleVersion</key>
-    <string>2.3.0</string>
+    <string>1</string>
     <key>CFBundleShortVersionString</key>
     <string>2.3.0</string>
     <key>CFBundlePackageType</key>

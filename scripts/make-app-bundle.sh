@@ -42,6 +42,13 @@ APP="$OUT/READYCode.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$ROOT/scripts/Info.plist" "$APP/Contents/Info.plist"
+# The csproj's <Version> (e.g. 2.3.0.1: upstream base + Avalonia build counter) is the single
+# source of truth. Info.plist's two version keys cap at three dotted components apiece, so it
+# doesn't fit either field whole - split it: the first three components are the marketing
+# version, the fourth is the build number, which is exactly what CFBundleVersion is for.
+VERSION_FULL="$(dotnet msbuild "$PROJ" -getProperty:Version -nologo -v:q)"
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION_FULL%.*}" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${VERSION_FULL##*.}" "$APP/Contents/Info.plist"
 # rsync keeps the apphost's executable bit and lets repeated dev builds stay fast.
 rsync -a --delete "$PAYLOAD/" "$APP/Contents/MacOS/"
 [[ -f "$ROOT/scripts/READYCode.icns" ]] && cp "$ROOT/scripts/READYCode.icns" "$APP/Contents/Resources/"

@@ -14,10 +14,13 @@
     <AssemblyName>ReadyCode.Avalonia</AssemblyName>
     <!-- Lets the app run on a newer installed runtime (e.g. the .NET 10 SDK on macOS). -->
     <RollForward>Major</RollForward>
-    <!-- Version drives what the About box shows; kept in step with the Windows app's version. -->
-    <Version>2.3.0</Version>
-    <AssemblyVersion>2.3.0.0</AssemblyVersion>
-    <FileVersion>2.3.0.0</FileVersion>
+    <!-- The first three components track the upstream WPF version we last merged from; the
+         fourth is an Avalonia-only build counter, reset to 1 each time we rebase. Bundled into
+         the macOS app by scripts/make-app-bundle.sh (see CFBundleShortVersionString/
+         CFBundleVersion there) so this is the single source of truth for both. -->
+    <Version>2.3.0.1</Version>
+    <AssemblyVersion>2.3.0.1</AssemblyVersion>
+    <FileVersion>2.3.0.1</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
