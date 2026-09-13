@@ -629,7 +629,6 @@ public partial class MainWindow : Window
         await ViewModel.OnBreakpointEnabledChangedAsync(breakpoint);
     }
 
-    private async void DebugStart_Click(object? sender, EventArgs e) => await ViewModel.DebugStartOrContinueAsync();
     private async void DebugPause_Click(object? sender, EventArgs e) => await ViewModel.DebugPauseAsync();
     private async void DebugRestart_Click(object? sender, EventArgs e) => await ViewModel.DebugRestartAsync();
     private async void DebugStop_Click(object? sender, EventArgs e) => await ViewModel.DebugStopAsync();
@@ -1882,6 +1881,7 @@ public partial class MainWindow : Window
         await ViewModel.TransferToViceAsync();
         if (ViewModel.ActiveTab is { } tab) ShowProblemsIfAny(tab);
     }
+    private async void ViceDebugStart_Click(object? sender, EventArgs e) => await ViewModel.DebugStartOrContinueAsync();
     private async void ViceReset_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.ResetAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine reset.");
     private async void ViceReboot_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.RebootAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine rebooted.");
     private async void VicePause_Click(object? sender, EventArgs e) => await ViewModel.ViceMachineActionAsync(c => c.PauseAsync(ViewModel.Settings.ViceEmulatorPath), "VICE machine paused.");
