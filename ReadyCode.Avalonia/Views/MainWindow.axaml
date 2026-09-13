@@ -42,12 +42,12 @@
             <Setter Property="Padding" Value="10,0" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#777777" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTabInactiveFg}" />
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.leftPanelTab.active">
-            <Setter Property="Foreground" Value="#000000" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTabActiveFg}" />
         </Style>
         <Style Selector="Button.statusBarBadge">
             <Setter Property="Background" Value="Transparent" />
@@ -56,13 +56,28 @@
             <Setter Property="Padding" Value="8,0" />
             <Setter Property="FontSize" Value="11" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#AAAAAA" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMenuItemDisabledFg}" />
             <Setter Property="MinHeight" Value="0" />
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button.statusBarBadge.active">
-            <Setter Property="Foreground" Value="#000000" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeStatusBarFg}" />
+        </Style>
+
+        <!-- Editor tab strip and the in-window menu bar (Windows/Linux; macOS's system menu bar
+             can't be themed, same as in WPF) take the same theme keys the WPF chrome uses. -->
+        <Style Selector="TabStrip#Tabs">
+            <Setter Property="Background" Value="{DynamicResource ThemeTabBarBg}" />
+        </Style>
+        <Style Selector="TabStrip#Tabs TabStripItem">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTabInactiveFg}" />
+        </Style>
+        <Style Selector="TabStrip#Tabs TabStripItem:selected">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTabActiveFg}" />
+        </Style>
+        <Style Selector="TreeView#FileTree TreeViewItem TextBlock, TreeView#C64UFileTree TreeViewItem TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeFileFg}" />
         </Style>
     </Window.Styles>
 
@@ -219,9 +234,11 @@
         <!-- One definition drives both: on macOS this becomes the system menu bar at the top of
              the screen, and NativeMenuBar below renders nothing. On Windows and Linux, where
              there is no global menu bar, NativeMenuBar draws it inside the window instead. -->
-        <NativeMenuBar DockPanel.Dock="Top" />
+        <Border DockPanel.Dock="Top" Background="{DynamicResource ThemeMenuBg}" TextElement.Foreground="{DynamicResource ThemeMenuFg}">
+            <NativeMenuBar />
+        </Border>
 
-        <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE" IsVisible="{Binding ShowStatusBar}">
+        <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="{DynamicResource ThemeStatusBarBg}" IsVisible="{Binding ShowStatusBar}">
             <Grid ColumnDefinitions="*,Auto,Auto">
                 <TextBlock Grid.Column="0" x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" />
 
@@ -249,9 +266,9 @@
         <Grid x:Name="MainGrid" ColumnDefinitions="230,4,*">
 
             <!-- Left panel: Folder explorer / C64U explorer -->
-            <DockPanel Grid.Column="0" x:Name="ExplorerPanel" Background="#F3F3F3" IsVisible="{Binding IsExplorerOpen}">
+            <DockPanel Grid.Column="0" x:Name="ExplorerPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsExplorerOpen}">
 
-                <Border DockPanel.Dock="Top" Height="26" Background="#E9E9E9" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                <Border DockPanel.Dock="Top" Height="26" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
                     <StackPanel Orientation="Horizontal">
                         <Button Classes="leftPanelTab" Classes.active="{Binding IsExplorerTabActive}" Content="EXPLORER" Click="LeftPanelExplorerTab_Click" />
                         <Button Classes="leftPanelTab" Classes.active="{Binding IsC64UTabActive}" Content="C64U" Click="LeftPanelC64UTab_Click" />
@@ -260,7 +277,7 @@
 
                 <!-- Folder explorer -->
                 <DockPanel IsVisible="{Binding IsExplorerTabActive}">
-                    <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                    <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding ExplorerTitle}" FontSize="11" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
@@ -284,7 +301,7 @@
 
                     <Panel>
                         <StackPanel Margin="12" Spacing="8" IsVisible="{Binding !IsFolderOpen}">
-                            <TextBlock Text="No folder open." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
+                            <TextBlock Text="No folder open." FontSize="12" Foreground="{DynamicResource ThemeFileFg}" TextWrapping="Wrap" />
                             <Button Content="Open Folder…" Click="ExplorerOpenFolder_Click" HorizontalAlignment="Left" />
                         </StackPanel>
 
@@ -298,14 +315,14 @@
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
                                     <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
-                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
+                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="{DynamicResource ThemeFolderExplorerIconFg}"
                                                   Data="{Binding ., Converter={x:Static conv:FileTreeConverters.Icon}}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" />
                                         <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
                                                 IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
                                                 Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
-                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
+                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeForegroundBrush}}" />
                                         </Border>
                                     </Grid>
                                 </TreeDataTemplate>
@@ -316,7 +333,7 @@
 
                 <!-- C64U explorer -->
                 <DockPanel IsVisible="{Binding IsC64UTabActive}">
-                    <Border DockPanel.Dock="Top" Height="32" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,0,0,1">
+                    <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding C64UHeaderText}" FontSize="11" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
@@ -335,11 +352,11 @@
                         </Grid>
                     </Border>
 
-                    <Border DockPanel.Dock="Bottom" Padding="10,6" Background="#E9E9E9" BorderBrush="#CFCFCF" BorderThickness="0,1,0,0"
+                    <Border DockPanel.Dock="Bottom" Padding="10,6" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,1,0,0"
                             IsVisible="{Binding IsC64UConnected}">
                         <StackPanel Spacing="3">
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" FontSize="11" Foreground="#555555" TextTrimming="CharacterEllipsis"
+                                <TextBlock Grid.Column="0" FontSize="11" Foreground="{DynamicResource ThemeFolderExplorerIconFg}" TextTrimming="CharacterEllipsis"
                                            Text="{Binding C64UDriveALabel, StringFormat='Drive A: {0}'}" />
                                 <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Eject Drive A" Click="C64UEjectA_Click"
                                         IsVisible="{Binding IsC64UDriveAMounted}">
@@ -347,7 +364,7 @@
                                 </Button>
                             </Grid>
                             <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" FontSize="11" Foreground="#555555" TextTrimming="CharacterEllipsis"
+                                <TextBlock Grid.Column="0" FontSize="11" Foreground="{DynamicResource ThemeFolderExplorerIconFg}" TextTrimming="CharacterEllipsis"
                                            Text="{Binding C64UDriveBLabel, StringFormat='Drive B: {0}'}" />
                                 <Button Grid.Column="1" Classes="explorerTool" ToolTip.Tip="Eject Drive B" Click="C64UEjectB_Click"
                                         IsVisible="{Binding IsC64UDriveBMounted}">
@@ -359,12 +376,12 @@
 
                     <Panel>
                         <StackPanel Margin="12" Spacing="8" IsVisible="{Binding IsC64UNotConnected}">
-                            <TextBlock Text="Not connected. Set the device URL in Preferences, then connect." FontSize="12" Foreground="#666666" TextWrapping="Wrap" />
+                            <TextBlock Text="Not connected. Set the device URL in Preferences, then connect." FontSize="12" Foreground="{DynamicResource ThemeFileFg}" TextWrapping="Wrap" />
                             <Button Content="Connect" Click="C64UConnect_Click" HorizontalAlignment="Left" />
                         </StackPanel>
 
                         <StackPanel Margin="12" Spacing="8" IsVisible="{Binding IsC64UConnecting}">
-                            <TextBlock Text="Connecting…" FontSize="12" Foreground="#666666" />
+                            <TextBlock Text="Connecting…" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" />
                         </StackPanel>
 
                         <TreeView x:Name="C64UFileTree"
@@ -377,14 +394,14 @@
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="core:C64UFileItem" ItemsSource="{Binding Children}">
                                     <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
-                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="#555555"
+                                        <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="{DynamicResource ThemeFolderExplorerIconFg}"
                                                   Data="{Binding ., Converter={x:Static conv:FileTreeConverters.C64UIcon}}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
                                                    TextTrimming="CharacterEllipsis" />
                                         <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
                                                 IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
                                                 Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
-                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="#000000" />
+                                            <TextBlock Text="{Binding Badge}" FontSize="9" FontWeight="Bold" Foreground="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeForegroundBrush}}" />
                                         </Border>
                                     </Grid>
                                 </TreeDataTemplate>
@@ -394,7 +411,7 @@
                 </DockPanel>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="#DDDDDD" IsVisible="{Binding IsExplorerOpen}" />
+            <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsExplorerOpen}" />
 
             <!-- Editor -->
             <DockPanel Grid.Column="2">
@@ -414,8 +431,8 @@
                                    Padding="10"
                                    ContextRequested="Editor_ContextRequested"
                                    FontSize="16"
-                                   Foreground="Black"
-                                   Background="White"
+                                   Foreground="{DynamicResource ThemeEditorFg}"
+                                   Background="{DynamicResource ThemeEditorBg}"
                                    WordWrap="False"
                                    ShowLineNumbers="False"
                                    HorizontalScrollBarVisibility="Auto"
@@ -424,16 +441,16 @@
                                           HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" />
                 </Panel>
 
-                <GridSplitter Grid.Row="1" x:Name="ProblemsSplitter" ResizeDirection="Rows" Background="#DDDDDD" IsVisible="{Binding IsBottomPanelOpen}" />
+                <GridSplitter Grid.Row="1" x:Name="ProblemsSplitter" ResizeDirection="Rows" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsBottomPanelOpen}" />
 
                 <!-- Bottom panel: Problems / Variables / Breakpoints / Call Stack -->
-                <DockPanel Grid.Row="2" x:Name="ProblemsPanel" Background="#F3F3F3" IsVisible="{Binding IsBottomPanelOpen}">
-                    <Border DockPanel.Dock="Right" Width="28" Background="#E4E4E4" BorderBrush="#CFCFCF" BorderThickness="0,1,0,0">
+                <DockPanel Grid.Row="2" x:Name="ProblemsPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsBottomPanelOpen}">
+                    <Border DockPanel.Dock="Right" Width="28" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,1,0,0">
                         <Button Classes="explorerTool" ToolTip.Tip="Close" Click="ViewBottomPanelClose_Click" VerticalAlignment="Top" Margin="0,3,0,0">
                             <PathIcon Data="M5 4l5 5 5-5 1.4 1.4-5 5 5 5L15 16.8l-5-5-5 5L3.6 15.4l5-5-5-5z" />
                         </Button>
                     </Border>
-                    <TabControl x:Name="BottomTabs" SelectedIndex="{Binding BottomPanelTabIndex, Mode=TwoWay}" Padding="0" BorderThickness="0,1,0,0" BorderBrush="#CFCFCF">
+                    <TabControl x:Name="BottomTabs" SelectedIndex="{Binding BottomPanelTabIndex, Mode=TwoWay}" Padding="0" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}">
                         <TabControl.Styles>
                             <Style Selector="TabItem">
                                 <Setter Property="FontSize" Value="11" />
@@ -449,17 +466,17 @@
 
                         <TabItem Header="{Binding ProblemsTitle}">
                             <Panel>
-                                <TextBlock Text="{Binding ProblemsEmptyText}" FontSize="12" Foreground="#666666" Margin="12,8"
+                                <TextBlock Text="{Binding ProblemsEmptyText}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" Margin="12,8"
                                            IsVisible="{Binding !ErrorListRows.Count}" />
                                 <ListBox x:Name="ProblemsList" ItemsSource="{Binding ErrorListRows}" Background="Transparent" BorderThickness="0"
                                          IsVisible="{Binding !!ErrorListRows.Count}" DoubleTapped="ProblemsList_DoubleTapped" KeyDown="ProblemsList_KeyDown">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate x:DataType="models:ErrorListRow">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <PathIcon Width="12" Height="12" Foreground="#D03030" Data="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 4h2v6H9zm0 7h2v2H9z" />
+                                                <PathIcon Width="12" Height="12" Foreground="{DynamicResource ThemeStatusErrorBg}" Data="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-1 4h2v6H9zm0 7h2v2H9z" />
                                                 <TextBlock Text="{Binding Message}" FontSize="12" />
-                                                <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="#777777" />
-                                                <TextBlock Text="{Binding Location}" FontSize="12" Foreground="#777777" />
+                                                <TextBlock Text="{Binding FileName}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" />
+                                                <TextBlock Text="{Binding Location}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -469,7 +486,7 @@
 
                         <TabItem Header="VARIABLES">
                             <Panel>
-                                <TextBlock x:Name="VariablesEmptyText" FontSize="12" Foreground="#666666" Margin="12,8"
+                                <TextBlock x:Name="VariablesEmptyText" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" Margin="12,8"
                                            IsVisible="{Binding !DebugVariables.Count}" />
                                 <ListBox x:Name="VariablesList" ItemsSource="{Binding DebugVariables}" Background="Transparent" BorderThickness="0"
                                          IsVisible="{Binding !!DebugVariables.Count}" DoubleTapped="VariablesList_DoubleTapped" KeyDown="VariablesList_KeyDown"
@@ -478,7 +495,7 @@
                                         <DataTemplate x:DataType="dbg:BasicVariable">
                                             <Grid ColumnDefinitions="120,80,*">
                                                 <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
-                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="12" Foreground="#777777" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" />
                                                 <TextBlock Grid.Column="2" Text="{Binding ., Converter={x:Static conv:FileTreeConverters.VariableValue}}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
                                             </Grid>
                                         </DataTemplate>
@@ -489,7 +506,7 @@
 
                         <TabItem Header="BREAKPOINTS">
                             <Panel>
-                                <TextBlock Text="No breakpoints. Click the gutter left of a BASIC line, or press F9." FontSize="12" Foreground="#666666" Margin="12,8"
+                                <TextBlock Text="No breakpoints. Click the gutter left of a BASIC line, or press F9." FontSize="12" Foreground="{DynamicResource ThemeFileFg}" Margin="12,8"
                                            IsVisible="{Binding !BreakpointStore.Breakpoints.Count}" />
                                 <ListBox x:Name="BreakpointsList" ItemsSource="{Binding BreakpointStore.Breakpoints}" Background="Transparent" BorderThickness="0"
                                          IsVisible="{Binding !!BreakpointStore.Breakpoints.Count}" DoubleTapped="BreakpointsList_DoubleTapped">
@@ -498,7 +515,7 @@
                                             <StackPanel Orientation="Horizontal" Spacing="8">
                                                 <CheckBox IsChecked="{Binding IsEnabled, Mode=TwoWay}" MinHeight="0" Padding="0" />
                                                 <TextBlock Text="{Binding LineNumber, StringFormat='line {0}'}" FontSize="12" MinWidth="70" VerticalAlignment="Center" />
-                                                <TextBlock Text="{Binding FilePath}" FontSize="12" Foreground="#777777" VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding FilePath}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </DataTemplate>
                                     </ListBox.ItemTemplate>
@@ -508,7 +525,7 @@
 
                         <TabItem Header="CALL STACK">
                             <Panel>
-                                <TextBlock x:Name="CallStackEmptyText" FontSize="12" Foreground="#666666" Margin="12,8"
+                                <TextBlock x:Name="CallStackEmptyText" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" Margin="12,8"
                                            IsVisible="{Binding !DebugCallStack.Count}" />
                                 <ListBox x:Name="CallStackList" ItemsSource="{Binding DebugCallStack}" Background="Transparent" BorderThickness="0"
                                          IsVisible="{Binding !!DebugCallStack.Count}" DoubleTapped="CallStackList_DoubleTapped">

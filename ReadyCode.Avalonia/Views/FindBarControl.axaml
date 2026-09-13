@@ -20,11 +20,11 @@
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="TextBox.find.noResults">
-            <Setter Property="BorderBrush" Value="#D03030" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeStatusErrorBg}" />
         </Style>
     </UserControl.Styles>
 
-    <Border Background="#F0F0F0" BorderBrush="#C8C8C8" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4"
+    <Border Background="{DynamicResource ThemeSettingsFooterBg}" BorderBrush="{DynamicResource ThemeSettingsFooterBorder}" BorderThickness="1,0,1,1" CornerRadius="0,0,4,4"
             Padding="6,5" BoxShadow="0 3 6 0 #40000000">
         <StackPanel Spacing="4">
             <DockPanel LastChildFill="True">

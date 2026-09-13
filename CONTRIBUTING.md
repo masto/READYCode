@@ -38,6 +38,11 @@ them:
 - **A change to shared behavior should land in both front ends** or explicitly say why it didn't.
   If you change PETSCII rendering, tokenizing, or diagnostics, the WPF and Avalonia UI editors should
   still agree.
+- **Theme colors live in one place: `ReadyCode/Resources/Themes/*Theme.xaml`.** The Avalonia
+  project links those files in and reads them at startup, so a new color or theme is added to the
+  WPF file only - never a second copy on the Avalonia side. Keep them to plain
+  `<SolidColorBrush x:Key="..." Color="#..."/>` entries; that is the whole contract the reader
+  relies on.
 - **Keep the Windows build honest from other platforms.** The WPF project compiles anywhere with
   `-p:EnableWindowsTargeting=true`, so a change to the core can be checked against it without a
   Windows machine.

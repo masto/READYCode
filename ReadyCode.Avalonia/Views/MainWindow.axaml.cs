@@ -16,6 +16,7 @@ using AvaloniaEdit.Folding;
 using ReadyCode.Avalonia.Editor;
 using ReadyCode.Core.Interop;
 using ReadyCode.Avalonia.Models;
+using ReadyCode.Avalonia.Themes;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Models;
 using ReadyCode.Search;
@@ -47,23 +48,20 @@ public partial class MainWindow : Window
     };
 
     private readonly PetsciiGlyphGenerator _petsciiGlyphGenerator = new();
-    private readonly LineNumberColorizer _lineNumberColorizer = new() { LineNumberBrush = Brush("#808080"), ActiveLineNumberBrush = Brush("#000000") };
-    private readonly BasicKeywordColorizer _keywordColorizer = new() { KeywordBrush = Brush("#0000FF") };
-    private readonly NumberLiteralColorizer _numberLiteralColorizer = new() { NumberBrush = Brush("#008080") };
-    private readonly StringLiteralColorizer _stringLiteralColorizer = new() { StringBrush = Brush("#A31515") };
-    private readonly RemCommentColorizer _remCommentColorizer = new() { CommentBrush = Brush("#2d8a3e") };
-    private readonly AsmMnemonicColorizer _asmMnemonicColorizer = new() { MnemonicBrush = Brush("#0000FF") };
-    private readonly AsmNumberLiteralColorizer _asmNumberLiteralColorizer = new() { NumberBrush = Brush("#008080") };
-    private readonly AsmLabelColorizer _asmLabelColorizer = new() { LabelBrush = Brush("#A31515") };
-    private readonly AsmCommentColorizer _asmCommentColorizer = new() { CommentBrush = Brush("#2d8a3e") };
+    // Brushes for all of these come from the active theme - see ApplyThemeBrushes.
+    private readonly LineNumberColorizer _lineNumberColorizer = new();
+    private readonly BasicKeywordColorizer _keywordColorizer = new();
+    private readonly NumberLiteralColorizer _numberLiteralColorizer = new();
+    private readonly StringLiteralColorizer _stringLiteralColorizer = new();
+    private readonly RemCommentColorizer _remCommentColorizer = new();
+    private readonly AsmMnemonicColorizer _asmMnemonicColorizer = new();
+    private readonly AsmNumberLiteralColorizer _asmNumberLiteralColorizer = new();
+    private readonly AsmLabelColorizer _asmLabelColorizer = new();
+    private readonly AsmCommentColorizer _asmCommentColorizer = new();
     private readonly BasicFoldingStrategy _basicFoldingStrategy = new();
     private readonly AsmFoldingStrategy _asmFoldingStrategy = new();
     private readonly DispatcherTimer _foldingTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
-    private readonly FindHighlightColorizer _findHighlightColorizer = new()
-    {
-        MatchBrush = Brush("#EEEE77"), MatchFgBrush = Brush("#000000"),
-        CurrentMatchBrush = Brush("#DD8855"), CurrentMatchFgBrush = Brush("#000000"),
-    };
+    private readonly FindHighlightColorizer _findHighlightColorizer = new();
     private readonly DispatcherTimer _findUpdateTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private readonly DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private ErrorSquiggleRenderer _errorSquiggleRenderer = null!;
@@ -99,8 +97,10 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
-        _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor) ;
-        _errorSquiggleRenderer.SetColor(Color.Parse("#E51400"));
+        _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor);
+        ApplyThemeBrushes();
+        AppTheme.Changed += OnThemeChanged;
+        Closed += (_, _) => AppTheme.Changed -= OnThemeChanged;
         Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_debugCurrentLineRenderer);
@@ -271,7 +271,6 @@ public partial class MainWindow : Window
 
     #region Private Methods
 
-    private static IBrush Brush(string hex) => new SolidColorBrush(Color.Parse(hex));
 
     private void AttachViewModel()
     {
@@ -408,6 +407,45 @@ public partial class MainWindow : Window
         Editor.TextArea.TextView.Redraw();
     }
 
+    // Hands the editor's colorizers and renderers the active theme's brushes, under the same
+    // keys the WPF app's ApplyEditorAppearance reads. The brushes are the theme's own shared
+    // instances (see AppTheme.Apply), so a later theme switch recolors the colorizers in place;
+    // the two renderers keep a pen built from the color instead, which is why this is also
+    // re-run from OnThemeChanged.
+    private void ApplyThemeBrushes()
+    {
+        _lineNumberColorizer.LineNumberBrush = ThemeBrush("ThemeEditorLineNumberFg");
+        _lineNumberColorizer.ActiveLineNumberBrush = ThemeBrush("ThemeEditorFg");
+        _keywordColorizer.KeywordBrush = ThemeBrush("ThemeEditorKeywordFg");
+        _numberLiteralColorizer.NumberBrush = ThemeBrush("ThemeEditorNumberLiteralFg");
+        _stringLiteralColorizer.StringBrush = ThemeBrush("ThemeEditorStringFg");
+        _remCommentColorizer.CommentBrush = ThemeBrush("ThemeEditorCommentFg");
+        _asmMnemonicColorizer.MnemonicBrush = ThemeBrush("ThemeEditorKeywordFg");
+        _asmNumberLiteralColorizer.NumberBrush = ThemeBrush("ThemeEditorNumberLiteralFg");
+        _asmLabelColorizer.LabelBrush = ThemeBrush("ThemeEditorStringFg");
+        _asmCommentColorizer.CommentBrush = ThemeBrush("ThemeEditorCommentFg");
+        _findHighlightColorizer.MatchBrush = ThemeBrush("ThemeFindMatchBg");
+        _findHighlightColorizer.MatchFgBrush = ThemeBrush("ThemeFindMatchFg");
+        _findHighlightColorizer.CurrentMatchBrush = ThemeBrush("ThemeFindCurrentBg");
+        _findHighlightColorizer.CurrentMatchFgBrush = ThemeBrush("ThemeFindCurrentFg");
+
+        _errorSquiggleRenderer.SetColor(ThemeColor("ThemeEditorErrorSquiggle"));
+        // The guide is a full-height line beside the text, so it is drawn at a quarter opacity
+        // rather than the theme's solid color - which is what the WPF ruler amounts to as well.
+        var guide = ThemeColor("ThemeEditorGuideLineFg");
+        _columnGuideRenderer.SetColor(new Color(0x40, guide.R, guide.G, guide.B));
+    }
+
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        ApplyThemeBrushes();
+        UpdateStatusColors();
+        Editor.TextArea.TextView.Redraw();
+    }
+
+    private IBrush ThemeBrush(string key) => (IBrush)this.FindResource(key)!;
+    private Color ThemeColor(string key) => ((ISolidColorBrush)ThemeBrush(key)).Color;
+
     // Applies every setting that affects the editor control itself; safe to call repeatedly.
     private void ApplyEditorSettings()
     {
@@ -456,11 +494,12 @@ public partial class MainWindow : Window
 
     private void UpdateStatusColors()
     {
-        (StatusBar.Background, StatusTextBlock.Foreground) = ViewModel.StatusType switch
+        if (DataContext is not MainViewModel vm) return;
+        (StatusBar.Background, StatusTextBlock.Foreground) = vm.StatusType switch
         {
-            StatusType.Error => (Brush("#880000"), Brush("#FFFFFF")),
-            StatusType.Warning => (Brush("#EEEE77"), Brush("#000000")),
-            _ => (Brush("#EEEEEE"), Brush("#000000")),
+            StatusType.Error => (ThemeBrush("ThemeStatusErrorBg"), ThemeBrush("ThemeStatusErrorFg")),
+            StatusType.Warning => (ThemeBrush("ThemeStatusWarningBg"), ThemeBrush("ThemeStatusWarningFg")),
+            _ => (ThemeBrush("ThemeStatusBarBg"), ThemeBrush("ThemeStatusBarFg")),
         };
     }
 
@@ -1938,6 +1977,8 @@ public partial class MainWindow : Window
 
         ViewModel.SaveSettings();
         ViewModel.NotifySettingsChanged();
+        if (AppTheme.Normalize(ViewModel.Settings.Theme) != AppTheme.Current)
+            AppTheme.Apply(Application.Current!, ViewModel.Settings.Theme);
         ApplyEditorSettings();
         if (_boundTab != null)
         {

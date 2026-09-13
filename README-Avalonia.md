@@ -211,6 +211,9 @@ approve the automation the first time.
   REST API has no way to read the 6502 stack pointer they depend on. Breakpoints persist per
   open folder.
 - **Preferences** - Application, Text Editor, BASIC, Assembly, VICE, and C64U pages.
+- **Themes** - Light, Dark, and Commodore 64, the same three as the Windows app and taken from
+  its very own theme files (see [Project layout](#project-layout)), so the two front ends can't
+  drift apart. Preferences → Application.
 - **Native menus** - the menu is declared once and rendered by whatever the platform uses: the
   system menu bar on macOS, where About and Preferences also move into the application menu and
   Quit comes from the system, and an in-window menu bar on Windows and Linux.
@@ -231,8 +234,7 @@ your real settings.
 Project-wide search, the hex editor, file compare, the disassembler tabs, the reference panels
 (BASIC keywords, PETSCII, Quick Keys, Music Notes), the Variables and Symbols side panel,
 ghost-text completion and `Ctrl+Space`, the Minify, Prettify and Renumber dialogs, printing,
-recent files, drag-and-drop and cut/copy/paste in either explorer tree, code statistics, and the
-Light/Dark/C64 themes (the Avalonia app currently uses Avalonia's own light theme).
+recent files, drag-and-drop and cut/copy/paste in either explorer tree, and code statistics.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
@@ -267,6 +269,12 @@ READYCODE_RENDER_DIR=/tmp/readycode-renders dotnet test ReadyCode.Avalonia.Tests
 | `ReadyCode.Avalonia` | `net8.0` | The cross-platform front end |
 | `ReadyCode.Tests` | `net8.0` | Core unit tests, runnable on any OS |
 | `ReadyCode.Avalonia.Tests` | `net8.0` | Headless Avalonia UI tests |
+
+The theme colors are not defined on this side at all: `ReadyCode.Avalonia.csproj` links the WPF
+project's `Resources/Themes/*Theme.xaml` files in as embedded resources, and `Themes/AppTheme.cs`
+reads them as plain XML (they are nothing but `x:Key` → hex color) into `Application.Resources`
+under the same keys, so the XAML here uses the same `{DynamicResource ThemeXxx}` references the
+WPF XAML does. To add or change a color, edit the WPF file; both front ends pick it up.
 
 `ReadyCode.Core` deliberately references no UI framework. Where the shared models need to reach the
 UI thread, they expose a hook each front end installs at startup: `FileTreeItem.DeferToUiThread`
