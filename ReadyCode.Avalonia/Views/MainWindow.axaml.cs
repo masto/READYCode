@@ -1538,6 +1538,11 @@ public partial class MainWindow : Window
         int caret = start + insertText.Length;
         Editor.CaretOffset = caret;
         Editor.Select(caret, 0);
+
+        // e.Handled = true above suppresses AvaloniaEdit's own TextInput handling entirely, which
+        // is what normally scrolls the caret into view after inserting typed text - without this,
+        // typing past the right edge with word wrap off never auto-scrolls horizontally.
+        Editor.TextArea.Caret.BringCaretToView();
     }
 
     private string? TryGetKeywordAbbreviationGlyph(string text)
