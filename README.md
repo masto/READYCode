@@ -6,11 +6,12 @@
 
 A Windows 10/11 desktop code editor for writing Commodore 64 BASIC and 6502 assembly programs, built around the [Commodore 64 Ultimate](https://commodore.net/computer/)'s local [network API](https://1541u-documentation.readthedocs.io/en/latest/api/api_calls.html). READYCode brings both languages into a modern editor - C64-accurate PETSCII rendering, syntax highlighting, keyword completion, and line-number tooling for BASIC, plus mnemonic highlighting and a built-in assembler for 6502 - then produces a real .prg you can save to disk (for VICE or any other C64 emulator) or push straight to a C64 Ultimate or VICE emulator over the network and run immediately. Beyond writing code, READYCode can also browse and manage the C64 Ultimate's own storage over FTP - including looking inside `.d64` disk images and opening the programs stored on them - right alongside your local project files.
 
-## macOS and Linux
+## Avalonia UI
 
-READYCode's main application is Windows-only (it is built on WPF). A second front end built on
-[Avalonia](https://avaloniaui.net/) runs on **macOS** and **Linux**, sharing all of its editor,
-tokenizer, assembler, and emulator logic with the Windows app. See
+READYCode's main application is Windows-only (it is built on WPF). The Avalonia UI is a second
+front end built on [Avalonia](https://avaloniaui.net/), sharing all of its editor, tokenizer,
+assembler, and emulator logic with the Windows app. It currently runs on **macOS** and **Linux**,
+with macOS binary releases published on GitHub. See
 **[README-Avalonia.md](README-Avalonia.md)** for what works, how to build it, and how to get a
 double-clickable `READYCode.app`.
 
