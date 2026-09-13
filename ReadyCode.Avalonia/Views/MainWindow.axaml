@@ -135,11 +135,15 @@
             <NativeMenuItem Header="VICE">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <!-- Matches WPF's VICE menu exactly: Run Without Debugging is Ctrl+Alt+F5 there
-                             (bare F5 is reserved for C64U's Start Debugging, below); Load has no
-                             shortcut in WPF either. -->
-                        <NativeMenuItem Header="Run"                  Click="ViceRun_Click"      Gesture="{OnPlatform Ctrl+Alt+F5, macOS=Cmd+Alt+F5}" />
-                        <NativeMenuItem Header="Transfer (load only)" Click="ViceTransfer_Click" />
+                        <!-- Matches WPF's VICE menu exactly: Load has no shortcut, Run Without
+                             Debugging is Ctrl+Alt+F5, Start Debugging is Alt+F5 (bare F5 is
+                             reserved for C64U's Start Debugging, below). Once a session is
+                             running, Pause/Restart/Stop/Step/breakpoints apply to it regardless
+                             of target - see the Debug menu. -->
+                        <NativeMenuItem Header="Load"                 Click="ViceTransfer_Click" />
+                        <NativeMenuItem Header="Run Without Debugging" Click="ViceRun_Click" Gesture="{OnPlatform Ctrl+Alt+F5, macOS=Cmd+Alt+F5}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Start Debugging / Continue" Click="ViceDebugStart_Click" Gesture="Alt+F5" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Reset"  Click="ViceReset_Click" />
                         <NativeMenuItem Header="Reboot" Click="ViceReboot_Click" />
@@ -154,10 +158,10 @@
             <NativeMenuItem Header="C64U">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <!-- Matches WPF's C64U menu exactly: Run Without Debugging is Ctrl+F5, Start
-                             Debugging is bare F5, and Load has no shortcut. -->
-                        <NativeMenuItem Header="Run"                  Click="C64URun_Click"      Gesture="{OnPlatform Ctrl+F5, macOS=Cmd+F5}" />
-                        <NativeMenuItem Header="Transfer (load only)" Click="C64UTransfer_Click" />
+                        <!-- Matches WPF's C64U menu exactly: Load has no shortcut, Run Without
+                             Debugging is Ctrl+F5, Start Debugging is bare F5. -->
+                        <NativeMenuItem Header="Load"                 Click="C64UTransfer_Click" />
+                        <NativeMenuItem Header="Run Without Debugging" Click="C64URun_Click" Gesture="{OnPlatform Ctrl+F5, macOS=Cmd+F5}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Start Debugging / Continue" Click="C64UDebugStart_Click" Gesture="F5" />
                         <NativeMenuItemSeparator />
@@ -173,10 +177,13 @@
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
 
+            <!-- Target-independent once a debug session exists: Start Debugging lives on VICE's
+                 and C64U's own menus instead (each needs to say which target to attach to), but
+                 everything past that point - pause, step, breakpoints - operates on whichever
+                 session is active, VICE or C64U, so there is exactly one of each here. -->
             <NativeMenuItem Header="Debug">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="Start Debugging / Continue" Click="DebugStart_Click"   Gesture="Alt+F5" />
                         <NativeMenuItem Header="Pause"                      Click="DebugPause_Click"   Gesture="Alt+F6" IsEnabled="{Binding IsDebugRunning}" />
                         <NativeMenuItem Header="Restart Debugging"          Click="DebugRestart_Click" Gesture="{OnPlatform Ctrl+Alt+Shift+F5, macOS=Cmd+Alt+Shift+F5}" IsEnabled="{Binding IsDebugging}" />
                         <NativeMenuItem Header="Stop Debugging"             Click="DebugStop_Click"    Gesture="Alt+Shift+F5" IsEnabled="{Binding IsDebugging}" />
