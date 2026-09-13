@@ -122,8 +122,9 @@ scripts/sign-and-notarize.sh ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.
 ```
 
 That signs the bundle with the hardened runtime, uploads it to Apple, waits for the result,
-staples the ticket into the app, and leaves a `READYCode.zip` beside it. Notarization usually
-takes a few minutes. Repeat with `osx-x64` for a build that runs on Intel Macs:
+staples the ticket into the app, and leaves a `READYCode-osx-arm64.zip` beside it (named after the
+runtime identifier so the arm64 and x64 zips never collide - see the note below). Notarization
+usually takes a few minutes. Repeat with `osx-x64` for a build that runs on Intel Macs:
 
 ```bash
 scripts/make-app-bundle.sh --publish osx-x64
@@ -133,15 +134,21 @@ scripts/sign-and-notarize.sh ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.ap
 Apple Silicon Macs can run the Intel build under Rosetta, but not the reverse, so shipping both is
 worthwhile if you expect Intel users.
 
-Then create the release and attach the zips:
+Rename both to their final public filenames, then create the release and attach them:
 
 ```bash
-gh release create v2.3.0.1-macos \
-  --title "READYCode 2.3.0.1 for macOS" \
+cp ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode-osx-arm64.zip READYCode-2.4.0.1-macos-arm64.zip
+cp ReadyCode.Avalonia/bin/publish/osx-x64/READYCode-osx-x64.zip READYCode-2.4.0.1-macos-x64.zip
+
+gh release create v2.4.0.1-macos \
+  --title "READYCode 2.4.0.1 for macOS" \
   --notes-file RELEASE-NOTES.md \
-  ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.zip#READYCode-2.3.0.1-macos-arm64.zip \
-  ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.zip#READYCode-2.3.0.1-macos-x64.zip
+  READYCode-2.4.0.1-macos-arm64.zip \
+  READYCode-2.4.0.1-macos-x64.zip
 ```
+
+Copy to distinct filenames first rather than using `gh release create`'s `path#label` syntax to
+rename on the fly - two source files sharing a basename can make the second upload fail.
 
 Use a tag that will not collide with the Windows app's own `v*` tags, since those trigger the
 Windows release workflow.
