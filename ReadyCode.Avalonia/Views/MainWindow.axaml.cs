@@ -526,21 +526,22 @@ public partial class MainWindow : Window
 
     // Collapses the explorer column (and its splitter) to nothing while the panel is hidden,
     // remembering the width so it comes back the same size.
+    // Column 0 is the activity bar, which never collapses; 1 is the panel and 2 its splitter.
     private void ApplyExplorerLayout()
     {
-        var column = MainGrid.ColumnDefinitions[0];
+        var column = MainGrid.ColumnDefinitions[1];
         if (ViewModel.IsExplorerOpen)
         {
             column.Width = new GridLength(_explorerWidth);
             column.MinWidth = 120;
-            MainGrid.ColumnDefinitions[1].Width = new GridLength(4);
+            MainGrid.ColumnDefinitions[2].Width = new GridLength(4);
         }
         else
         {
             if (column.Width.IsAbsolute && column.Width.Value > 0) _explorerWidth = column.Width.Value;
             column.MinWidth = 0;
             column.Width = new GridLength(0);
-            MainGrid.ColumnDefinitions[1].Width = new GridLength(0);
+            MainGrid.ColumnDefinitions[2].Width = new GridLength(0);
         }
     }
 
@@ -1209,11 +1210,24 @@ public partial class MainWindow : Window
         }
     }
 
-    private void LeftPanelExplorerTab_Click(object? sender, RoutedEventArgs e) => ViewModel.ActiveLeftPanelTab = "Explorer";
+    // Activity bar: clicking a tab's icon shows that tab, opening the panel if it was collapsed;
+    // clicking the icon of the tab already showing collapses the panel - the WPF app's behavior.
+    private void ActivityExplorer_Click(object? sender, RoutedEventArgs e) => ActivateLeftPanel("Explorer");
 
     // Deliberately does not auto-connect: matches the WPF app, which leaves the "Not connected"
     // state until the user clicks Connect, even with a URL already configured.
-    private void LeftPanelC64UTab_Click(object? sender, RoutedEventArgs e) => ViewModel.ActiveLeftPanelTab = "C64U";
+    private void ActivityC64U_Click(object? sender, RoutedEventArgs e) => ActivateLeftPanel("C64U");
+
+    private void ActivateLeftPanel(string tab)
+    {
+        if (ViewModel.IsExplorerOpen && ViewModel.ActiveLeftPanelTab == tab)
+        {
+            ViewModel.IsExplorerOpen = false;
+            return;
+        }
+        ViewModel.ActiveLeftPanelTab = tab;
+        ViewModel.IsExplorerOpen = true;
+    }
 
     private async void C64UConnect_Click(object? sender, RoutedEventArgs e) => await ViewModel.ConnectToC64UAsync();
     private async void C64URefresh_Click(object? sender, RoutedEventArgs e) => await ViewModel.RefreshC64UFolderAsync();

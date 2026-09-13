@@ -77,9 +77,12 @@ things are added - see `MenuTests.cs`.
 - [ ] ASM Mnemonics panel (hover descriptions)
 - [ ] Music Notes panel (SID note reference)
 - **Core logic**: keyword/mnemonic descriptions and `SidNoteProvider`/`SidNote` are already in
-  `ReadyCode.Core`. This whole area doesn't exist as a UI region in Avalonia at all yet (no right
-  sidebar, no activity-bar toggle buttons) - it's a new panel region plus five simple reference
-  lists inside it.
+  `ReadyCode.Core`. This whole area doesn't exist as a UI region in Avalonia yet - it's a new
+  right-hand panel region plus five simple reference lists inside it. The left activity bar
+  (`Button.activityBar` in `MainWindow.axaml`, icon toggles that show a tab or collapse the
+  panel) is the pattern to mirror on the right; WPF's right bar is the same control with the
+  indicator on its right edge and toggles at `Ctrl+Alt+B` (Secondary Side Bar) and `Ctrl+Alt+V`
+  (Variables).
 
 ### Static Variables / Symbols panel
 - [ ] Lists every variable in a BASIC program, or every label/constant in an assembly program

@@ -35,19 +35,37 @@
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
             <Setter Property="Padding" Value="2,1" />
         </Style>
-        <Style Selector="Button.leftPanelTab">
+        <Style Selector="Button.activityBar">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderThickness" Value="2,0,0,0" />
+            <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="CornerRadius" Value="0" />
-            <Setter Property="Padding" Value="10,0" />
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTabInactiveFg}" />
-            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
-        <Style Selector="Button.leftPanelTab.active">
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTabActiveFg}" />
+        <Style Selector="Button.activityBar Path">
+            <Setter Property="Width" Value="20" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Stretch" Value="None" />
+            <Setter Property="Stroke" Value="#9D9D9D" />
+            <Setter Property="StrokeThickness" Value="1.5" />
+            <Setter Property="StrokeLineCap" Value="Round" />
+            <Setter Property="StrokeJoin" Value="Round" />
+            <Setter Property="Margin" Value="-1,0,0,0" />
+        </Style>
+        <Style Selector="Button.activityBar:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="Button.activityBar:pointerover Path, Button.activityBar.active Path">
+            <Setter Property="Stroke" Value="#FFFFFF" />
+        </Style>
+        <Style Selector="Button.activityBar.active /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeActivityBarIndicator}" />
         </Style>
         <Style Selector="Button.statusBarBadge">
             <Setter Property="Background" Value="Transparent" />
@@ -274,28 +292,38 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="MainGrid" ColumnDefinitions="230,4,*">
+        <Grid x:Name="MainGrid" ColumnDefinitions="40,230,4,*">
 
-            <!-- Left panel: Folder explorer / C64U explorer -->
-            <DockPanel Grid.Column="0" x:Name="ExplorerPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsExplorerOpen}">
+            <!-- Left activity bar: one icon per left-panel tab, as in the WPF app. Clicking the
+                 active one collapses the panel; the bar itself stays. The bar's own colors are
+                 fixed (dark in every theme, like WPF's); only the active indicator is themed. -->
+            <Border Grid.Column="0" Background="#3C3C3C" BorderBrush="#2D2D2D" BorderThickness="0,0,1,0">
+                <StackPanel VerticalAlignment="Top">
+                    <Button x:Name="ActivityExplorer" Classes="activityBar" Classes.active="{Binding IsExplorerToggleChecked}" ToolTip.Tip="Explorer" Click="ActivityExplorer_Click">
+                        <Path Data="M5 2h7l4 4v12H5z M12 2v4h4 M7.5 10h5 M7.5 13h5 M7.5 16h3" />
+                    </Button>
+                    <Button x:Name="ActivityC64U" Classes="activityBar" Classes.active="{Binding IsC64UToggleChecked}" ToolTip.Tip="C64U" Click="ActivityC64U_Click">
+                        <Path Data="M2.5 4.5h15v9h-15z M7 17.5h6 M10 13.5v4" />
+                    </Button>
+                </StackPanel>
+            </Border>
 
-                <Border DockPanel.Dock="Top" Height="26" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
-                    <StackPanel Orientation="Horizontal">
-                        <Button Classes="leftPanelTab" Classes.active="{Binding IsExplorerTabActive}" Content="EXPLORER" Click="LeftPanelExplorerTab_Click" />
-                        <Button Classes="leftPanelTab" Classes.active="{Binding IsC64UTabActive}" Content="C64U" Click="LeftPanelC64UTab_Click" />
-                    </StackPanel>
-                </Border>
+            <!-- Left panel: Folder explorer / C64U explorer. Both live in one Panel so the
+                 DockPanel fills the whole panel with them - as separate DockPanel children the
+                 first would dock left and shrink to its content width. -->
+            <DockPanel Grid.Column="1" x:Name="ExplorerPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsExplorerOpen}">
+              <Panel>
 
                 <!-- Folder explorer -->
                 <DockPanel IsVisible="{Binding IsExplorerTabActive}">
-                    <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
+                    <Border x:Name="ExplorerHeader" DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBlock Grid.Column="0" Text="{Binding ExplorerTitle}" FontSize="11" FontWeight="Bold"
                                        VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
                             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"
                                         IsVisible="{Binding IsFolderOpen}">
                                 <Button Classes="explorerTool" ToolTip.Tip="New File" Click="ExplorerNewFile_Click">
-                                    <PathIcon Data="M9 3h2v6h6v2h-6v6H9v-6H3V9h6z" />
+                                    <PathIcon Data="M4 2h7l5 5v11H4z M9 8.5h2v3h3v2h-3v3H9v-3H6v-2h3z" />
                                 </Button>
                                 <Button Classes="explorerTool" ToolTip.Tip="New Folder" Click="ExplorerNewFolder_Click">
                                     <PathIcon Data="M2 4a1 1 0 0 1 1-1h5l2 2h7a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
@@ -420,12 +448,13 @@
                         </TreeView>
                     </Panel>
                 </DockPanel>
+              </Panel>
             </DockPanel>
 
-            <GridSplitter Grid.Column="1" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsExplorerOpen}" />
+            <GridSplitter Grid.Column="2" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsExplorerOpen}" />
 
             <!-- Editor -->
-            <DockPanel Grid.Column="2">
+            <DockPanel Grid.Column="3">
                 <TabStrip DockPanel.Dock="Top" x:Name="Tabs"
                           ItemsSource="{Binding OpenTabs}"
                           SelectedItem="{Binding ActiveTab, Mode=TwoWay}">

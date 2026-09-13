@@ -290,6 +290,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             if (Settings.IsLeftPanelOpen == value) return;
             Settings.IsLeftPanelOpen = value;
             OnPropertyChanged();
+            NotifyActivityBarChanged();
         }
     }
 
