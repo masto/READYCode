@@ -17,7 +17,7 @@
         </Style>
         <Style Selector="TextBlock.desc">
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#666666" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeSettingsDescFg}" />
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="0,2,0,4" />
         </Style>
@@ -55,6 +55,12 @@
 
                         <TextBlock Classes="section" Text="Status bar" Margin="0,18,0,4" />
                         <CheckBox x:Name="ShowStatusBarBox" Content="Show the status bar" />
+
+                        <TextBlock Classes="section" Text="Theme" Margin="0,18,0,0" />
+                        <TextBlock Classes="desc" Text="Choose the color theme for the application." />
+                        <RadioButton x:Name="ThemeLight" GroupName="theme" Content="Light" />
+                        <RadioButton x:Name="ThemeDark"  GroupName="theme" Content="Dark" />
+                        <RadioButton x:Name="ThemeC64"   GroupName="theme" Content="Commodore 64" />
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -7,6 +7,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
+using ReadyCode.Avalonia.Themes;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Avalonia.Views;
 
@@ -43,9 +44,15 @@ public partial class App : Application
         };
         ReadyCode.Models.FileTreeItem.DeferToUiThread = action => Dispatcher.UIThread.Post(action, DispatcherPriority.Background);
 
+        // Every window's chrome is {DynamicResource ThemeXxx}, so the theme brushes must exist
+        // before any window is built - including under the headless test host, which has no
+        // desktop lifetime and so never reaches the block below.
+        AppTheme.Apply(this, AppTheme.Light);
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             var viewModel = new MainViewModel();
+            AppTheme.Apply(this, viewModel.Settings.Theme);
             desktop.MainWindow = new MainWindow { DataContext = viewModel };
         }
 

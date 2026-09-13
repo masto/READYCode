@@ -9,7 +9,7 @@
     <Window.Styles>
         <Style Selector="TextBlock.label">
             <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="#6E6E6E" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeSettingsDescFg}" />
         </Style>
         <Style Selector="TextBlock.value">
             <Setter Property="FontSize" Value="13" />
@@ -17,7 +17,7 @@
         </Style>
         <Style Selector="TextBlock.error">
             <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#B00020" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeStatusErrorBg}" />
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
     </Window.Styles>
@@ -34,7 +34,7 @@
         <TextBlock x:Name="CoreVersionLabel" Classes="label" Text="Core version" />
         <TextBlock x:Name="CoreVersionText" Classes="value" />
 
-        <Border Background="#DDDDDD" Height="1" Margin="0,0,0,10" />
+        <Border Background="{DynamicResource ThemeSettingsDivider}" Height="1" Margin="0,0,0,10" />
 
         <TextBlock Classes="label" Text="Hostname" />
         <TextBlock x:Name="HostnameText" Classes="value" />

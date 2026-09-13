@@ -5,6 +5,7 @@ using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using ReadyCode.Avalonia.Themes;
 using ReadyCode.Settings;
 
 namespace ReadyCode.Avalonia.Views;
@@ -42,6 +43,10 @@ public partial class SettingsWindow : Window
         RestoreTabsYes.IsChecked = s.RestoreOpenTabsOnStartup;
         RestoreTabsNo.IsChecked = !s.RestoreOpenTabsOnStartup;
         ShowStatusBarBox.IsChecked = s.ShowStatusBar;
+        string theme = AppTheme.Normalize(s.Theme);
+        ThemeLight.IsChecked = theme == AppTheme.Light;
+        ThemeDark.IsChecked = theme == AppTheme.Dark;
+        ThemeC64.IsChecked = theme == AppTheme.C64;
 
         FontSizeBox.Value = s.EditorFontSize;
         WordWrapBox.IsChecked = s.WordWrap;
@@ -111,6 +116,7 @@ public partial class SettingsWindow : Window
 
         s.RestoreOpenTabsOnStartup = RestoreTabsYes.IsChecked == true;
         s.ShowStatusBar = ShowStatusBarBox.IsChecked == true;
+        s.Theme = ThemeC64.IsChecked == true ? AppTheme.C64 : ThemeDark.IsChecked == true ? AppTheme.Dark : AppTheme.Light;
 
         s.EditorFontSize = Int(FontSizeBox, s.EditorFontSize);
         s.WordWrap = WordWrapBox.IsChecked == true;

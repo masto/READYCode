@@ -28,6 +28,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The WPF app's theme files are the single source of truth for every theme color, for
+         both front ends: they are plain ResourceDictionaries of x:Key -> hex color and nothing
+         else, so Themes/AppTheme.cs reads them as XML rather than keeping a translated copy
+         here that would drift. Linked, not copied - a theme added or changed upstream shows up
+         here on the next build. -->
+    <EmbeddedResource Include="..\ReadyCode\Resources\Themes\*Theme.xaml" LogicalName="Themes/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.2" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.2" />
