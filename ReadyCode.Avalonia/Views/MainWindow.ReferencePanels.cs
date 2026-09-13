@@ -91,10 +91,24 @@ public partial class MainWindow
                 KeyBindings.Add(new KeyBinding
                 {
                     Gesture = gesture,
-                    Command = new AsyncCommand(() => { InsertSpecialChar(ch); return Task.CompletedTask; }),
+                    Command = new AsyncCommand(() => { InsertQuickKey(gesture, ch); return Task.CompletedTask; }),
                 });
             }
         }
+    }
+
+    // Shift+F3 is both the F3 quick key and, where the menu isn't native (Windows/Linux), Find
+    // Previous - the same collision the WPF app has, resolved the same way: while the Find bar is
+    // showing, Shift+F3 is Find Previous; otherwise it's the quick key. This binding is added
+    // before the menu's fallback bindings, so it has to make that call itself.
+    private void InsertQuickKey(KeyGesture gesture, char ch)
+    {
+        if (FindBar.IsVisible && gesture.Key == Key.F3 && gesture.KeyModifiers == KeyModifiers.Shift)
+        {
+            FindPrev();
+            return;
+        }
+        InsertSpecialChar(ch);
     }
 
     // Inserts a PETSCII control character at the caret, replacing any selection, and puts the
