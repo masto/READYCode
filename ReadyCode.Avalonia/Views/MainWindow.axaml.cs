@@ -98,6 +98,10 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
+        // AvaloniaEdit's own element generator would otherwise claim the C0/C1 control codes
+        // first and draw them as boxed ANSI names (CHR$(147) as "STS"), instead of leaving them
+        // to the PETSCII glyph generator - same setting the WPF editor turns off.
+        Editor.Options.ShowBoxForControlCharacters = false;
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
         _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor);
         _currentLineBorderRenderer = new CurrentLineBorderRenderer(Editor);

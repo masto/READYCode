@@ -1,6 +1,7 @@
 // Copyright (c) 2026 Moonspace Labs, LLC
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -41,6 +42,25 @@ public class MainWindowRenderTests
         var frame = RenderCapture.Save(window, "main-window-prg.png");
 
         Assert.True(frame.PixelSize.Width > 100 && frame.PixelSize.Height > 100);
+    }
+
+    [AvaloniaFact]
+    public void ControlCodes_RenderAsPetsciiGlyphs_NotAvaloniaEditsControlCharacterBoxes()
+    {
+        var vm = new MainViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 900, Height = 400 };
+        window.Show();
+
+        // CHR$(147) is CLR, the reversed heart on a C64. AvaloniaEdit would otherwise draw it as
+        // a box labelled "STS", the C1 control character sharing that byte.
+        vm.ActiveTab!.Document.Text = "10 PRINT \"" + (char)147 + "HELLO\"";
+        Dispatcher.UIThread.RunJobs();
+
+        var textView = window.FindControl<AvaloniaEdit.TextEditor>("Editor")!.TextArea.TextView;
+        textView.EnsureVisualLines();
+        var elements = textView.VisualLines.Single().Elements.Select(e => e.GetType().Name).ToList();
+        Assert.Contains("PetsciiGlyphElement", elements);
+        Assert.DoesNotContain(elements, name => name.Contains("SpecialCharacter") || name.Contains("ControlCharacter"));
     }
 
     [AvaloniaFact]
