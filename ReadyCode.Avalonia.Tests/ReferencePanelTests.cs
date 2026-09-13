@@ -78,13 +78,13 @@ public class ReferencePanelTests
         // BASIC Keywords is offered on a BASIC tab; switching to assembly hides it, closes its
         // panel if open, and offers ASM Mnemonics instead.
         Click(window, "ActivityBasicKeywords");
-        Assert.True(vm.ShowBasicKeywordsToggle);
+        Assert.True(vm.IsBasicTabActive);
         Assert.True(vm.IsBasicKeywordsToggleChecked);
 
         vm.NewTab(EditorLanguage.Asm);
         Dispatcher.UIThread.RunJobs();
-        Assert.False(vm.ShowBasicKeywordsToggle);
-        Assert.True(vm.ShowAsmKeywordsToggle);
+        Assert.False(vm.IsBasicTabActive);
+        Assert.True(vm.IsAsmTabActive);
         Assert.False(vm.IsRightPanelOpen);
 
         // View > Secondary Side Bar opens Quick Keys from closed and closes whatever is open.

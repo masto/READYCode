@@ -90,11 +90,17 @@ public partial class MainViewModel
     /// <summary>Gets whether the activity bar's Music Notes icon shows as active.</summary>
     public bool IsMusicNotesToggleChecked => IsRightPanelOpen && IsMusicNotesActive;
 
-    /// <summary>Gets whether the BASIC Keywords icon is offered: only while a BASIC tab is active.</summary>
-    public bool ShowBasicKeywordsToggle => ActiveTab?.Language != EditorLanguage.Asm;
+    /// <summary>
+    /// Gets whether the active tab is BASIC - what decides whether the BASIC Keywords icon and the
+    /// BASIC-only Edit menu commands (Minify, Prettify, Renumber) are offered.
+    /// </summary>
+    public bool IsBasicTabActive => ActiveTab?.Language != EditorLanguage.Asm;
 
-    /// <summary>Gets whether the ASM Mnemonics icon is offered: only while an assembly tab is active.</summary>
-    public bool ShowAsmKeywordsToggle => ActiveTab?.Language == EditorLanguage.Asm;
+    /// <summary>
+    /// Gets whether the active tab is assembly - what decides whether the ASM Mnemonics icon and
+    /// Edit > Format Code are offered.
+    /// </summary>
+    public bool IsAsmTabActive => ActiveTab?.Language == EditorLanguage.Asm;
 
     #endregion
 
@@ -133,8 +139,8 @@ public partial class MainViewModel
     /// </summary>
     public void ApplyLanguageToRightPanel()
     {
-        OnPropertyChanged(nameof(ShowBasicKeywordsToggle));
-        OnPropertyChanged(nameof(ShowAsmKeywordsToggle));
+        OnPropertyChanged(nameof(IsBasicTabActive));
+        OnPropertyChanged(nameof(IsAsmTabActive));
 
         bool isAsm = ActiveTab?.Language == EditorLanguage.Asm;
         if (IsRightPanelOpen && ((isAsm && IsBasicKeywordsActive) || (!isAsm && IsAsmKeywordsActive)))

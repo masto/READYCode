@@ -16,8 +16,9 @@
   C64's default charset, with a per-tab Upper/Lower Case Mode toggle for the C64's upper/lowercase
   charset instead), the folder explorer (including `.d64`/`.d81` browsing), find and replace, live
   diagnostics with a Problems panel, VICE transfer/run and machine controls, the BASIC debugger on
-  VICE, Preferences, the reference panels (Quick Keys with their shortcuts, PETSCII Reference,
-  BASIC Keywords, ASM Mnemonics, Music Notes), and the Light/Dark/Commodore 64 themes (read from
+  VICE, Preferences, Minify/Prettify/Renumber and Format Code, the reference panels (Quick Keys
+  with their shortcuts, PETSCII Reference, BASIC Keywords, ASM Mnemonics, Music Notes), and the
+  Light/Dark/Commodore 64 themes (read from
   the Windows app's own theme files, so there is one definition of every color). A native macOS menu bar (an in-window one on
   Linux) and an About box crediting the original Windows application and carrying the Pet Me 64
   font's license. The Windows app is unchanged. Currently released as a macOS binary; see

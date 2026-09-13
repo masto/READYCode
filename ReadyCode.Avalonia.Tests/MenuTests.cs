@@ -83,7 +83,7 @@ public class MenuTests
         {
             "Close Folder", "Exit", "Delete", "Reset", "Reboot", "Pause", "Resume", "Power Off",
             "Column Guide", "Status Bar", "About READYCode", "About My C64 Ultimate…",
-            "Problems", "Load", "Visit READYCode on GitHub", "View Online Docs",
+            "Problems", "Load", "Visit READYCode on GitHub", "View Online Docs", "Format Code",
         };
 
         var missing = new List<string>();

@@ -216,6 +216,10 @@ approve the automation the first time.
   PETSCII Reference (click a row to insert it), BASIC Keywords, ASM Mnemonics, and Music Notes,
   in a right-hand sidebar with its own activity bar (`View > Secondary Side Bar`,
   `Cmd`/`Ctrl+Alt+B`). Generated from the same tables the Windows app uses.
+- **Minify, Prettify, Renumber** (`Edit` menu, BASIC tabs) and **Format Code** (assembly tabs) -
+  the same whole-document transforms as the Windows app, with the same options dialogs. Minify
+  and Prettify stay on the Control key on macOS (`Ctrl+M`, `Ctrl+Shift+M`), since `Cmd+M` is the
+  system's Minimize; Renumber is `Cmd+R`.
 - **Preferences** - Application, Text Editor, BASIC, Assembly, VICE, and C64U pages.
 - **Themes** - Light, Dark, and Commodore 64, the same three as the Windows app and taken from
   its very own theme files (see [Project layout](#project-layout)), so the two front ends can't
@@ -238,8 +242,7 @@ your real settings.
 ## Not ported yet
 
 Project-wide search, the hex editor, file compare, the disassembler tabs, the Variables and
-Symbols side panel, ghost-text completion and `Ctrl+Space`, the Minify, Prettify and Renumber
-dialogs, printing,
+Symbols side panel, ghost-text completion and `Ctrl+Space`, printing,
 recent files, drag-and-drop and cut/copy/paste in either explorer tree, and code statistics.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
