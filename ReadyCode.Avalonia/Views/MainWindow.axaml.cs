@@ -78,6 +78,7 @@ public partial class MainWindow : Window
 
     private FoldingManager? _foldingManager;
     private double _explorerWidth = 230;
+    private double _rightPanelWidth = 230;
     private EditorTab? _boundTab;
     private bool _closeConfirmed;
 
@@ -135,6 +136,7 @@ public partial class MainWindow : Window
         if (OperatingSystem.IsMacOS())
             KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.H, KeyModifiers.Meta | KeyModifiers.Shift), Command = new AsyncCommand(() => { OpenFind(replaceMode: true); return Task.CompletedTask; }) });
 
+        AddQuickKeyBindings();
         ConfigureMacOSMenus();
         Opened += (_, _) => AddMenuShortcutBindings();
 
@@ -298,6 +300,10 @@ public partial class MainWindow : Window
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
+        _rightPanelWidth = vm.Settings.RightPanelWidth > 60 ? vm.Settings.RightPanelWidth : 230;
+        ApplyRightPanelLayout();
+        BuildReferencePanels();
+        vm.ApplyLanguageToRightPanel();
         _problemsHeight = vm.Settings.BottomPanelHeight > 60 ? vm.Settings.BottomPanelHeight : 160;
         ApplyProblemsLayout();
         UpdateDebugPanelText();
@@ -316,6 +322,9 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsExplorerOpen):
                 ApplyExplorerLayout();
+                break;
+            case nameof(MainViewModel.IsRightPanelOpen):
+                ApplyRightPanelLayout();
                 break;
             case nameof(MainViewModel.IsBottomPanelOpen):
                 ApplyProblemsLayout();
@@ -407,6 +416,7 @@ public partial class MainWindow : Window
         _petsciiGlyphGenerator.IsAsmMode = isAsm;
         ApplyEditorSettings();
         Editor.TextArea.TextView.Redraw();
+        ViewModel.ApplyLanguageToRightPanel();
     }
 
     // Applies the active tab's Upper Active/Inactive mode to the shared glyph generator and
@@ -882,10 +892,15 @@ public partial class MainWindow : Window
             _problemsHeight = problemsRow.Height.Value;
         vm.Settings.BottomPanelHeight = _problemsHeight;
 
-        var column = MainGrid.ColumnDefinitions[0];
+        var column = MainGrid.ColumnDefinitions[1];
         if (vm.IsExplorerOpen && column.Width.IsAbsolute && column.Width.Value > 0)
             _explorerWidth = column.Width.Value;
         vm.Settings.LeftPanelWidth = _explorerWidth;
+
+        var rightColumn = MainGrid.ColumnDefinitions[5];
+        if (vm.IsRightPanelOpen && rightColumn.Width.IsAbsolute && rightColumn.Width.Value > 0)
+            _rightPanelWidth = rightColumn.Width.Value;
+        vm.Settings.RightPanelWidth = _rightPanelWidth;
         vm.Settings.IsMainWindowMaximized = WindowState == WindowState.Maximized;
         if (WindowState == WindowState.Normal)
         {
@@ -1425,6 +1440,7 @@ public partial class MainWindow : Window
     private void FileCloseFolder_Click(object? sender, EventArgs e) => ViewModel.CloseFolder();
 
     private void ViewExplorer_Click(object? sender, EventArgs e) => ViewModel.IsExplorerOpen = !ViewModel.IsExplorerOpen;
+    private void ViewSecondarySideBar_Click(object? sender, EventArgs e) => ViewModel.ToggleSecondarySideBar();
     private void ViewColumnGuide_Click(object? sender, EventArgs e) => ViewModel.ShowColumnGuide = !ViewModel.ShowColumnGuide;
     private void ViewWordWrap_Click(object? sender, EventArgs e) => ViewModel.WordWrap = !ViewModel.WordWrap;
     private void ViewStatusBar_Click(object? sender, EventArgs e) => ViewModel.ShowStatusBar = !ViewModel.ShowStatusBar;

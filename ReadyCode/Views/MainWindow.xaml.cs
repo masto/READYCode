@@ -5851,60 +5851,8 @@ public partial class MainWindow : Window
         var codeFg   = R("ThemePetsciiCodeFg");
         var noteBg   = R("ThemePetsciiNoteBg");
 
-        // null label = printable glyph; "" = undefined (no PRINT element); other = control chip label
-        var controlLabels = new Dictionary<int, string>
-        {
-            [0]  = "", [1]  = "", [2]  = "", [3]  = "", [4]  = "",
-            [5]  = "WHT",
-            [6]  = "DISABLE SHIFT C=",
-            [7]  = "ENABLE SHIFT C=",
-            [8]  = "", [9]  = "", [10] = "", [11] = "", [12] = "",
-            [13] = "RETURN",
-            [14] = "LOWER CASE",
-            [15] = "", [16] = "",
-            [17] = "CRSR↓",
-            [18] = "RVS ON",
-            [19] = "CLR HOME",
-            [20] = "INST DEL",
-            [21] = "", [22] = "", [23] = "", [24] = "", [25] = "", [26] = "", [27] = "",
-            [28] = "RED",
-            [29] = "CRSR→",
-            [30] = "GRN",
-            [31] = "BLU",
-            [32] = "SPACE",
-            [128] = "",
-            [129] = "ORANGE",
-            [130] = "", [131] = "",
-            [132] = "F7/8",
-            [133] = "F1",
-            [134] = "F3",
-            [135] = "F5",
-            [136] = "F7",
-            [137] = "F2",
-            [138] = "F4",
-            [139] = "F6",
-            [140] = "F8",
-            [141] = "SHIFT RETURN",
-            [142] = "UPPER CASE",
-            [143] = "",
-            [144] = "BLK",
-            [145] = "CRSR↑",
-            [146] = "RVS OFF",
-            [147] = "CLR HOME",
-            [148] = "INST DEL",
-            [149] = "BROWN",
-            [150] = "LT RED",
-            [151] = "GRAY 1",
-            [152] = "GRAY 2",
-            [153] = "LT GREEN",
-            [154] = "LT BLUE",
-            [155] = "GRAY 3",
-            [156] = "PUR",
-            [157] = "←CRSR",
-            [158] = "YEL",
-            [159] = "CYN",
-            [160] = "SPACE",
-        };
+        // Which codes are printable glyphs, control chips, or undefined comes from the shared
+        // PetsciiReference table, so both front ends list the same thing.
 
         Border MakeRow(FrameworkElement? printElem, string codeText, Brush bg, bool clickable, int code)
         {
@@ -5983,15 +5931,16 @@ public partial class MainWindow : Window
         // Data rows 0–191
         int rowIdx = 0;
 
-        for (int code = 0; code <= 191; code++)
+        for (int code = 0; code <= PetsciiReference.LastListedCode; code++)
         {
             Brush bg = (rowIdx++ % 2 == 0) ? rowBg0 : rowBg0;
             FrameworkElement? printElem;
             bool clickable;
 
-            if (controlLabels.TryGetValue(code, out string? label))
+            if (PetsciiReference.Classify(code) != PetsciiCodeKind.Glyph)
             {
-                if (string.IsNullOrEmpty(label))
+                string? label = PetsciiReference.ControlLabel(code);
+                if (label == null)
                 {
                     printElem = null;
                     clickable = false;
@@ -6042,12 +5991,7 @@ public partial class MainWindow : Window
         }
 
         // Footer notes for codes 192–255
-        foreach (var note in new[]
-        {
-            "192–223: same as 96–127",
-            "224–254: same as 160–190",
-            "255: same as 126"
-        })
+        foreach (var note in PetsciiReference.FooterNotes)
         {
             PetsciiTablePanel.Children.Add(new Border
             {

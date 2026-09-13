@@ -67,6 +67,32 @@
         <Style Selector="Button.activityBar.active /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeActivityBarIndicator}" />
         </Style>
+        <Style Selector="Button.activityBar.right">
+            <Setter Property="BorderThickness" Value="0,0,2,0" />
+        </Style>
+        <Style Selector="Button.activityBar.right Path">
+            <Setter Property="Margin" Value="0,0,-1,0" />
+        </Style>
+
+        <!-- Quick Keys cards: a glyph, its label, and the shortcut digit in the corner. -->
+        <Style Selector="Button.quickKey">
+            <Setter Property="Background" Value="{DynamicResource ThemeCardBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeFolderExplorerHeaderBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="2" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="Button.quickKey:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ThemeSpecialCharBtnHoverBg}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeSpecialCharBtnHoverBorder}" />
+        </Style>
+        <Style Selector="Button.quickKey:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource ThemeSpecialCharBtnPressedBg}" />
+        </Style>
         <Style Selector="Button.statusBarBadge">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -152,6 +178,8 @@
                     <NativeMenu>
                         <NativeMenuItem Header="Explorer" Click="ViewExplorer_Click" Gesture="{OnPlatform Ctrl+B, macOS=Cmd+B}"
                                         ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
+                        <NativeMenuItem Header="Secondary Side Bar" Click="ViewSecondarySideBar_Click" Gesture="{OnPlatform Ctrl+Alt+B, macOS=Cmd+Alt+B}"
+                                        ToggleType="CheckBox" IsChecked="{Binding IsRightPanelOpen, Mode=OneWay}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Column Guide" Click="ViewColumnGuide_Click" ToggleType="CheckBox" IsChecked="{Binding ShowColumnGuide, Mode=OneWay}" />
                         <NativeMenuItem Header="Word Wrap"    Click="ViewWordWrap_Click"    ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" Gesture="Alt+Z" />
@@ -292,7 +320,7 @@
             </Grid>
         </Border>
 
-        <Grid x:Name="MainGrid" ColumnDefinitions="40,230,4,*">
+        <Grid x:Name="MainGrid" ColumnDefinitions="40,230,4,*,4,230,40">
 
             <!-- Left activity bar: one icon per left-panel tab, as in the WPF app. Clicking the
                  active one collapses the panel; the bar itself stays. The bar's own colors are
@@ -581,6 +609,58 @@
                 </DockPanel>
                 </Grid>
             </DockPanel>
+
+            <GridSplitter Grid.Column="4" x:Name="RightSplitter" ResizeDirection="Columns" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsRightPanelOpen}" />
+
+            <!-- Right panel: the reference panels. One header, then whichever panel's content is
+                 active; the contents are built in MainWindow.ReferencePanels.cs from the shared
+                 tables in ReadyCode.Core, the same data the WPF app's panels use. -->
+            <DockPanel Grid.Column="5" x:Name="RightPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsRightPanelOpen}">
+                <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
+                    <TextBlock Text="{Binding RightPanelTitle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeFileFg}"
+                               VerticalAlignment="Center" Margin="10,0,0,0" />
+                </Border>
+                <Panel>
+                    <ScrollViewer IsVisible="{Binding IsQuickKeysActive}" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="QuickKeysPanel" />
+                    </ScrollViewer>
+                    <ScrollViewer IsVisible="{Binding IsPetsciiActive}" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="PetsciiTablePanel" />
+                    </ScrollViewer>
+                    <ScrollViewer IsVisible="{Binding IsBasicKeywordsActive}" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="BasicKeywordsListPanel" />
+                    </ScrollViewer>
+                    <ScrollViewer IsVisible="{Binding IsAsmKeywordsActive}" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="AsmKeywordsListPanel" />
+                    </ScrollViewer>
+                    <ScrollViewer IsVisible="{Binding IsMusicNotesActive}" HorizontalScrollBarVisibility="Auto">
+                        <Grid x:Name="MusicNotesGrid" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="8" HorizontalAlignment="Left" />
+                    </ScrollViewer>
+                </Panel>
+            </DockPanel>
+
+            <!-- Right activity bar: the reference panels' tabs, indicator on the right edge (the
+                 mirror image of the left bar). BASIC Keywords and ASM Mnemonics only apply to
+                 their own language, so one or the other is hidden depending on the active tab. -->
+            <Border Grid.Column="6" Background="#3C3C3C" BorderBrush="#2D2D2D" BorderThickness="1,0,0,0">
+                <StackPanel VerticalAlignment="Top">
+                    <Button x:Name="ActivityQuickKeys" Classes="activityBar right" Classes.active="{Binding IsQuickKeysToggleChecked}" ToolTip.Tip="Quick Keys" Click="ActivityQuickKeys_Click">
+                        <Path Data="M4 7l5-5 M9 2v5H4 M11 3l7 7-2 2-7-7 M14 12l-2 2-3-3 M3 17h14" />
+                    </Button>
+                    <Button x:Name="ActivityPetscii" Classes="activityBar right" Classes.active="{Binding IsPetsciiToggleChecked}" ToolTip.Tip="PETSCII Reference" Click="ActivityPetscii_Click">
+                        <Path Data="M10 2.5c-2 3-5 4-5 7.5a5 5 0 0 0 10 0c0-3.5-3-4.5-5-7.5z M10 15v3.5 M8 18.5h4" />
+                    </Button>
+                    <Button x:Name="ActivityBasicKeywords" Classes="activityBar right" Classes.active="{Binding IsBasicKeywordsToggleChecked}" IsVisible="{Binding ShowBasicKeywordsToggle}" ToolTip.Tip="BASIC Keywords" Click="ActivityBasicKeywords_Click">
+                        <Path Data="M3 3h14v14H3z M6 7h8 M6 10h8 M6 13h5" />
+                    </Button>
+                    <Button x:Name="ActivityAsmKeywords" Classes="activityBar right" Classes.active="{Binding IsAsmKeywordsToggleChecked}" IsVisible="{Binding ShowAsmKeywordsToggle}" ToolTip.Tip="ASM Mnemonics" Click="ActivityAsmKeywords_Click">
+                        <Path Data="M3 3h14v14H3z M6 7h8 M6 10h8 M6 13h5" />
+                    </Button>
+                    <Button x:Name="ActivityMusicNotes" Classes="activityBar right" Classes.active="{Binding IsMusicNotesToggleChecked}" ToolTip.Tip="Music Notes" Click="ActivityMusicNotes_Click">
+                        <Path Data="M8 16.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M17 14.5a2 2 0 1 1-4 0 2 2 0 0 1 4 0z M8 16.5V5l9-2v11.5 M8 8l9-2" />
+                    </Button>
+                </StackPanel>
+            </Border>
         </Grid>
 
     </DockPanel>
