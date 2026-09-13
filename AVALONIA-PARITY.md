@@ -61,14 +61,13 @@ things are added - see `MenuTests.cs`.
 - **Core logic**: `ReadyCode.Core/Search/ProjectSearcher.cs` and `ProjectSearchResultInfo.cs` are
   shared. Missing: the results-tree UI and the Find in Files / Replace in Files dialogs.
 
-### Minify / Prettify / Renumber
-- [ ] Minify dialog (with "bytes saved" reporting) and Prettify dialog
-- [ ] Renumber dialog (renumber the whole program, updating GOTO/GOSUB references)
-- [ ] Assembly's "Format Code" (auto-format assembly source)
-- **Core logic**: `ReadyCode.Core/Minify/CodeMinifier.cs`, `Prettify/CodePrettifier.cs`, and
-  `Formatting/AsmCodeFormatter.cs` are all shared and fully working (exercised by 726 Core
-  tests). This is 100% UI work - dialogs plus Edit-menu wiring, no new logic to write. Probably
-  the single best effort-to-value item on this list.
+### Minify / Prettify / Renumber - DONE
+- [x] Minify dialog (with "bytes saved" reporting) and Prettify dialog, remembering their
+  selections in the same settings keys as WPF
+- [x] Renumber (with WPF's dangling-reference warning)
+- [x] Assembly's "Format Code", shown in place of the three above on an assembly tab, as in WPF
+- Shortcuts: `Ctrl+R` / `Cmd+R` for Renumber; Minify and Prettify stay on the Control key on
+  macOS (`Cmd+M` is Minimize there). Format Code has none - WPF's is a `Ctrl+K` chord.
 
 ### Reference panels (the WPF app's whole right-hand "secondary side bar") - DONE
 - [x] Quick Keys panel, with the `Ctrl+1–8` / `Ctrl+Shift+1–8` / `Ctrl+Shift+Alt+1–8` /
