@@ -49,6 +49,25 @@ public class EditorInputTests
     }
 
     [AvaloniaFact]
+    public void BasicTab_ShiftHeldForALetter_InsertsTheLowerCaseByte()
+    {
+        // The C64 keyboard is upper case by default: an unshifted letter types as its upper case
+        // ASCII byte, and Shift produces the byte for the C64 graphic occupying that key's
+        // shifted position - internally just the letter's lower case ASCII byte, which
+        // PetsciiGlyphGenerator renders as the graphic rather than a plain lower case letter.
+        // Regression test: before this, Shift was ignored entirely and every letter typed as
+        // upper case regardless, so a shifted key could never produce anything but a plain
+        // capital - see MainWindow.ApplyC64Shift.
+        var (window, editor) = ShowEditor(EditorLanguage.Basic);
+
+        window.KeyPress(Key.A, RawInputModifiers.Shift, PhysicalKey.A, "A");
+        window.KeyTextInput("A"); // what a real Shift+A keystroke composes to at the OS level
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal("a", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public void BasicTab_ShiftedLetterInsideString_IsJustUpperCased()
     {
         var (window, editor) = ShowEditor(EditorLanguage.Basic);

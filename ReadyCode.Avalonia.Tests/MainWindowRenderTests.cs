@@ -44,8 +44,10 @@ public class MainWindowRenderTests
     }
 
     [AvaloniaFact]
-    public void MainWindow_RendersAsciiStyledBasSource()
+    public void MainWindow_RendersPetsciiStyledBasSource()
     {
+        // .bas is PETSCII-styled the same as .prg (matching upstream's v2.4.0 reverted font
+        // rule - only assembly is plain ASCII), not the ASCII-only rendering this used to use.
         var vm = new MainViewModel();
         var window = new MainWindow { DataContext = vm, Width = 900, Height = 400 };
         window.Show();

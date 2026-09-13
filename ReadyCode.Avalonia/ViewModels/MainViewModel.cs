@@ -9,6 +9,7 @@ using System.Text.RegularExpressions;
 using ReadyCode.Assembler;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.C64U;
+using ReadyCode.Core.Interop;
 using ReadyCode.Diagnostics;
 using ReadyCode.Diff;
 using ReadyCode.Minify;
@@ -51,6 +52,9 @@ public partial class MainViewModel : INotifyPropertyChanged
     private string _statusText = "Ready.";
     private StatusType _statusType = StatusType.Info;
     private string _explorerTitle = "";
+    private bool _isCapsLockOn;
+    private bool _isUpperCaseModeActive = true;
+    private bool _isShiftModeApplicable;
 
     #endregion
 
@@ -95,6 +99,76 @@ public partial class MainViewModel : INotifyPropertyChanged
             _activeTab = value;
             OnPropertyChanged();
             OnPropertyChanged(nameof(WindowTitle));
+            RefreshShiftModeStatus();
+        }
+    }
+
+    /// <summary>
+    /// Gets whether Caps Lock is currently on, for the status bar's indicator. Reflects live OS
+    /// keyboard state - refresh with <see cref="RefreshKeyboardLockStatus"/> rather than setting
+    /// this directly.
+    /// </summary>
+    public bool IsCapsLockOn
+    {
+        get => _isCapsLockOn;
+        private set
+        {
+            if (_isCapsLockOn == value) return;
+            _isCapsLockOn = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether the active tab's C64 keyboard emulation is in the C64's default
+    /// charset ("Upper Case Mode") - mirrors and writes through to
+    /// <see cref="EditorTab.IsUpperCaseModeActive"/>. Backs the status bar's Shift Badge
+    /// indicator; the Edit menu instead exposes this inverted, as "Lower Case Mode" (see
+    /// <see cref="IsLowerCaseModeActive"/>), so its default unchecked state matches the C64
+    /// default. The setter is a no-op while <see cref="IsShiftModeApplicable"/> is false (no
+    /// active tab, or an assembly tab). Kept in sync with the active tab via
+    /// <see cref="RefreshShiftModeStatus"/>, called whenever this setter runs or
+    /// <see cref="ActiveTab"/> changes.
+    /// </summary>
+    public bool IsUpperCaseModeActive
+    {
+        get => _isUpperCaseModeActive;
+        set
+        {
+            var tab = ActiveTab;
+            if (tab == null || tab.Language != EditorLanguage.Basic) return;
+            tab.IsUpperCaseModeActive = value;
+            RefreshShiftModeStatus();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the inverse of <see cref="IsUpperCaseModeActive"/>, for the Edit menu's
+    /// "Lower Case Mode" checkbox - checking it switches the active tab to the C64's
+    /// upper/lowercase charset (unshifted letters type lower case); unchecked, the default,
+    /// keeps the C64's default charset. Same underlying setting as
+    /// <see cref="IsUpperCaseModeActive"/> and the status bar's Shift Badge, just phrased as its
+    /// opposite so the checkbox's unchecked state matches the out-of-the-box default.
+    /// </summary>
+    public bool IsLowerCaseModeActive
+    {
+        get => !IsUpperCaseModeActive;
+        set => IsUpperCaseModeActive = !value;
+    }
+
+    /// <summary>
+    /// Gets whether the Shift Badge's Upper Active/Inactive toggle applies to the active tab -
+    /// true only for an ordinary BASIC tab; false for no active tab or an assembly tab (which
+    /// never uses PETSCII rendering, so the mode would have no visible effect).
+    /// </summary>
+    public bool IsShiftModeApplicable
+    {
+        get => _isShiftModeApplicable;
+        private set
+        {
+            if (_isShiftModeApplicable == value) return;
+            _isShiftModeApplicable = value;
+            OnPropertyChanged();
         }
     }
 
@@ -262,6 +336,36 @@ public partial class MainViewModel : INotifyPropertyChanged
     {
         try { Settings.Save(); }
         catch (Exception ex) { SetStatus($"Couldn't save settings: {ex.Message}", StatusType.Warning); }
+    }
+
+    /// <summary>
+    /// Re-reads the live OS Caps Lock state into <see cref="IsCapsLockOn"/> for the status bar's
+    /// indicator. Call on window activation and on every keypress, since there is no
+    /// change-notification event for this key.
+    /// </summary>
+    public void RefreshKeyboardLockStatus()
+    {
+        IsCapsLockOn = KeyboardLockKeys.IsCapsLockOn;
+    }
+
+    /// <summary>
+    /// Re-reads <see cref="IsUpperCaseModeActive"/>/<see cref="IsShiftModeApplicable"/> from the
+    /// active tab, for the status bar's Shift Badge indicator. Called automatically whenever
+    /// <see cref="ActiveTab"/> changes or <see cref="IsUpperCaseModeActive"/>'s own setter runs.
+    /// </summary>
+    public void RefreshShiftModeStatus()
+    {
+        var tab = ActiveTab;
+        IsShiftModeApplicable = tab != null && tab.Language == EditorLanguage.Basic;
+
+        // Set the backing field directly rather than through the IsUpperCaseModeActive setter,
+        // which writes through to ActiveTab.IsUpperCaseModeActive - this method exists to read
+        // that value back out after it (or ActiveTab itself) changed, not to write it again.
+        bool newValue = tab?.IsUpperCaseModeActive ?? true;
+        if (_isUpperCaseModeActive == newValue) return;
+        _isUpperCaseModeActive = newValue;
+        OnPropertyChanged(nameof(IsUpperCaseModeActive));
+        OnPropertyChanged(nameof(IsLowerCaseModeActive));
     }
 
     #endregion

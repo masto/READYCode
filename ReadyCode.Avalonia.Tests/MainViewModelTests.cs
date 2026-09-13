@@ -47,6 +47,51 @@ public class MainViewModelTests
         Assert.DoesNotContain("Pet Me 64", editor.FontFamily.ToString());
     }
 
+    [AvaloniaFact]
+    public void MainWindow_UsesPetsciiFontForBasKindToo()
+    {
+        // Matches upstream v2.4.0's reverted font rule: .bas and .prg both always render PETSCII-
+        // styled - only assembly is plain monospace. A .bas tab used to be treated as ASCII-only.
+        var vm = new MainViewModel();
+        var window = new MainWindow { DataContext = vm };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        vm.ActiveTab!.Kind = C64UFileKind.Bas;
+        Dispatcher.UIThread.RunJobs();
+
+        var editor = window.FindControl<AvaloniaEdit.TextEditor>("Editor")!;
+        Assert.Contains("Pet Me 64", editor.FontFamily.ToString());
+    }
+
+    [Fact]
+    public void IsUpperCaseModeActive_WritesThroughToActiveTab_AndGatesByLanguage()
+    {
+        var vm = new MainViewModel();
+        var basicTab = vm.ActiveTab!;
+
+        Assert.True(vm.IsShiftModeApplicable);
+        Assert.True(vm.IsUpperCaseModeActive);
+        Assert.False(vm.IsLowerCaseModeActive);
+
+        vm.IsLowerCaseModeActive = true;
+        Assert.False(vm.IsUpperCaseModeActive);
+        Assert.False(basicTab.IsUpperCaseModeActive);
+
+        // An assembly tab never uses PETSCII rendering, so the mode has no effect there - it
+        // keeps its own default and the setter is a no-op.
+        var asmTab = vm.NewTab(EditorLanguage.Asm);
+        vm.ActiveTab = asmTab;
+        Assert.False(vm.IsShiftModeApplicable);
+        vm.IsUpperCaseModeActive = false;
+        Assert.True(asmTab.IsUpperCaseModeActive);
+
+        // Switching back to the BASIC tab restores its own remembered mode.
+        vm.ActiveTab = basicTab;
+        Assert.True(vm.IsShiftModeApplicable);
+        Assert.False(vm.IsUpperCaseModeActive);
+    }
+
     [Fact]
     public void OpenFile_AlreadyOpen_ReloadsFromDiskIntoTheSameTab()
     {
