@@ -171,8 +171,17 @@ approve the automation the first time.
 
 - **Editing** - multi-tab editing of `.bas`, `.prg` (detokenized on open, re-tokenized on save),
   and `.asm`/`.s`. BASIC and 6502 syntax highlighting, PETSCII rendering through the embedded
-  Pet Me 64 font, code folding, C64-style upper-case typing with the keyboard keyword
-  abbreviations, zero-padded line numbers, auto-numbering, assembly auto-indent, and a column guide.
+  Pet Me 64 font, code folding, zero-padded line numbers, auto-numbering, assembly auto-indent, and
+  a column guide.
+- **C64 keyboard emulation** - BASIC is upper case by default, matching the C64's charset: an
+  unshifted letter types upper case, and Shift (or Caps Lock) produces the PETSCII graphic
+  occupying that key's shifted position, exactly like a real C64. The keyboard keyword
+  abbreviations work the same way (an unshifted prefix plus one shifted letter). A per-tab
+  Upper/Lower Case Mode - the status bar's Shift Badge, or `Edit > Lower Case Mode`
+  (`Cmd`/`Ctrl+Shift+L`) - switches to the C64's upper/lowercase charset instead, where an
+  unshifted letter types lower case and Shift/Caps Lock produces upper case. A status bar Caps
+  Lock indicator reflects the real OS key state on Windows and macOS (Linux has no portable way to
+  read it); clicking it toggles the real key on Windows only.
 - **Folder explorer** - lazy folder tree with file-type badges. `.d64` and `.d81` images expand in
   place, and the programs inside them open and save back into the image. New file and folder,
   rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE or the C64 Ultimate

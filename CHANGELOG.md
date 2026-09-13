@@ -7,13 +7,15 @@
 - **Avalonia UI** - a second, cross-platform front end, `ReadyCode.Avalonia`, built on
   [Avalonia](https://avaloniaui.net/). It shares all editor, tokenizer, assembler, diagnostics, and
   emulator logic with the Windows app through a new `ReadyCode.Core` library, so both produce
-  byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, the folder
-  explorer (including `.d64`/`.d81` browsing), find and replace, live diagnostics with a Problems
-  panel, VICE transfer/run and machine controls, the BASIC debugger on VICE, and Preferences. A
-  native macOS menu bar (an in-window one on Linux) and an About box crediting the original Windows
-  application and carrying the Pet Me 64 font's license. The Windows app is unchanged. Currently
-  released as a macOS binary; see [README-Avalonia.md](README-Avalonia.md) for platform support and
-  what is and isn't ported yet
+  byte-identical `.prg` output. Covers BASIC and assembly editing with PETSCII rendering, C64
+  keyboard emulation (Shift/Caps Lock produces the PETSCII graphic for a letter key, matching the
+  C64's default charset, with a per-tab Upper/Lower Case Mode toggle for the C64's upper/lowercase
+  charset instead), the folder explorer (including `.d64`/`.d81` browsing), find and replace, live
+  diagnostics with a Problems panel, VICE transfer/run and machine controls, the BASIC debugger on
+  VICE, and Preferences. A native macOS menu bar (an in-window one on Linux) and an About box
+  crediting the original Windows application and carrying the Pet Me 64 font's license. The Windows
+  app is unchanged. Currently released as a macOS binary; see
+  [README-Avalonia.md](README-Avalonia.md) for platform support and what is and isn't ported yet
 
 ### Improvements
 

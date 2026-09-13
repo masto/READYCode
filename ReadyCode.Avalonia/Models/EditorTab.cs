@@ -23,6 +23,7 @@ public class EditorTab : INotifyPropertyChanged
     private bool _isModified;
     private EditorLanguage _language = EditorLanguage.Basic;
     private C64UFileKind _kind = C64UFileKind.Prg;
+    private bool _isUpperCaseModeActive = true;
 
     #endregion
 
@@ -149,6 +150,25 @@ public class EditorTab : INotifyPropertyChanged
     /// Gets the tab header text: the file name plus a trailing marker when unsaved.
     /// </summary>
     public string Header => IsModified ? FileName + " •" : FileName;
+
+    /// <summary>
+    /// Gets or sets whether this tab's C64 keyboard emulation is in "Upper Active" mode - the
+    /// C64's default charset, where an unshifted letter shows upper case and Shift/Caps Lock
+    /// shows the PETSCII graphic for that key - as opposed to "Upper Inactive" (the C64's
+    /// upper/lowercase charset, where an unshifted letter shows lower case and Shift/Caps Lock
+    /// shows the upper case version). Backs the status bar's Shift Badge toggle. Always starts
+    /// true for a freshly opened tab, matching a real C64 at power-on - not persisted.
+    /// </summary>
+    public bool IsUpperCaseModeActive
+    {
+        get => _isUpperCaseModeActive;
+        set
+        {
+            if (_isUpperCaseModeActive == value) return;
+            _isUpperCaseModeActive = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>
     /// Gets or sets whether the document has unsaved changes.

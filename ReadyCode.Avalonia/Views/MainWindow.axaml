@@ -49,6 +49,21 @@
         <Style Selector="Button.leftPanelTab.active">
             <Setter Property="Foreground" Value="#000000" />
         </Style>
+        <Style Selector="Button.statusBarBadge">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="#AAAAAA" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.statusBarBadge.active">
+            <Setter Property="Foreground" Value="#000000" />
+        </Style>
     </Window.Styles>
 
     <NativeMenu.Menu>
@@ -84,6 +99,11 @@
                         <NativeMenuItem Header="Delete" Click="EditDelete_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Select All" Click="EditSelectAll_Click" Gesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Lower Case Mode" Click="EditLowerCaseMode_Click"
+                                        ToggleType="CheckBox" IsChecked="{Binding IsLowerCaseModeActive, Mode=OneWay}"
+                                        IsEnabled="{Binding IsShiftModeApplicable}"
+                                        Gesture="{OnPlatform Ctrl+Shift+L, macOS=Cmd+Shift+L}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Find…"            Click="EditFind_Click"         Gesture="{OnPlatform Ctrl+F, macOS=Cmd+F}" />
                         <NativeMenuItem Header="Find and Replace…" Click="EditReplace_Click"     Gesture="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" />
@@ -187,7 +207,28 @@
         <NativeMenuBar DockPanel.Dock="Top" />
 
         <Border DockPanel.Dock="Bottom" x:Name="StatusBar" Padding="10,4" Background="#EEEEEE" IsVisible="{Binding ShowStatusBar}">
-            <TextBlock x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" />
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Grid.Column="0" x:Name="StatusTextBlock" Text="{Binding StatusText}" FontSize="12" VerticalAlignment="Center" />
+
+                <Button Grid.Column="1" x:Name="CapsLockIndicator" Classes="statusBarBadge" Classes.active="{Binding IsCapsLockOn}"
+                        Click="CapsLockIndicator_Click" ToolTip.Tip="Caps Lock - click to toggle (Windows only)">
+                    <TextBlock Text="CAPS" />
+                </Button>
+
+                <!-- Shift Badge - toggles the active tab's C64 keyboard-emulation mode between
+                     "Upper Active" (default: unshifted letters show upper case, Shift/Caps Lock
+                     shows the PETSCII graphic for that key) and "Upper Inactive" (unshifted shows
+                     lower case, Shift/Caps Lock shows upper case). Dimmed whenever the active tab
+                     isn't an ordinary BASIC tab (see PetsciiGlyphGenerator.IsUpperCaseModeActive). -->
+                <Button Grid.Column="2" x:Name="ShiftModeIndicator" Classes="statusBarBadge" Classes.active="{Binding IsShiftModeApplicable}"
+                        IsEnabled="{Binding IsShiftModeApplicable}" Click="ShiftModeIndicator_Click"
+                        ToolTip.Tip="Lower Case Mode - click to toggle">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="ABC" IsVisible="{Binding IsUpperCaseModeActive}" />
+                        <TextBlock Text="abc" IsVisible="{Binding !IsUpperCaseModeActive}" />
+                    </StackPanel>
+                </Button>
+            </Grid>
         </Border>
 
         <Grid x:Name="MainGrid" ColumnDefinitions="230,4,*">

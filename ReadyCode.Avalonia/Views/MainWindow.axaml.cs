@@ -14,6 +14,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using AvaloniaEdit.Folding;
 using ReadyCode.Avalonia.Editor;
+using ReadyCode.Core.Interop;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Models;
@@ -81,6 +82,11 @@ public partial class MainWindow : Window
     private EditorTab? _boundTab;
     private bool _closeConfirmed;
 
+    // Avalonia's TextInputEventArgs carries no modifier state of its own (unlike WPF's
+    // TextCompositionEventArgs, which reads the live global Keyboard.Modifiers) - cached from the
+    // tunnel-routed KeyDown that always precedes the TextInput for the same keystroke.
+    private KeyModifiers _lastKeyModifiers;
+
     #endregion
 
     #region Constructors
@@ -128,6 +134,11 @@ public partial class MainWindow : Window
 
         ConfigureMacOSMenus();
         Opened += (_, _) => AddMenuShortcutBindings();
+
+        // No change-notification event exists for Caps Lock - Activated catches a toggle made
+        // while some other window had focus; Editor_PreviewKeyDown catches one made via the
+        // physical key while typing here.
+        Activated += (_, _) => ViewModel.RefreshKeyboardLockStatus();
 
         DataContextChanged += (_, _) => AttachViewModel();
     }
@@ -271,6 +282,7 @@ public partial class MainWindow : Window
         foreach (var breakpoint in vm.BreakpointStore.Breakpoints)
             breakpoint.PropertyChanged += Breakpoint_PropertyChanged;
         vm.ErrorRaised += (title, message) => Dispatcher.UIThread.Post(async () => await MessageDialog.ShowAsync(this, title, message));
+        vm.RefreshKeyboardLockStatus();
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
@@ -309,6 +321,9 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsDebugStopped):
                 UpdateDebugPanelText();
+                break;
+            case nameof(MainViewModel.IsUpperCaseModeActive):
+                ApplyUpperCaseMode();
                 break;
         }
     }
@@ -372,12 +387,24 @@ public partial class MainWindow : Window
 
         transformers.Add(_findHighlightColorizer);
 
-        // A .bas file is plain ASCII source; a detokenized .prg is styled to look like what ends
-        // up on a real C64 screen, which needs the PETSCII font and glyph substitution.
-        bool isAsciiStyled = isAsm || tab.Kind == C64UFileKind.Bas;
-        Editor.FontFamily = isAsciiStyled ? _asciiFont : _petsciiFont;
-        _petsciiGlyphGenerator.IsAsmMode = isAsciiStyled;
+        // BASIC (.bas and .prg alike) always uses the PETSCII font with glyph substitution on,
+        // since either can contain real PETSCII control/graphics characters; assembly always
+        // uses the plain monospace font with substitution off, since assembly/plain source must
+        // never be reinterpreted as PETSCII bytes.
+        Editor.FontFamily = isAsm ? _asciiFont : _petsciiFont;
+        _petsciiGlyphGenerator.IsAsmMode = isAsm;
         ApplyEditorSettings();
+        Editor.TextArea.TextView.Redraw();
+    }
+
+    // Applies the active tab's Upper Active/Inactive mode to the shared glyph generator and
+    // redraws - a pure re-render, since the mode only changes which glyph a byte displays as,
+    // never the byte itself (see PetsciiGlyphGenerator.IsUpperCaseModeActive). Reached via
+    // ViewModel.IsUpperCaseModeActive's PropertyChanged, which fires whenever the active tab
+    // changes or the active tab's own mode is toggled - see ShiftModeIndicator_Click.
+    private void ApplyUpperCaseMode()
+    {
+        _petsciiGlyphGenerator.IsUpperCaseModeActive = ViewModel.IsUpperCaseModeActive;
         Editor.TextArea.TextView.Redraw();
     }
 
@@ -1334,6 +1361,27 @@ public partial class MainWindow : Window
     private void ViewWordWrap_Click(object? sender, EventArgs e) => ViewModel.WordWrap = !ViewModel.WordWrap;
     private void ViewStatusBar_Click(object? sender, EventArgs e) => ViewModel.ShowStatusBar = !ViewModel.ShowStatusBar;
 
+    // A no-op on macOS/Linux (see KeyboardLockKeys.ToggleCapsLock) - the click still refreshes the
+    // indicator so a real toggle made via the physical key registers immediately.
+    private void ToggleCapsLock()
+    {
+        KeyboardLockKeys.ToggleCapsLock();
+        ViewModel.RefreshKeyboardLockStatus();
+    }
+
+    private void CapsLockIndicator_Click(object? sender, RoutedEventArgs e) => ToggleCapsLock();
+
+    // Setting ViewModel.IsUpperCaseModeActive here is the only work needed - it writes through to
+    // ActiveTab.IsUpperCaseModeActive and calls RefreshShiftModeStatus itself, which updates
+    // ViewModel.IsUpperCaseModeActive's own backing field and raises its PropertyChanged, which
+    // ViewModel_PropertyChanged turns into ApplyUpperCaseMode(). The Edit menu's "Lower Case
+    // Mode" checkbox drives the exact same property (inverted) via IsLowerCaseModeActive. Two
+    // thin overloads because Avalonia's compiled bindings need an exact delegate match: Button's
+    // Click wants EventHandler&lt;RoutedEventArgs&gt;, NativeMenuItem's wants plain EventHandler.
+    private void ToggleUpperCaseMode() => ViewModel.IsUpperCaseModeActive = !ViewModel.IsUpperCaseModeActive;
+    private void ShiftModeIndicator_Click(object? sender, RoutedEventArgs e) => ToggleUpperCaseMode();
+    private void EditLowerCaseMode_Click(object? sender, EventArgs e) => ToggleUpperCaseMode();
+
     private async void ExplorerNewFile_Click(object? sender, RoutedEventArgs e) => await NewFileAsync();
     private async void ExplorerNewFolder_Click(object? sender, RoutedEventArgs e) => await NewFolderAsync();
     private void ExplorerRefresh_Click(object? sender, RoutedEventArgs e) => ViewModel.RefreshRootItems();
@@ -1528,7 +1576,7 @@ public partial class MainWindow : Window
     {
         if (ViewModel.ActiveTab?.Language == EditorLanguage.Asm || string.IsNullOrEmpty(e.Text)) return;
 
-        string insertText = TryGetKeywordAbbreviationGlyph(e.Text) ?? e.Text.ToUpperInvariant();
+        string insertText = TryGetKeywordAbbreviationGlyph(e.Text) ?? ApplyC64Shift(e.Text);
         if (insertText == e.Text) return;
 
         e.Handled = true;
@@ -1573,6 +1621,22 @@ public partial class MainWindow : Window
         return null;
     }
 
+    // Real C64 keyboard behavior for a letter key: unshifted (no Shift, Caps Lock off) produces
+    // the normal uppercase-looking glyph (this app's default); shifted (Shift held, or Caps
+    // Lock on - a real C64's Shift Lock physically latches Shift down, unlike a PC's Caps Lock,
+    // so either one alone is enough, and there's no cancel-out when both are active at once)
+    // produces the C64 graphic character occupying that key's shifted position. Internally that
+    // graphic glyph is just the letter's lower case ASCII byte - PetsciiGlyphGenerator already
+    // renders it as the correct C64 ROM glyph, so no separate PETSCII mapping is needed here.
+    // Non-letters (digits, punctuation) are unaffected either way.
+    private string ApplyC64Shift(string text)
+    {
+        if (text.Length != 1 || !char.IsAsciiLetter(text[0])) return text.ToUpperInvariant();
+
+        bool shifted = _lastKeyModifiers.HasFlag(KeyModifiers.Shift) || ViewModel.IsCapsLockOn;
+        return shifted ? char.ToLowerInvariant(text[0]).ToString() : char.ToUpperInvariant(text[0]).ToString();
+    }
+
     // Paste goes through here (menu, context menu, and the keyboard shortcut) so pasted BASIC
     // is upper-cased like typed BASIC; assembly keeps its case.
     private async Task PasteAsync()
@@ -1593,6 +1657,13 @@ public partial class MainWindow : Window
 
     private async void Editor_PreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        // Cached for Editor_TextEntering, which fires right after for the same keystroke but
+        // carries no modifier state of its own - see _lastKeyModifiers. Also catches a Caps Lock
+        // press made via the physical key while typing here (the Activated handler in the
+        // constructor covers a toggle made while some other window had focus).
+        _lastKeyModifiers = e.KeyModifiers;
+        ViewModel.RefreshKeyboardLockStatus();
+
         bool primary = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
         if ((e.Key == Key.V && primary) || (e.Key == Key.Insert && e.KeyModifiers.HasFlag(KeyModifiers.Shift)))
         {
