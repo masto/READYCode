@@ -66,11 +66,14 @@ public class MenuTests
         Dispatcher.UIThread.RunJobs();
 
         // Items that are fine without a keyboard shortcut: rarely-used machine controls and the
-        // toggles that have no established shortcut.
+        // toggles that have no established shortcut. Matches WPF exactly where WPF has the same
+        // command at all - see the comments by Problems, Transfer (load only), and Run in
+        // MainWindow.axaml for the shortcuts WPF does define for related commands.
         var noGestureExpected = new HashSet<string>
         {
             "Close Folder", "Exit", "Delete", "Reset", "Reboot", "Pause", "Resume", "Power Off",
-            "Column Guide", "Word Wrap", "Status Bar", "About READYCode", "About My C64 Ultimate…",
+            "Column Guide", "Status Bar", "About READYCode", "About My C64 Ultimate…",
+            "Problems", "Transfer (load only)",
         };
 
         var missing = new List<string>();

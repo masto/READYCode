@@ -372,10 +372,20 @@ public partial class MainViewModel : INotifyPropertyChanged
 
     #region Public Methods - Tabs and Files
 
-    /// <summary>Opens a new, empty tab for the given language and activates it.</summary>
-    public EditorTab NewTab(EditorLanguage language = EditorLanguage.Basic)
+    /// <summary>
+    /// Opens a new, empty tab for the given language and activates it. A BASIC tab defaults to
+    /// the tokenized <c>.prg</c> kind, so it renders with the C64 font and PETSCII glyph
+    /// substitution from the moment it's created; pass <see cref="C64UFileKind.Bas"/> for a
+    /// blank, untokenized <c>.bas</c> file instead.
+    /// </summary>
+    public EditorTab NewTab(EditorLanguage language = EditorLanguage.Basic, C64UFileKind? kind = null)
     {
         var tab = EditorTab.CreateNew(language);
+        if (kind is { } k)
+        {
+            tab.Kind = k;
+            tab.DisplayName = $"Untitled.{k.ToString().ToLowerInvariant()}";
+        }
         OpenTabs.Add(tab);
         ActiveTab = tab;
         return tab;
