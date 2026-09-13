@@ -100,6 +100,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged();
             OnPropertyChanged(nameof(WindowTitle));
             RefreshShiftModeStatus();
+            ApplyLanguageToRightPanel();
         }
     }
 

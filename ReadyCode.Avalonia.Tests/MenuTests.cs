@@ -121,8 +121,11 @@ public class MenuTests
         Dispatcher.UIThread.RunJobs();
 
         // Show() already ran this via Opened on a platform with no exported menu (headless), so
-        // the bindings are in place; assert on what is actually bound.
-        var bound = window.KeyBindings.Select(binding => binding.Gesture).ToList();
+        // the bindings are in place; assert on what is actually bound. The Quick Keys shortcuts
+        // (Ctrl+1-8 etc.) are bound on every platform and aren't menu items - set them aside.
+        var bound = window.KeyBindings.Select(binding => binding.Gesture)
+            .Where(gesture => !window.QuickKeyGestures.Contains(gesture))
+            .ToList();
 
         var expected = NativeMenu.GetMenu(window)!.Items.OfType<NativeMenuItem>()
             .SelectMany(top => top.Menu?.Items.OfType<NativeMenuItem>() ?? [])

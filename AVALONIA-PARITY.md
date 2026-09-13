@@ -70,19 +70,18 @@ things are added - see `MenuTests.cs`.
   tests). This is 100% UI work - dialogs plus Edit-menu wiring, no new logic to write. Probably
   the single best effort-to-value item on this list.
 
-### Reference panels (the WPF app's whole right-hand "secondary side bar")
-- [ ] Quick Keys panel (special-character shortcuts reference)
-- [ ] PETSCII Reference panel (click-to-insert)
-- [ ] BASIC Keywords panel (click-to-insert, hover descriptions)
-- [ ] ASM Mnemonics panel (hover descriptions)
-- [ ] Music Notes panel (SID note reference)
-- **Core logic**: keyword/mnemonic descriptions and `SidNoteProvider`/`SidNote` are already in
-  `ReadyCode.Core`. This whole area doesn't exist as a UI region in Avalonia yet - it's a new
-  right-hand panel region plus five simple reference lists inside it. The left activity bar
-  (`Button.activityBar` in `MainWindow.axaml`, icon toggles that show a tab or collapse the
-  panel) is the pattern to mirror on the right; WPF's right bar is the same control with the
-  indicator on its right edge and toggles at `Ctrl+Alt+B` (Secondary Side Bar) and `Ctrl+Alt+V`
-  (Variables).
+### Reference panels (the WPF app's whole right-hand "secondary side bar") - DONE
+- [x] Quick Keys panel, with the `Ctrl+1–8` / `Ctrl+Shift+1–8` / `Ctrl+Shift+Alt+1–8` /
+  `Shift+F1–F8` shortcuts wired (they weren't before). One deliberate difference: `Shift+F5`
+  is bound here - free in this app, since Stop Debugging is `Alt+Shift+F5` - where WPF's C64U
+  debug scheme claims it.
+- [x] PETSCII Reference panel (click-to-insert)
+- [x] BASIC Keywords panel, [x] ASM Mnemonics panel (each offered only for its language, as in WPF)
+- [x] Music Notes panel
+- The PETSCII control-code labels and the Quick Keys card/shortcut table now live in
+  `ReadyCode.Core/Tokenizer/PetsciiReference.cs`; the WPF reference table reads from it too. The
+  WPF Quick Keys cards are still hand-written XAML - generating them from the same table is a
+  small follow-up for the eventual unification.
 
 ### Static Variables / Symbols panel
 - [ ] Lists every variable in a BASIC program, or every label/constant in an assembly program
