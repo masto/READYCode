@@ -79,9 +79,17 @@ if [[ "$SIGN_ONLY" == "--sign-only" ]]; then
     exit 0
 fi
 
+# Named after the runtime identifier (the parent directory make-app-bundle.sh --publish uses,
+# e.g. osx-arm64) rather than always "READYCode.zip" - signing both architectures used to leave
+# two files with the identical name in different directories, which is harmless locally but
+# breaks `gh release create` when both are attached to one release: it derives part of its own
+# upload bookkeeping from the local filename, not just the --name/label override, so two same-
+# named source files collide and the second upload 404s. See README-Avalonia.md's release steps.
+RID="$(basename "$(dirname "$APP")")"
+
 # ditto -c -k --keepParent is the archive format notarytool expects for a .app; plain `zip` loses
 # the symlinks and permission bits inside the bundle.
-ZIP="${APP%.app}.zip"
+ZIP="$(dirname "$APP")/READYCode-$RID.zip"
 echo "Creating $ZIP..."
 rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
