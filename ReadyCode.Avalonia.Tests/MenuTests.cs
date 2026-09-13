@@ -39,22 +39,32 @@ public class MenuTests
         Assert.Contains("VICE", headers);
         Assert.Contains("Debug", headers);
 
-        // On macOS, About and Preferences move to the application menu and Quit is the system's,
-        // so the menu bar should carry neither a Settings menu nor File > Exit.
+        // On macOS, About and Settings move to the application menu and Quit is the system's, so
+        // the menu bar should carry neither a Preferences menu, File > Exit, nor Help > About.
         var file = menu.Items.OfType<NativeMenuItem>().Single(item => item.Header == "File");
         var fileItems = file.Menu!.Items.OfType<NativeMenuItem>()
             .Where(item => item is not NativeMenuItemSeparator)
             .Select(item => item.Header)
             .ToList();
+        Assert.Contains("Help", headers);
+        var help = menu.Items.OfType<NativeMenuItem>().Single(item => item.Header == "Help");
+        var helpItems = help.Menu!.Items.OfType<NativeMenuItem>()
+            .Where(item => item is not NativeMenuItemSeparator)
+            .Select(item => item.Header)
+            .ToList();
+        Assert.Contains("Visit READYCode on GitHub", helpItems);
+        Assert.Contains("View Online Docs", helpItems);
         if (OperatingSystem.IsMacOS())
         {
-            Assert.DoesNotContain("Settings", headers);
+            Assert.DoesNotContain("Preferences", headers);
             Assert.DoesNotContain("Exit", fileItems);
+            Assert.DoesNotContain("About READYCode", helpItems);
         }
         else
         {
-            Assert.Contains("Settings", headers);
+            Assert.Contains("Preferences", headers);
             Assert.Contains("Exit", fileItems);
+            Assert.Contains("About READYCode", helpItems);
         }
     }
 
@@ -73,7 +83,7 @@ public class MenuTests
         {
             "Close Folder", "Exit", "Delete", "Reset", "Reboot", "Pause", "Resume", "Power Off",
             "Column Guide", "Status Bar", "About READYCode", "About My C64 Ultimate…",
-            "Problems", "Load",
+            "Problems", "Load", "Visit READYCode on GitHub", "View Online Docs",
         };
 
         var missing = new List<string>();

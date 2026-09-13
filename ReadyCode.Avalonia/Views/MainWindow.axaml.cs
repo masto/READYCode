@@ -66,6 +66,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(300) };
     private ErrorSquiggleRenderer _errorSquiggleRenderer = null!;
     private readonly ColumnGuideRenderer _columnGuideRenderer = new();
+    private CurrentLineBorderRenderer _currentLineBorderRenderer = null!;
     private readonly DebugCurrentLineRenderer _debugCurrentLineRenderer = new();
     private readonly BreakpointMargin _breakpointMargin = new();
     private BasicLineAddressTable? _activeTabLineAddressTable;
@@ -98,6 +99,8 @@ public partial class MainWindow : Window
 
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
         _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor);
+        _currentLineBorderRenderer = new CurrentLineBorderRenderer(Editor);
+        Editor.TextArea.TextView.BackgroundRenderers.Add(_currentLineBorderRenderer);
         ApplyThemeBrushes();
         AppTheme.Changed += OnThemeChanged;
         Closed += (_, _) => AppTheme.Changed -= OnThemeChanged;
@@ -152,13 +155,23 @@ public partial class MainWindow : Window
         var menu = NativeMenu.GetMenu(this);
         if (menu == null) return;
 
-        RemoveItem(menu, "Settings");
+        RemoveItem(menu, "Preferences");
         if (FindItem(menu, "File")?.Menu is { } fileMenu)
         {
             RemoveItem(fileMenu, "Exit");
-            if (fileMenu.Items.Count > 0 && fileMenu.Items[^1] is NativeMenuItemSeparator trailing)
-                fileMenu.Items.Remove(trailing);
+            RemoveTrailingSeparator(fileMenu);
         }
+        if (FindItem(menu, "Help")?.Menu is { } helpMenu)
+        {
+            RemoveItem(helpMenu, "About READYCode");
+            RemoveTrailingSeparator(helpMenu);
+        }
+    }
+
+    private static void RemoveTrailingSeparator(NativeMenu menu)
+    {
+        if (menu.Items.Count > 0 && menu.Items[^1] is NativeMenuItemSeparator trailing)
+            menu.Items.Remove(trailing);
     }
 
     // Where the menu is exported to the system (macOS), each item's Gesture becomes a real menu
@@ -430,6 +443,7 @@ public partial class MainWindow : Window
         _findHighlightColorizer.CurrentMatchFgBrush = ThemeBrush("ThemeFindCurrentFg");
 
         _errorSquiggleRenderer.SetColor(ThemeColor("ThemeEditorErrorSquiggle"));
+        _currentLineBorderRenderer.SetColor(ThemeColor("ThemeEditorCurrentLineBorder"));
         // The guide is a full-height line beside the text, so it is drawn at a quarter opacity
         // rather than the theme's solid color - which is what the WPF ruler amounts to as well.
         var guide = ThemeColor("ThemeEditorGuideLineFg");
@@ -1960,6 +1974,20 @@ public partial class MainWindow : Window
     public async Task ShowAboutAsync() => await new AboutWindow().ShowDialog(this);
 
     private async void About_Click(object? sender, EventArgs e) => await ShowAboutAsync();
+    private async void HelpGitHub_Click(object? sender, EventArgs e) => await OpenUrlAsync(ViewModel.Settings.GitHubUrl);
+    private async void HelpDocs_Click(object? sender, EventArgs e) => await OpenUrlAsync(ViewModel.Settings.DocsUrl);
+
+    private async Task OpenUrlAsync(string url)
+    {
+        try
+        {
+            await Launcher.LaunchUriAsync(new Uri(url));
+        }
+        catch (Exception)
+        {
+            // No browser, or the launch was refused - nothing useful to recover with.
+        }
+    }
 
     /// <summary>
     /// Shows the Preferences dialog and applies whatever changed. Public for the same reason as
