@@ -130,6 +130,7 @@ public partial class MainViewModel
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsExplorerTabActive));
             OnPropertyChanged(nameof(IsC64UTabActive));
+            NotifyActivityBarChanged();
         }
     }
 
@@ -138,6 +139,12 @@ public partial class MainViewModel
 
     /// <summary>Gets whether the C64U tab of the left panel is the active one.</summary>
     public bool IsC64UTabActive => ActiveLeftPanelTab == "C64U";
+
+    /// <summary>Gets whether the activity bar's Explorer icon shows as active: its tab is showing and the panel is open.</summary>
+    public bool IsExplorerToggleChecked => IsExplorerOpen && IsExplorerTabActive;
+
+    /// <summary>Gets whether the activity bar's C64U icon shows as active: its tab is showing and the panel is open.</summary>
+    public bool IsC64UToggleChecked => IsExplorerOpen && IsC64UTabActive;
 
     #endregion
 
@@ -659,6 +666,14 @@ public partial class MainViewModel
     #endregion
 
     #region Private Methods - C64U
+
+    // Both activity-bar icons depend on IsExplorerOpen as well as the active tab, so the
+    // IsExplorerOpen setter calls this too.
+    private void NotifyActivityBarChanged()
+    {
+        OnPropertyChanged(nameof(IsExplorerToggleChecked));
+        OnPropertyChanged(nameof(IsC64UToggleChecked));
+    }
 
     private bool EnsureC64UUrlConfigured()
     {

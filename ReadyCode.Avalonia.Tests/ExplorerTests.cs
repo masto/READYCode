@@ -1,8 +1,10 @@
 // Copyright (c) 2026 Moonspace Labs, LLC
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Avalonia.Views;
@@ -144,6 +146,39 @@ public class ExplorerTests : IDisposable
         Dispatcher.UIThread.RunJobs();
 
         RenderCapture.Save(window, "main-window-explorer.png");
+    }
+
+    [AvaloniaFact]
+    public void MainWindow_RendersExplorerWithAFolderOpen_AndActivityBarCollapsesThePanel()
+    {
+        var vm = new MainViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 900, Height = 500 };
+        window.Show();
+        vm.LoadFolder(_root);
+        vm.IsExplorerOpen = true;
+        vm.ActiveLeftPanelTab = "Explorer";
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.True(vm.IsExplorerToggleChecked);
+        Assert.False(vm.IsC64UToggleChecked);
+        RenderCapture.Save(window, "main-window-explorer.png");
+
+        // The header row (folder name plus its buttons) spans the whole panel, not just its content.
+        var header = window.FindControl<Border>("ExplorerHeader")!;
+        var panel = window.FindControl<DockPanel>("ExplorerPanel")!;
+        Assert.Equal(panel.Bounds.Width, header.Bounds.Width, 0.5);
+
+        // Clicking the active tab's icon collapses the panel; the C64U icon opens it on that tab.
+        var explorerToggle = window.FindControl<Button>("ActivityExplorer")!;
+        explorerToggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.False(vm.IsExplorerOpen);
+        Assert.False(vm.IsExplorerToggleChecked);
+
+        var c64uToggle = window.FindControl<Button>("ActivityC64U")!;
+        c64uToggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.True(vm.IsExplorerOpen);
+        Assert.True(vm.IsC64UToggleChecked);
+        Assert.Equal("C64U", vm.ActiveLeftPanelTab);
     }
 
     #endregion
