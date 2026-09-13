@@ -1273,6 +1273,8 @@ public partial class MainWindow : Window
 
     private void FileNew_Click(object? sender, EventArgs e) => ViewModel.NewTab(EditorLanguage.Basic);
 
+    private void FileNewBas_Click(object? sender, EventArgs e) => ViewModel.NewTab(EditorLanguage.Basic, C64UFileKind.Bas);
+
     private void FileNewAsm_Click(object? sender, EventArgs e) => ViewModel.NewTab(EditorLanguage.Asm);
 
     private async void FileOpen_Click(object? sender, EventArgs e)

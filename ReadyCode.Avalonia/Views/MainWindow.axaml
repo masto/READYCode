@@ -71,8 +71,9 @@
             <NativeMenuItem Header="File">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="New BASIC File"    Click="FileNew_Click"        Gesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
-                        <NativeMenuItem Header="New Assembly File" Click="FileNewAsm_Click"     Gesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
+                        <NativeMenuItem Header="New Program File (.prg)" Click="FileNew_Click"    Gesture="{OnPlatform Ctrl+N, macOS=Cmd+N}" />
+                        <NativeMenuItem Header="New BASIC File (.bas)"   Click="FileNewBas_Click" Gesture="{OnPlatform Ctrl+Shift+N, macOS=Cmd+Shift+N}" />
+                        <NativeMenuItem Header="New Assembly File (.asm)" Click="FileNewAsm_Click" Gesture="{OnPlatform Ctrl+Alt+N, macOS=Cmd+Alt+N}" />
                         <NativeMenuItem Header="Open…"             Click="FileOpen_Click"       Gesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
                         <NativeMenuItem Header="Open Folder…"      Click="FileOpenFolder_Click" Gesture="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" />
                         <NativeMenuItem Header="Close Folder"      Click="FileCloseFolder_Click" IsEnabled="{Binding IsFolderOpen}" />
@@ -120,10 +121,12 @@
                                         ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Column Guide" Click="ViewColumnGuide_Click" ToggleType="CheckBox" IsChecked="{Binding ShowColumnGuide, Mode=OneWay}" />
-                        <NativeMenuItem Header="Word Wrap"    Click="ViewWordWrap_Click"    ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" />
+                        <NativeMenuItem Header="Word Wrap"    Click="ViewWordWrap_Click"    ToggleType="CheckBox" IsChecked="{Binding WordWrap, Mode=OneWay}" Gesture="Alt+Z" />
                         <NativeMenuItem Header="Status Bar"   Click="ViewStatusBar_Click"   ToggleType="CheckBox" IsChecked="{Binding ShowStatusBar, Mode=OneWay}" />
                         <NativeMenuItemSeparator />
-                        <NativeMenuItem Header="Problems"    Click="ViewProblems_Click"   Gesture="{OnPlatform Ctrl+Shift+M, macOS=Cmd+Shift+M}" />
+                        <!-- No Gesture on Problems: WPF's Errors Panel has none either, and Ctrl+Shift+M
+                             is WPF's Prettify Code shortcut - left free for when that's ported. -->
+                        <NativeMenuItem Header="Problems"    Click="ViewProblems_Click" />
                         <NativeMenuItem Header="Debug Panel" Click="ViewDebugPanel_Click" Gesture="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" />
                     </NativeMenu>
                 </NativeMenuItem.Menu>
@@ -132,8 +135,11 @@
             <NativeMenuItem Header="VICE">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="Run"                  Click="ViceRun_Click"      Gesture="F5" />
-                        <NativeMenuItem Header="Transfer (load only)" Click="ViceTransfer_Click" Gesture="F6" />
+                        <!-- Matches WPF's VICE menu exactly: Run Without Debugging is Ctrl+Alt+F5 there
+                             (bare F5 is reserved for C64U's Start Debugging, below); Load has no
+                             shortcut in WPF either. -->
+                        <NativeMenuItem Header="Run"                  Click="ViceRun_Click"      Gesture="{OnPlatform Ctrl+Alt+F5, macOS=Cmd+Alt+F5}" />
+                        <NativeMenuItem Header="Transfer (load only)" Click="ViceTransfer_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Reset"  Click="ViceReset_Click" />
                         <NativeMenuItem Header="Reboot" Click="ViceReboot_Click" />
@@ -148,10 +154,12 @@
             <NativeMenuItem Header="C64U">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
+                        <!-- Matches WPF's C64U menu exactly: Run Without Debugging is Ctrl+F5, Start
+                             Debugging is bare F5, and Load has no shortcut. -->
                         <NativeMenuItem Header="Run"                  Click="C64URun_Click"      Gesture="{OnPlatform Ctrl+F5, macOS=Cmd+F5}" />
-                        <NativeMenuItem Header="Transfer (load only)" Click="C64UTransfer_Click" Gesture="{OnPlatform Ctrl+F6, macOS=Cmd+F6}" />
+                        <NativeMenuItem Header="Transfer (load only)" Click="C64UTransfer_Click" />
                         <NativeMenuItemSeparator />
-                        <NativeMenuItem Header="Start Debugging / Continue" Click="C64UDebugStart_Click" Gesture="{OnPlatform Ctrl+Alt+F5, macOS=Cmd+Alt+F5}" />
+                        <NativeMenuItem Header="Start Debugging / Continue" Click="C64UDebugStart_Click" Gesture="F5" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Reset"     Click="C64UReset_Click" />
                         <NativeMenuItem Header="Reboot"    Click="C64UReboot_Click" />
