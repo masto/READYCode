@@ -1,9 +1,10 @@
-# READYCode on macOS and Linux
+# READYCode's Avalonia UI
 
 READYCode's original front end is built on WPF, which runs only on Windows. **ReadyCode.Avalonia**
-is a second front end, built on [Avalonia](https://avaloniaui.net/), that runs on macOS and Linux.
-It shares every non-UI component - tokenizer, assembler, disassembler, diagnostics, minify and
-prettify, the VICE and C64 Ultimate clients, settings - with the Windows app through the
+is a second front end - the Avalonia UI - built on [Avalonia](https://avaloniaui.net/). It
+currently runs on macOS and Linux (macOS binary releases are published on GitHub; Linux builds
+from source). It shares every non-UI component - tokenizer, assembler, disassembler, diagnostics,
+minify and prettify, the VICE and C64 Ultimate clients, settings - with the Windows app through the
 **ReadyCode.Core** library, so both front ends produce byte-identical `.prg` output.
 
 This is a work in progress and is not a full replacement for the Windows app yet. See
@@ -36,7 +37,7 @@ device's default `admin` account with a blank password, matching the Windows app
 ## Build and run
 
 ```bash
-git clone -b macos-port https://github.com/masto/READYCode/
+git clone -b avalonia-ui https://github.com/masto/READYCode/
 cd READYCode
 dotnet run --project ReadyCode.Avalonia
 ```
@@ -135,11 +136,11 @@ worthwhile if you expect Intel users.
 Then create the release and attach the zips:
 
 ```bash
-gh release create v2.3.0-avalonia \
-  --title "READYCode 2.3.0 for macOS" \
+gh release create v2.3.0.1-macos \
+  --title "READYCode 2.3.0.1 for macOS" \
   --notes-file RELEASE-NOTES.md \
-  ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.zip#READYCode-2.3.0-macos-arm64.zip \
-  ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.zip#READYCode-2.3.0-macos-x64.zip
+  ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode.zip#READYCode-2.3.0.1-macos-arm64.zip \
+  ReadyCode.Avalonia/bin/publish/osx-x64/READYCode.zip#READYCode-2.3.0.1-macos-x64.zip
 ```
 
 Use a tag that will not collide with the Windows app's own `v*` tags, since those trigger the
