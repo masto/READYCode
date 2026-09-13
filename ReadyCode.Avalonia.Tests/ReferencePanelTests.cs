@@ -59,6 +59,29 @@ public class ReferencePanelTests
     }
 
     [AvaloniaFact]
+    public void ShiftF3_IsFindPreviousWhileTheFindBarShows_AndTheF3QuickKeyOtherwise()
+    {
+        var (window, editor) = ShowEditor();
+        editor.Document.Text = "10 PRINT \"A\"\n20 PRINT \"A\"";
+        var findBar = window.FindControl<FindBarControl>("FindBar")!;
+
+        // With the Find bar showing, Shift+F3 navigates and inserts nothing (Windows/Linux bind
+        // Find Previous to Shift+F3; macOS to Cmd+Shift+G, but the quick key defers either way).
+        findBar.IsVisible = true;
+        Dispatcher.UIThread.RunJobs();
+        window.KeyPressQwerty(PhysicalKey.F3, RawInputModifiers.Shift);
+        Dispatcher.UIThread.RunJobs();
+        Assert.DoesNotContain((char)134, editor.Document.Text);
+
+        findBar.IsVisible = false;
+        editor.CaretOffset = editor.Document.TextLength;
+        Dispatcher.UIThread.RunJobs();
+        window.KeyPressQwerty(PhysicalKey.F3, RawInputModifiers.Shift);
+        Dispatcher.UIThread.RunJobs();
+        Assert.EndsWith(((char)134).ToString(), editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public void ActivityBar_SwitchesAndCollapsesTheRightPanel_AndGatesByLanguage()
     {
         var (window, _) = ShowEditor();

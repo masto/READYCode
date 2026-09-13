@@ -121,11 +121,8 @@ public class MenuTests
         Dispatcher.UIThread.RunJobs();
 
         // Show() already ran this via Opened on a platform with no exported menu (headless), so
-        // the bindings are in place; assert on what is actually bound. The Quick Keys shortcuts
-        // (Ctrl+1-8 etc.) are bound on every platform and aren't menu items - set them aside.
-        var bound = window.KeyBindings.Select(binding => binding.Gesture)
-            .Where(gesture => !window.QuickKeyGestures.Contains(gesture))
-            .ToList();
+        // the bindings are in place; assert on what is actually bound.
+        var bound = window.KeyBindings.Select(binding => binding.Gesture).ToList();
 
         var expected = NativeMenu.GetMenu(window)!.Items.OfType<NativeMenuItem>()
             .SelectMany(top => top.Menu?.Items.OfType<NativeMenuItem>() ?? [])
@@ -136,10 +133,11 @@ public class MenuTests
         Assert.NotEmpty(expected);
         Assert.All(expected, gesture => Assert.Contains(gesture, bound));
 
-        // On macOS the window also binds one shortcut that is not on the menu: an alternate for
-        // Find and Replace (Cmd+Shift+H), because Cmd+Alt+F is easy for another app to claim
-        // first. That binding is macOS-only, so the extra count only applies there.
-        int extra = OperatingSystem.IsMacOS() ? 1 : 0;
+        // Beyond the menu's own gestures the window binds the Quick Keys shortcuts (Ctrl+1-8 and
+        // so on, on every platform) and, on macOS only, an alternate for Find and Replace
+        // (Cmd+Shift+H), because Cmd+Alt+F is easy for another app to claim first. Shift+F3 is
+        // both a quick key and Find Previous where the menu isn't native, and is bound twice.
+        int extra = window.QuickKeyGestures.Count + (OperatingSystem.IsMacOS() ? 1 : 0);
         Assert.Equal(expected.Count + extra, bound.Count);
     }
 
