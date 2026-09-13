@@ -215,12 +215,23 @@
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
 
-            <!-- Hidden on macOS, where Preferences and About belong in the application menu
-                 instead; MainWindow moves them there at startup. -->
-            <NativeMenuItem Header="Settings">
+            <!-- Same menu and item names as WPF. Hidden on macOS, where Settings belongs in the
+                 application menu instead (as "Preferences…", the platform's own word for it);
+                 MainWindow moves it there at startup. -->
+            <NativeMenuItem Header="Preferences">
                 <NativeMenuItem.Menu>
                     <NativeMenu>
-                        <NativeMenuItem Header="Preferences…" Click="Preferences_Click" Gesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
+                        <NativeMenuItem Header="Settings…" Click="Preferences_Click" Gesture="{OnPlatform Ctrl+OemComma, macOS=Cmd+OemComma}" />
+                    </NativeMenu>
+                </NativeMenuItem.Menu>
+            </NativeMenuItem>
+
+            <!-- About moves to the application menu on macOS; the links stay here. -->
+            <NativeMenuItem Header="Help">
+                <NativeMenuItem.Menu>
+                    <NativeMenu>
+                        <NativeMenuItem Header="Visit READYCode on GitHub" Click="HelpGitHub_Click" />
+                        <NativeMenuItem Header="View Online Docs"          Click="HelpDocs_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="About READYCode" Click="About_Click" />
                     </NativeMenu>
