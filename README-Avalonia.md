@@ -242,8 +242,8 @@ your real settings.
 ## Not ported yet
 
 Project-wide search, the hex editor, file compare, the disassembler tabs, the Variables and
-Symbols side panel, ghost-text completion and `Ctrl+Space`, printing,
-recent files, drag-and-drop and cut/copy/paste in either explorer tree, and code statistics.
+Symbols side panel, ghost-text completion and `Ctrl+Space`, printing, and drag-and-drop and
+cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live

@@ -452,6 +452,7 @@ public partial class MainViewModel : INotifyPropertyChanged
 
             ActiveTab = tab;
             LastDialogFolder = Path.GetDirectoryName(path) ?? LastDialogFolder;
+            TrackRecentFile(path);
             SetStatus(existing == null ? $"Opened {tab.FileName}." : $"Reloaded {tab.FileName} from disk.");
             return true;
         }
@@ -545,6 +546,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             tab.IsModified = false;
             LastDialogFolder = Path.GetDirectoryName(filePath) ?? LastDialogFolder;
             OnPropertyChanged(nameof(WindowTitle));
+            TrackRecentFile(filePath);
 
             if (isNewPath)
                 RefreshFolderContaining(filePath);
@@ -593,12 +595,17 @@ public partial class MainViewModel : INotifyPropertyChanged
         }
     }
 
-    /// <summary>Closes <paramref name="tab"/>, always leaving at least one tab open.</summary>
-    public void CloseTab(EditorTab tab)
+    /// <summary>
+    /// Closes <paramref name="tab"/>, always leaving at least one tab open. Pass
+    /// <paramref name="rememberForReopen"/> for a close the user asked for, so Reopen Closed
+    /// Tab can bring it back; tabs closed because their file was deleted are not remembered.
+    /// </summary>
+    public void CloseTab(EditorTab tab, bool rememberForReopen = false)
     {
         int index = OpenTabs.IndexOf(tab);
         if (index < 0) return;
 
+        if (rememberForReopen) RememberClosedTab(tab);
         OpenTabs.RemoveAt(index);
         if (OpenTabs.Count == 0)
             OpenTabs.Add(EditorTab.CreateNew(EditorLanguage.Basic));
@@ -782,6 +789,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             tab.IsModified = false;
             AddTab(tab);
             ActiveTab = tab;
+            TrackRecentFile(path);
             SetStatus($"Created {fileName}.");
             return true;
         }
@@ -1008,6 +1016,25 @@ public partial class MainViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             SetStatus($"VICE transfer failed: {ex.Message}", StatusType.Error);
+        }
+    }
+
+    /// <summary>
+    /// Asks the running VICE for its version, for the About VICE dialog. Null (with the error
+    /// already reported) if VICE isn't configured or isn't answering.
+    /// </summary>
+    public async Task<ViceInfo?> FetchViceInfoAsync()
+    {
+        if (!EnsureVicePathConfigured()) return null;
+
+        try
+        {
+            return await new ViceClient(Settings.ViceMonitorHost, Settings.ViceMonitorPort).GetInfoAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("About VICE", $"Error retrieving information from VICE: {ex.Message}");
+            return null;
         }
     }
 

@@ -135,10 +135,23 @@
                         <NativeMenuItem Header="New Assembly File (.asm)" Click="FileNewAsm_Click" Gesture="{OnPlatform Ctrl+Alt+N, macOS=Cmd+Alt+N}" />
                         <NativeMenuItem Header="Open…"             Click="FileOpen_Click"       Gesture="{OnPlatform Ctrl+O, macOS=Cmd+O}" />
                         <NativeMenuItem Header="Open Folder…"      Click="FileOpenFolder_Click" Gesture="{OnPlatform Ctrl+Shift+O, macOS=Cmd+Shift+O}" />
+                        <!-- Filled in from settings by RefreshRecentFilesMenu; the list is the
+                             same one the WPF app keeps, so the two share it. -->
+                        <NativeMenuItem Header="Open Recent">
+                            <NativeMenuItem.Menu>
+                                <NativeMenu />
+                            </NativeMenuItem.Menu>
+                        </NativeMenuItem>
+                        <NativeMenuItem Header="Reopen Closed Tab" Click="FileReopenClosedTab_Click" Gesture="{OnPlatform Ctrl+Shift+T, macOS=Cmd+Shift+T}" IsEnabled="{Binding HasClosedTabHistory}" />
                         <NativeMenuItem Header="Close Folder"      Click="FileCloseFolder_Click" IsEnabled="{Binding IsFolderOpen}" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Save"      Click="FileSave_Click"   Gesture="{OnPlatform Ctrl+S, macOS=Cmd+S}" />
                         <NativeMenuItem Header="Save As…"  Click="FileSaveAs_Click" Gesture="{OnPlatform Ctrl+Shift+S, macOS=Cmd+Shift+S}" />
+                        <NativeMenuItemSeparator />
+                        <!-- Plain-text round trip of the editor's contents, bypassing PETSCII
+                             mapping and tokenization; no shortcuts, as in WPF. -->
+                        <NativeMenuItem Header="Export…" Click="FileExport_Click" />
+                        <NativeMenuItem Header="Import…" Click="FileImport_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Close Tab" Click="FileClose_Click"  Gesture="{OnPlatform Ctrl+W, macOS=Cmd+W}" />
                         <NativeMenuItemSeparator />
@@ -153,12 +166,24 @@
                         <NativeMenuItem Header="Undo" Click="EditUndo_Click" Gesture="{OnPlatform Ctrl+Z, macOS=Cmd+Z}" />
                         <NativeMenuItem Header="Redo" Click="EditRedo_Click" Gesture="{OnPlatform Ctrl+Y, macOS=Cmd+Shift+Z}" />
                         <NativeMenuItemSeparator />
+                        <!-- On the Control key on macOS too: Cmd+G is Find Next there (the
+                             system convention), and Ctrl+G is what VS Code uses on a Mac. -->
+                        <NativeMenuItem Header="Go to Line…" Click="EditGoToLine_Click" Gesture="Ctrl+G" />
+                        <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Cut"    Click="EditCut_Click"    Gesture="{OnPlatform Ctrl+X, macOS=Cmd+X}" />
                         <NativeMenuItem Header="Copy"   Click="EditCopy_Click"   Gesture="{OnPlatform Ctrl+C, macOS=Cmd+C}" />
                         <NativeMenuItem Header="Paste"  Click="EditPaste_Click"  Gesture="{OnPlatform Ctrl+V, macOS=Cmd+V}" />
                         <NativeMenuItem Header="Delete" Click="EditDelete_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Select All" Click="EditSelectAll_Click" Gesture="{OnPlatform Ctrl+A, macOS=Cmd+A}" />
+                        <NativeMenuItemSeparator />
+                        <!-- REM-toggling of the selected lines (BASIC only). No shortcuts:
+                             WPF's are Ctrl+K chords, which have no equivalent here. -->
+                        <NativeMenuItem Header="Comment Selection"   Click="EditComment_Click"   IsVisible="{Binding IsBasicTabActive}" />
+                        <NativeMenuItem Header="Uncomment Selection" Click="EditUncomment_Click" IsVisible="{Binding IsBasicTabActive}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Make Uppercase" Click="EditMakeUppercase_Click" Gesture="{OnPlatform Ctrl+Shift+U, macOS=Cmd+Shift+U}" />
+                        <NativeMenuItem Header="Make Lowercase" Click="EditMakeLowercase_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Lower Case Mode" Click="EditLowerCaseMode_Click"
                                         ToggleType="CheckBox" IsChecked="{Binding IsLowerCaseModeActive, Mode=OneWay}"
@@ -198,6 +223,8 @@
                              is WPF's Prettify Code shortcut - left free for when that's ported. -->
                         <NativeMenuItem Header="Problems"    Click="ViewProblems_Click" />
                         <NativeMenuItem Header="Debug Panel" Click="ViewDebugPanel_Click" Gesture="{OnPlatform Ctrl+Shift+D, macOS=Cmd+Shift+D}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Code Statistics" Click="ViewCodeStatistics_Click" />
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
@@ -221,6 +248,8 @@
                         <NativeMenuItem Header="Resume" Click="ViceResume_Click" />
                         <NativeMenuItemSeparator />
                         <NativeMenuItem Header="Power Off" Click="VicePowerOff_Click" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="About VICE" Click="ViceAbout_Click" />
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>

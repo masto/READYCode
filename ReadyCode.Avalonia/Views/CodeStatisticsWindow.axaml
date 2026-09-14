@@ -1,0 +1,44 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ReadyCode.Avalonia.Views.CodeStatisticsWindow"
+        Title="Code Statistics"
+        Width="340" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="20,16,20,20">
+        <Grid ColumnDefinitions="*,Auto" RowDefinitions="28,28,28,1,28" Margin="0,0,0,14">
+            <TextBlock Grid.Row="0" Grid.Column="0" Classes="label" Text="Characters" />
+            <TextBlock Grid.Row="0" Grid.Column="1" Classes="value" x:Name="CharCountText" />
+
+            <TextBlock Grid.Row="1" Grid.Column="0" Classes="label" Text="Words" />
+            <TextBlock Grid.Row="1" Grid.Column="1" Classes="value" x:Name="WordCountText" />
+
+            <TextBlock Grid.Row="2" Grid.Column="0" Classes="label" Text="Lines" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Classes="value" x:Name="LineCountText" />
+
+            <Border Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2" Background="{DynamicResource ThemeSettingsDivider}" Margin="0,4" />
+
+            <TextBlock Grid.Row="4" Grid.Column="0" Classes="label" x:Name="TokenBytesLabelText" />
+            <TextBlock Grid.Row="4" Grid.Column="1" Classes="value" x:Name="TokenBytesText" />
+        </Grid>
+
+        <TextBlock x:Name="TokenBytesDescriptionText" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,16"
+                   Foreground="{DynamicResource ThemeSettingsDescFg}" />
+
+        <Button Content="OK" MinWidth="90" HorizontalAlignment="Center" IsDefault="True" IsCancel="True" Click="Ok_Click" />
+    </StackPanel>
+</Window>

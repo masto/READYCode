@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ReadyCode.Avalonia.Views.AboutViceWindow"
+        Title="About VICE"
+        Width="420" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeSettingsDescFg}" />
+        </Style>
+        <Style Selector="TextBlock.value">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+    </Window.Styles>
+
+    <StackPanel Margin="24" Spacing="2">
+        <TextBlock Text="VICE" FontSize="18" FontWeight="Bold" Margin="0,0,0,12" />
+
+        <TextBlock Classes="label" Text="Version" />
+        <TextBlock x:Name="VersionText" Classes="value" />
+
+        <TextBlock Classes="label" Text="Emulator path" />
+        <TextBlock x:Name="EmulatorPathText" Classes="value" />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="OK" MinWidth="80" IsDefault="True" IsCancel="True" Click="Ok_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>

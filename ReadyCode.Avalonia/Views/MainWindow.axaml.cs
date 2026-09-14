@@ -301,6 +301,8 @@ public partial class MainWindow : Window
             breakpoint.PropertyChanged += Breakpoint_PropertyChanged;
         vm.ErrorRaised += (title, message) => Dispatcher.UIThread.Post(async () => await MessageDialog.ShowAsync(this, title, message));
         vm.RefreshKeyboardLockStatus();
+        vm.RecentFilesChanged += RefreshRecentFilesMenu;
+        RefreshRecentFilesMenu();
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
@@ -361,7 +363,10 @@ public partial class MainWindow : Window
         if (ReferenceEquals(tab, _boundTab)) return;
 
         if (_boundTab != null)
+        {
             _boundTab.PropertyChanged -= BoundTab_PropertyChanged;
+            _boundTab.CaretOffset = Editor.CaretOffset;
+        }
 
         _boundTab = tab;
         if (tab == null) return;
@@ -371,6 +376,7 @@ public partial class MainWindow : Window
         UninstallFolding();
         _findHighlightColorizer.Clear();
         Editor.Document = tab.Document;
+        Editor.CaretOffset = Math.Min(tab.CaretOffset, tab.Document.TextLength);
         ApplyLanguageStyling(tab);
         InstallFolding(tab);
         _diagnosticsTimer.Stop();
@@ -1413,8 +1419,15 @@ public partial class MainWindow : Window
             if (choice == "Save" && !await SaveTabAsync(tab, forceDialog: false)) return;
         }
 
-        ViewModel.CloseTab(tab);
+        tab.CaretOffset = Editor.CaretOffset;
+        ViewModel.CloseTab(tab, rememberForReopen: true);
     }
+
+    private void FileReopenClosedTab_Click(object? sender, EventArgs e) => ViewModel.ReopenClosedTab();
+
+    private async void FileExport_Click(object? sender, EventArgs e) => await ExportTextAsync();
+
+    private async void FileImport_Click(object? sender, EventArgs e) => await ImportTextAsync();
 
     private void FileExit_Click(object? sender, EventArgs e) => Close();
 
@@ -1956,6 +1969,12 @@ public partial class MainWindow : Window
     private async void EditPaste_Click(object? sender, EventArgs e) => await PasteAsync();
     private void EditDelete_Click(object? sender, EventArgs e) => Editor.Delete();
     private void EditSelectAll_Click(object? sender, EventArgs e) => Editor.SelectAll();
+    private async void EditGoToLine_Click(object? sender, EventArgs e) => await ExecuteGoToLineAsync();
+    private void EditComment_Click(object? sender, EventArgs e) => ExecuteCommentSelection();
+    private void EditUncomment_Click(object? sender, EventArgs e) => ExecuteUncommentSelection();
+    private void EditMakeUppercase_Click(object? sender, EventArgs e) => ExecuteChangeSelectionCase(upper: true);
+    private void EditMakeLowercase_Click(object? sender, EventArgs e) => ExecuteChangeSelectionCase(upper: false);
+    private async void ViewCodeStatistics_Click(object? sender, EventArgs e) => await ShowCodeStatisticsAsync();
 
     private async void ViceRun_Click(object? sender, EventArgs e)
     {
@@ -1993,6 +2012,14 @@ public partial class MainWindow : Window
     private async void C64UPause_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("pause", "C64 Ultimate machine paused.");
     private async void C64UResume_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("resume", "C64 Ultimate machine resumed.");
     private async void C64UPowerOff_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("poweroff", "C64 Ultimate powered off.");
+
+    private async void ViceAbout_Click(object? sender, EventArgs e) => await ShowAboutViceAsync();
+
+    private async Task ShowAboutViceAsync()
+    {
+        var info = await ViewModel.FetchViceInfoAsync();
+        if (info != null) await new AboutViceWindow(info, ViewModel.Settings.ViceEmulatorPath).ShowDialog(this);
+    }
 
     private async void C64UAbout_Click(object? sender, EventArgs e) => await ShowAboutC64UAsync();
 

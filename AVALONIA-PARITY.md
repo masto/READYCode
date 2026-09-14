@@ -130,23 +130,26 @@ Originally filed under "polish" below; on inspection it is a real feature, not a
 
 ---
 
-## Medium items (mostly UI wiring against data that's already shared)
+## Medium items - DONE
 
-- [ ] **Recent Files** - `File > Open Recent` submenu. `Settings.RecentFiles` already exists and
-  is populated by nothing on the Avalonia side.
-- [ ] **Reopen Closed Tab** (`Ctrl+Shift+T`) - small in-memory history of closed-tab snapshots,
-  WPF-only (`_closedTabHistory` in `MainWindow.xaml.cs`).
-- [ ] **Code Statistics dialog** - char/word/line count, tokenized byte count. Trivial logic,
-  just needs a dialog.
-- [ ] **About VICE dialog** - the VICE-menu counterpart to the C64U menu's "About My C64
-  Ultimate…", which Avalonia already has.
-- [ ] **Go to Line** (`Ctrl+G`) - simple modal, no Core dependency.
-- [ ] **Comment / Uncomment Selection** (`Ctrl+K Ctrl+C` / `Ctrl+K Ctrl+U`) in the Edit menu.
-- [ ] **Make Uppercase / Make Lowercase** - plain selection case-conversion in the Edit menu.
-  Unrelated to this session's C64-keyboard Upper/Lower Case Mode work - this is a text utility,
-  not keyboard emulation.
-- [ ] **Export as text / Import from text** (`File > Export…` / `Import…`) - save/open the
-  editor's raw text as a plain `.txt`, bypassing PETSCII/tokenizing. ~30 lines each in WPF.
+All UI wiring against logic that was already shared, plus per-tab caret memory that fell out of
+Reopen Closed Tab (switching tabs now keeps each one's caret, as WPF does).
+
+- [x] **Recent Files** - `File > Open Recent`, fed from the same `Settings.RecentFiles` the WPF
+  app keeps, so the two share one list. Tracked on open, save, and explorer New File, as WPF.
+- [x] **Reopen Closed Tab** (`Ctrl+Shift+T`) - in-memory history of the last 20 user-closed
+  tabs, restoring unsaved text, the modified flag, caret, and disk-image identity. Tabs closed
+  because their file was deleted are not recorded.
+- [x] **Code Statistics dialog** - `View > Code Statistics`, tokenized or assembled byte count
+  per the tab's language.
+- [x] **About VICE dialog** - `VICE > About VICE`.
+- [x] **Go to Line** (`Ctrl+G`, on the Control key on macOS too since `Cmd+G` is Find Next) -
+  BASIC line number or file line number, as WPF.
+- [x] **Comment / Uncomment Selection** - BASIC tabs only; no shortcuts (WPF's are `Ctrl+K`
+  chords, see the note under shortcuts below).
+- [x] **Make Uppercase** (`Ctrl+Shift+U`) **/ Make Lowercase**.
+- [x] **Export… / Import…** - the editor's raw text as a plain `.txt`, bypassing PETSCII and
+  tokenizing.
 
 ---
 
