@@ -362,7 +362,7 @@ public class ViceClient
     private async Task RequireViceRunningAsync()
     {
         if (!await IsMonitorListeningAsync())
-            throw new InvalidOperationException("VICE is not running. Use Transfer or Run to start it first.");
+            throw new InvalidOperationException("VICE is not running. Load or run a program to start it first.");
     }
 
     // Disposes and clears any binary monitor connection held open by PauseAsync.
