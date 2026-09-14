@@ -103,6 +103,13 @@ public class EditorTab : INotifyPropertyChanged
     public IReadOnlyList<EditorDiagnostic> Diagnostics { get; set; } = Array.Empty<EditorDiagnostic>();
 
     /// <summary>
+    /// Gets or sets where the caret was when this tab was last shown, so switching back to it
+    /// (or reopening it after a close) lands where the user left off. The editor writes this
+    /// when the tab is switched away from and reads it when the tab is bound.
+    /// </summary>
+    public int CaretOffset { get; set; }
+
+    /// <summary>
     /// Gets or sets the file kind (BASIC listing, tokenized PRG, assembly...), which decides how
     /// the text is rendered and saved.
     /// </summary>
