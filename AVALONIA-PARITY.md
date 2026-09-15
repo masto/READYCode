@@ -82,14 +82,16 @@ things are added - see `MenuTests.cs`.
   WPF Quick Keys cards are still hand-written XAML - generating them from the same table is a
   small follow-up for the eventual unification.
 
-### Static Variables / Symbols panel
-- [ ] Lists every variable in a BASIC program, or every label/constant in an assembly program
-- [ ] Click-to-jump navigation, one-step rename (F2)
-- [ ] Always available (not tied to a debug session) - **distinct from** the Debug panel's live
-  Variables view, which Avalonia already has
-- **Core logic**: `ReadyCode.Core/Diagnostics/VariableCrossReference.cs` and
-  `AsmSymbolIndex.cs` already compute this. Missing: the always-on side panel UI and the F2
-  rename flow.
+### Static Variables / Symbols panel - DONE
+- [x] Every variable in a BASIC program, or every label/constant in an assembly program, with
+  each occurrence as a child (read/write, defined/used, by line), under the folder explorer
+  with a row splitter; `View > Variables` (`Ctrl+Alt+V`) hides it. Same settings keys as WPF
+  (`ShowVariableExplorer`, `ExplorerFolderTreeHeight`).
+- [x] Double-click / Enter on an occurrence jumps to its line; F2 or the context menu renames a
+  variable everywhere in the file as one undo step. Rename is a text prompt rather than WPF's
+  inline box, like the explorer's rename here.
+- The index is the shared `VariableCrossReference` / `AsmSymbolIndex`, rebuilt in place after
+  each document analysis (`MainViewModel.SymbolIndex.cs`), so expanded nodes stay expanded.
 
 ### Ghost-text completion + Ctrl+Space - DONE
 - [x] Inline "ghost text" keyword-completion suggestion as you type, Tab to accept

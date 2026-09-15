@@ -307,6 +307,7 @@ public partial class MainWindow : Window
         ApplyEditorSettings();
         _explorerWidth = vm.Settings.LeftPanelWidth > 60 ? vm.Settings.LeftPanelWidth : 230;
         ApplyExplorerLayout();
+        ApplyVariableExplorerLayout();
         _rightPanelWidth = vm.Settings.RightPanelWidth > 60 ? vm.Settings.RightPanelWidth : 230;
         ApplyRightPanelLayout();
         BuildReferencePanels();
@@ -329,6 +330,9 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsExplorerOpen):
                 ApplyExplorerLayout();
+                break;
+            case nameof(MainViewModel.ShowVariableExplorer):
+                ApplyVariableExplorerLayout();
                 break;
             case nameof(MainViewModel.IsRightPanelOpen):
                 ApplyRightPanelLayout();
@@ -907,6 +911,7 @@ public partial class MainWindow : Window
         if (vm.IsExplorerOpen && column.Width.IsAbsolute && column.Width.Value > 0)
             _explorerWidth = column.Width.Value;
         vm.Settings.LeftPanelWidth = _explorerWidth;
+        PersistFolderTreeHeight();
 
         var rightColumn = MainGrid.ColumnDefinitions[5];
         if (vm.IsRightPanelOpen && rightColumn.Width.IsAbsolute && rightColumn.Width.Value > 0)

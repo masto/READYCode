@@ -66,6 +66,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     public MainViewModel()
     {
+        SymbolGroups = [ConstantSymbols, LabelSymbols];
         Settings = AppSettings.Load();
         ApplyPlatformDefaults(Settings);
         LastDialogFolder = Directory.Exists(Settings.LastFolderPath) ? Settings.LastFolderPath : "";
@@ -101,6 +102,7 @@ public partial class MainViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(WindowTitle));
             RefreshShiftModeStatus();
             ApplyLanguageToRightPanel();
+            OnPropertyChanged(nameof(SymbolPanelTitle));
         }
     }
 
@@ -623,12 +625,16 @@ public partial class MainViewModel : INotifyPropertyChanged
     public IReadOnlyList<EditorDiagnostic> AnalyzeTab(EditorTab tab)
     {
         string text = tab.Document.Text;
+        AssemblyResult? asmResult = tab.Language == EditorLanguage.Asm
+            ? new Asm6502Assembler().Assemble(text, Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress)
+            : null;
         tab.Diagnostics = !Settings.EnableLinting
             ? Array.Empty<EditorDiagnostic>()
-            : tab.Language == EditorLanguage.Asm
-                ? AsmDiagnostics.Analyze(text, new Asm6502Assembler().Assemble(text, Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress))
+            : asmResult != null
+                ? AsmDiagnostics.Analyze(text, asmResult)
                 : BasicDiagnostics.Analyze(text);
         RefreshErrorList();
+        if (ReferenceEquals(tab, ActiveTab)) RefreshSymbolIndex(asmResult);
         return tab.Diagnostics;
     }
 

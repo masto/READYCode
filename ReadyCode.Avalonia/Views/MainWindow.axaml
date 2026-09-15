@@ -120,8 +120,35 @@
         <Style Selector="TabStrip#Tabs TabStripItem:selected">
             <Setter Property="Foreground" Value="{DynamicResource ThemeTabActiveFg}" />
         </Style>
-        <Style Selector="TreeView#FileTree TreeViewItem TextBlock, TreeView#C64UFileTree TreeViewItem TextBlock">
+        <Style Selector="TreeView#FileTree TreeViewItem TextBlock, TreeView#C64UFileTree TreeViewItem TextBlock, TreeView#VariablesTree TreeViewItem TextBlock, TreeView#SymbolsTree TreeViewItem TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource ThemeFileFg}" />
+        </Style>
+        <!-- Variable/Symbol Explorer rows: the variables and symbols expand to their occurrences
+             (child combinator: the occurrence rows have no IsExpanded to bind), the symbol groups
+             start expanded. -->
+        <Style Selector="TreeView#VariablesTree > TreeViewItem" x:DataType="core:VariableInfo">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+        <Style Selector="TreeView#SymbolsTree > TreeViewItem" x:DataType="core:AsmSymbolGroupInfo">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+        <Style Selector="TreeView#SymbolsTree > TreeViewItem > TreeViewItem" x:DataType="core:AsmSymbolInfo">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+        <Style Selector="TreeView#VariablesTree TreeViewItem, TreeView#SymbolsTree TreeViewItem">
+            <Setter Property="Padding" Value="2,1" />
+        </Style>
+        <Style Selector="Border.symbolBadge">
+            <Setter Property="Background" Value="{DynamicResource ThemeFolderExplorerHoverBg}" />
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="Margin" Value="6,0,8,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Border.symbolBadge TextBlock">
+            <Setter Property="FontSize" Value="9" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeFolderExplorerIconFg}" />
         </Style>
     </Window.Styles>
 
@@ -212,6 +239,8 @@
                     <NativeMenu>
                         <NativeMenuItem Header="Explorer" Click="ViewExplorer_Click" Gesture="{OnPlatform Ctrl+B, macOS=Cmd+B}"
                                         ToggleType="CheckBox" IsChecked="{Binding IsExplorerOpen, Mode=OneWay}" />
+                        <NativeMenuItem Header="Variables" Click="ViewVariables_Click" Gesture="{OnPlatform Ctrl+Alt+V, macOS=Cmd+Alt+V}"
+                                        ToggleType="CheckBox" IsChecked="{Binding ShowVariableExplorer, Mode=OneWay}" />
                         <NativeMenuItem Header="Secondary Side Bar" Click="ViewSecondarySideBar_Click" Gesture="{OnPlatform Ctrl+Alt+B, macOS=Cmd+Alt+B}"
                                         ToggleType="CheckBox" IsChecked="{Binding IsRightPanelOpen, Mode=OneWay}" />
                         <NativeMenuItemSeparator />
@@ -377,8 +406,8 @@
             <!-- Left panel: Folder explorer / C64U explorer. Both live in one Panel so the
                  DockPanel fills the whole panel with them - as separate DockPanel children the
                  first would dock left and shrink to its content width. -->
-            <DockPanel Grid.Column="1" x:Name="ExplorerPanel" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsExplorerOpen}">
-              <Panel>
+            <Grid Grid.Column="1" x:Name="ExplorerPanel" RowDefinitions="250,4,*" Background="{DynamicResource ThemeFolderExplorerBg}" IsVisible="{Binding IsExplorerOpen}">
+              <Panel Grid.Row="0">
 
                 <!-- Folder explorer -->
                 <DockPanel IsVisible="{Binding IsExplorerTabActive}">
@@ -515,7 +544,70 @@
                     </Panel>
                 </DockPanel>
               </Panel>
-            </DockPanel>
+
+              <GridSplitter Grid.Row="1" x:Name="ExplorerRowSplitter" ResizeDirection="Rows" Background="{DynamicResource ThemeSplitter}" />
+
+              <!-- Variable Explorer (BASIC) / Symbol Explorer (assembly): every variable, or
+                   every label and constant, in the active document, each occurrence a child -
+                   double-click one to jump to its line. Below the folder explorer whichever
+                   left tab is showing, as in WPF; View > Variables hides it. -->
+              <DockPanel Grid.Row="2" x:Name="VariablesPanel">
+                <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
+                    <TextBlock Text="{Binding SymbolPanelTitle}" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeFileFg}"
+                               VerticalAlignment="Center" Margin="10,0,0,0" />
+                </Border>
+                <Panel>
+                    <TreeView x:Name="VariablesTree"
+                              ItemsSource="{Binding Variables}"
+                              IsVisible="{Binding !IsAsmTabActive}"
+                              Background="Transparent" BorderThickness="0"
+                              DoubleTapped="VariablesTree_DoubleTapped"
+                              KeyDown="VariablesTree_KeyDown"
+                              ContextRequested="VariablesTree_ContextRequested">
+                        <TreeView.DataTemplates>
+                            <TreeDataTemplate x:DataType="core:VariableInfo" ItemsSource="{Binding Occurrences}">
+                                <Grid ColumnDefinitions="*,Auto" Background="Transparent">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Grid.Column="1" Classes="symbolBadge">
+                                        <TextBlock Text="{Binding TypeBadge}" />
+                                    </Border>
+                                </Grid>
+                            </TreeDataTemplate>
+                            <DataTemplate x:DataType="core:VariableOccurrenceInfo">
+                                <TextBlock Text="{Binding DisplayText}" FontSize="12" VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </TreeView.DataTemplates>
+                    </TreeView>
+
+                    <TreeView x:Name="SymbolsTree"
+                              ItemsSource="{Binding SymbolGroups}"
+                              IsVisible="{Binding IsAsmTabActive}"
+                              Background="Transparent" BorderThickness="0"
+                              DoubleTapped="SymbolsTree_DoubleTapped"
+                              KeyDown="SymbolsTree_KeyDown">
+                        <TreeView.DataTemplates>
+                            <TreeDataTemplate x:DataType="core:AsmSymbolGroupInfo" ItemsSource="{Binding Symbols}">
+                                <TextBlock FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center">
+                                    <Run Text="{Binding Name}" /><Run Text=" (" /><Run Text="{Binding Symbols.Count}" /><Run Text=")" />
+                                </TextBlock>
+                            </TreeDataTemplate>
+                            <TreeDataTemplate x:DataType="core:AsmSymbolInfo" ItemsSource="{Binding Occurrences}">
+                                <Grid ColumnDefinitions="*,Auto,Auto" Background="Transparent">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding ValueText}" FontSize="11" VerticalAlignment="Center" Margin="6,0,0,0" Opacity="0.7" />
+                                    <Border Grid.Column="2" Classes="symbolBadge">
+                                        <TextBlock Text="{Binding TypeBadge}" />
+                                    </Border>
+                                </Grid>
+                            </TreeDataTemplate>
+                            <DataTemplate x:DataType="core:AsmSymbolOccurrenceInfo">
+                                <TextBlock Text="{Binding DisplayText}" FontSize="12" VerticalAlignment="Center" />
+                            </DataTemplate>
+                        </TreeView.DataTemplates>
+                    </TreeView>
+                </Panel>
+              </DockPanel>
+            </Grid>
 
             <GridSplitter Grid.Column="2" x:Name="ExplorerSplitter" ResizeDirection="Columns" Background="{DynamicResource ThemeSplitter}" IsVisible="{Binding IsExplorerOpen}" />
 
