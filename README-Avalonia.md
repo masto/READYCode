@@ -137,14 +137,14 @@ worthwhile if you expect Intel users.
 Rename both to their final public filenames, then create the release and attach them:
 
 ```bash
-cp ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode-osx-arm64.zip READYCode-2.4.0.2-macos-arm64.zip
-cp ReadyCode.Avalonia/bin/publish/osx-x64/READYCode-osx-x64.zip READYCode-2.4.0.2-macos-x64.zip
+cp ReadyCode.Avalonia/bin/publish/osx-arm64/READYCode-osx-arm64.zip READYCode-2.4.0.3-macos-arm64.zip
+cp ReadyCode.Avalonia/bin/publish/osx-x64/READYCode-osx-x64.zip READYCode-2.4.0.3-macos-x64.zip
 
-gh release create v2.4.0.2-macos \
-  --title "READYCode 2.4.0.2 for macOS" \
+gh release create v2.4.0.3-macos \
+  --title "READYCode 2.4.0.3 for macOS" \
   --notes-file RELEASE-NOTES.md \
-  READYCode-2.4.0.2-macos-arm64.zip \
-  READYCode-2.4.0.2-macos-x64.zip
+  READYCode-2.4.0.3-macos-arm64.zip \
+  READYCode-2.4.0.3-macos-x64.zip
 ```
 
 Copy to distinct filenames first rather than using `gh release create`'s `path#label` syntax to
