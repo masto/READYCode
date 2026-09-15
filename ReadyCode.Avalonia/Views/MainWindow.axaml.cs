@@ -112,6 +112,7 @@ public partial class MainWindow : Window
         Editor.TextArea.TextView.BackgroundRenderers.Add(_errorSquiggleRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_debugCurrentLineRenderer);
+        InstallCompletion();
         _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
@@ -1627,6 +1628,11 @@ public partial class MainWindow : Window
         RevealCaretLine();
         RedrawMatches(_findMatches);
         FindBar.SetMatchCount(_findMatchIndex + 1, _findMatches.Count);
+
+        // Selecting the match moved the caret, and a match that happens to be a whole keyword
+        // ("SIN") would otherwise show a suggestion ("()") - noise when the user is finding,
+        // not typing.
+        ClearGhostText();
     }
 
     private void ExecuteReplace()
@@ -1764,6 +1770,14 @@ public partial class MainWindow : Window
         // constructor covers a toggle made while some other window had focus).
         _lastKeyModifiers = e.KeyModifiers;
         ViewModel.RefreshKeyboardLockStatus();
+
+        if (HandleCompletionKey(e))
+        {
+            // Enter/Tab with the popup open are left unhandled here so the popup's own handler,
+            // later in the tunnel, accepts the selection; only the line-numbering below is skipped.
+            if (!IsCompletionPopupOpen) e.Handled = true;
+            return;
+        }
 
         bool primary = e.KeyModifiers.HasFlag(OperatingSystem.IsMacOS() ? KeyModifiers.Meta : KeyModifiers.Control);
         if ((e.Key == Key.V && primary) || (e.Key == Key.Insert && e.KeyModifiers.HasFlag(KeyModifiers.Shift)))

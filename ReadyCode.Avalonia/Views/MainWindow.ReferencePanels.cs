@@ -126,6 +126,11 @@ public partial class MainWindow
         Editor.Select(caret, 0);
         Editor.TextArea.Caret.BringCaretToView();
         Editor.Focus();
+
+        // Raw PETSCII bytes can satisfy char.IsLetterOrDigit and get swept into the "word" before
+        // the caret, coincidentally matching a keyword - a suggestion after a picker insert is
+        // never wanted.
+        ClearGhostText();
     }
 
     #endregion

@@ -180,6 +180,9 @@ approve the automation the first time.
   and `.asm`/`.s`. BASIC and 6502 syntax highlighting, PETSCII rendering through the embedded
   Pet Me 64 font, code folding, zero-padded line numbers, auto-numbering, assembly auto-indent, and
   a column guide.
+- **Keyword completion** - a greyed "ghost text" suggestion follows the caret as you type a
+  keyword or mnemonic; Tab accepts it. `Ctrl+Space` (on the Control key on macOS too, as in VS
+  Code) opens a popup listing every match, or every keyword if nothing is typed yet.
 - **C64 keyboard emulation** - BASIC is upper case by default, matching the C64's charset: an
   unshifted letter types upper case, and Shift (or Caps Lock) produces the PETSCII graphic
   occupying that key's shifted position, exactly like a real C64. The keyboard keyword
@@ -242,8 +245,7 @@ your real settings.
 ## Not ported yet
 
 Project-wide search, the hex editor, file compare, the disassembler tabs, the Variables and
-Symbols side panel, ghost-text completion and `Ctrl+Space`, printing, and drag-and-drop and
-cut/copy/paste in either explorer tree.
+Symbols side panel, printing, and drag-and-drop and cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
