@@ -165,7 +165,7 @@ public class ExplorerTests : IDisposable
 
         // The header row (folder name plus its buttons) spans the whole panel, not just its content.
         var header = window.FindControl<Border>("ExplorerHeader")!;
-        var panel = window.FindControl<DockPanel>("ExplorerPanel")!;
+        var panel = window.FindControl<Grid>("ExplorerPanel")!;
         Assert.Equal(panel.Bounds.Width, header.Bounds.Width, 0.5);
 
         // Clicking the active tab's icon collapses the panel; the C64U icon opens it on that tab.

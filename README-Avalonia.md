@@ -196,6 +196,9 @@ approve the automation the first time.
   place, and the programs inside them open and save back into the image. New file and folder,
   rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE or the C64 Ultimate
   straight from the tree.
+- **Variable / Symbol Explorer** - under the folder explorer, every variable in the BASIC
+  program (or every label and constant in the assembly program) with each place it's set or
+  read; double-click one to jump there, F2 to rename a variable throughout the file.
 - **Find and replace** - `Cmd`/`Ctrl+F`, with match case, whole word, and regex.
 - **Diagnostics** - live squiggles for invalid `GOTO`/`GOSUB` targets, unmatched `FOR`/`NEXT`,
   unterminated strings, duplicate line numbers, and assembly errors, with hover messages and a
@@ -244,8 +247,8 @@ your real settings.
 
 ## Not ported yet
 
-Project-wide search, the hex editor, file compare, the disassembler tabs, the Variables and
-Symbols side panel, printing, and drag-and-drop and cut/copy/paste in either explorer tree.
+Project-wide search, the hex editor, file compare, the disassembler tabs, printing, and
+drag-and-drop and cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
