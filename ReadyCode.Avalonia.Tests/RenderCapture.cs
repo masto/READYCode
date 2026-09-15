@@ -1,6 +1,8 @@
 // Copyright (c) 2026 Moonspace Labs, LLC
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
@@ -40,6 +42,31 @@ internal static class RenderCapture
         }
 
         return frame;
+    }
+
+    /// <summary>
+    /// Whether any pixel along a horizontal strip of <paramref name="frame"/> differs from the
+    /// strip's last pixel - i.e. something is drawn there on an otherwise flat background.
+    /// </summary>
+    /// <param name="frame">The captured frame.</param>
+    /// <param name="x">Left edge of the strip.</param>
+    /// <param name="y">Row to sample.</param>
+    /// <param name="width">Width of the strip; its right end must be plain background.</param>
+    public static bool HasInk(Bitmap frame, int x, int y, int width)
+    {
+        width = Math.Min(width, frame.PixelSize.Width - x);
+        if (width <= 0 || y < 0 || y >= frame.PixelSize.Height) return false;
+
+        var pixels = new uint[width];
+        var handle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+        try
+        {
+            frame.CopyPixels(new PixelRect(x, y, width, 1), handle.AddrOfPinnedObject(), width * 4, width * 4);
+        }
+        finally { handle.Free(); }
+
+        uint background = pixels[^1];
+        return pixels.Any(p => p != background);
     }
 
     #endregion

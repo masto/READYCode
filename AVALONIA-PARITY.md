@@ -91,14 +91,14 @@ things are added - see `MenuTests.cs`.
   `AsmSymbolIndex.cs` already compute this. Missing: the always-on side panel UI and the F2
   rename flow.
 
-### Ghost-text completion + Ctrl+Space
-- [ ] Inline "ghost text" keyword-completion suggestion as you type
-- [ ] `Ctrl+Space` to force-open the completion popup
-- **Core logic**: `ReadyCode.Core/Editor/BasicCompletionProvider.cs`,
-  `AsmCompletionProvider.cs`, and `KeywordCompletionItem` already exist and are shared. Missing:
-  `GhostTextRenderer`-equivalent (AvaloniaEdit adorner) and the completion popup wiring
-  (`KeywordCompletionData` is WPF's AvalonEdit-specific adapter over the shared provider - would
-  need an AvaloniaEdit equivalent).
+### Ghost-text completion + Ctrl+Space - DONE
+- [x] Inline "ghost text" keyword-completion suggestion as you type, Tab to accept
+- [x] `Ctrl+Space` to open the completion popup (Control on macOS too, as VS Code does there)
+- The keyword tables and matching were already shared (`BasicCompletionProvider`,
+  `AsmCompletionProvider`); the Avalonia side is `GhostTextRenderer` (a caret-layer
+  background renderer rather than WPF's adorner, so it draws in the caret layer's own render
+  pass and never re-enters layout), `KeywordCompletionData` over AvaloniaEdit's own
+  `CompletionWindow`, and the key wiring in `MainWindow.Completion.cs`.
 
 ### Printing
 - [ ] Page Setup, Print Preview, Print
