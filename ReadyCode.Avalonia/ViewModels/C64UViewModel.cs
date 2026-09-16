@@ -556,17 +556,12 @@ public partial class MainViewModel
     /// Opens a program from the C64U explorer tree in a tab: a real remote file is downloaded
     /// first, a disk-image entry's bytes are already in memory.
     /// </summary>
-    public async Task<bool> OpenC64UItemAsync(C64UFileItem item)
+    public async Task<bool> OpenC64UItemAsync(C64UFileItem item, bool forceHex = false)
     {
-        if (!item.IsOpenable)
+        bool wantsHexMode = forceHex || item.Kind == C64UFileKind.Ml;
+        if (!item.IsOpenable && !wantsHexMode)
         {
             SetStatus($"{item.Name} isn't a text-editable program type.", StatusType.Warning);
-            return false;
-        }
-
-        if (item.Kind == C64UFileKind.Ml)
-        {
-            SetStatus("Machine-language files need the hex editor, which isn't available yet in this version.", StatusType.Warning);
             return false;
         }
 
@@ -576,14 +571,15 @@ public partial class MainViewModel
         // path - editing and saving it behaves like an ordinary new, path-less file, the same as
         // it would if the C64 Ultimate had no FTP write-back support at all.
         string? sourceId = item.IsVirtual ? $"{item.SourcePath}!{item.Name}" : null;
-        if (sourceId != null)
+        var existing = sourceId != null ? OpenTabs.FirstOrDefault(t => t.VirtualSourceId == sourceId) : null;
+        if (existing != null)
         {
-            var existing = OpenTabs.FirstOrDefault(t => t.VirtualSourceId == sourceId);
-            if (existing != null)
+            if (existing.IsHexMode == wantsHexMode)
             {
                 ActiveTab = existing;
                 return true;
             }
+            if (!CanReloadInMode(existing, wantsHexMode)) return true;
         }
 
         byte[] content;
@@ -599,20 +595,29 @@ public partial class MainViewModel
 
         try
         {
-            var tab = new EditorTab
+            var tab = existing ?? new EditorTab
             {
                 DisplayName = item.Name,
                 VirtualSourceId = sourceId,
                 IsC64UVirtual = sourceId != null,
-                Kind = item.Kind,
-                Language = item.Kind == C64UFileKind.Asm ? EditorLanguage.Asm : EditorLanguage.Basic,
             };
-            tab.Document.Text = item.Kind == C64UFileKind.Prg
-                ? PadLineNumbers(new PrgConverter().ConvertFromPrg(content))
-                : CompareFileResolver.DecodeSourceText(content);
+            tab.Kind = item.Kind;
+            tab.Language = item.Kind == C64UFileKind.Asm ? EditorLanguage.Asm : EditorLanguage.Basic;
+            if (wantsHexMode)
+            {
+                tab.RawBytes = content;
+                tab.Document.Text = string.Empty;
+            }
+            else
+            {
+                tab.RawBytes = null;
+                tab.Document.Text = item.Kind == C64UFileKind.Prg
+                    ? PadLineNumbers(new PrgConverter().ConvertFromPrg(content))
+                    : CompareFileResolver.DecodeSourceText(content);
+            }
             tab.IsModified = false;
 
-            AddTab(tab);
+            if (existing == null) AddTab(tab);
             ActiveTab = tab;
             SetStatus($"Opened {item.Name} from the C64 Ultimate.");
             return true;
@@ -639,9 +644,10 @@ public partial class MainViewModel
 
         try
         {
-            byte[] newContent = tab.Language == EditorLanguage.Asm
-                ? System.Text.Encoding.UTF8.GetBytes(tab.Document.Text)
-                : new PrgConverter().ConvertToPrg(tab.Document.Text);
+            byte[] newContent = tab.RawBytes
+                ?? (tab.Language == EditorLanguage.Asm
+                    ? System.Text.Encoding.UTF8.GetBytes(tab.Document.Text)
+                    : new PrgConverter().ConvertToPrg(tab.Document.Text));
 
             byte[] diskBytes = await C64UFtp.DownloadBytesAsync(sourcePath);
             var kind = FileClassifier.Classify(sourcePath, isFolder: false);

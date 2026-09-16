@@ -635,6 +635,9 @@
                                    ShowLineNumbers="False"
                                    HorizontalScrollBarVisibility="Auto"
                                    VerticalScrollBarVisibility="Auto" />
+                    <!-- Shown in the editor's place for a tab open in hex mode (a machine-language
+                         program, or anything via "Open in Hex editor"). -->
+                    <views:HexEditorControl x:Name="HexEditor" IsVisible="False" />
                     <views:FindBarControl x:Name="FindBar" IsVisible="False"
                                           HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" />
                 </Panel>

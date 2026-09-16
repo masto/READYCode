@@ -113,6 +113,8 @@ public partial class MainWindow : Window
         Editor.TextArea.TextView.BackgroundRenderers.Add(_columnGuideRenderer);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_debugCurrentLineRenderer);
         InstallCompletion();
+        HexEditor.ByteEdited += (_, _) => { if (ViewModel.ActiveTab is { IsHexMode: true } tab) tab.IsModified = true; };
+        HexEditor.ContextRequested += HexEditor_ContextRequested;
         _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
@@ -370,7 +372,7 @@ public partial class MainWindow : Window
         if (_boundTab != null)
         {
             _boundTab.PropertyChanged -= BoundTab_PropertyChanged;
-            _boundTab.CaretOffset = Editor.CaretOffset;
+            _boundTab.CaretOffset = _boundTab.IsHexMode ? HexEditor.SelectedOffset : Editor.CaretOffset;
         }
 
         _boundTab = tab;
@@ -387,7 +389,21 @@ public partial class MainWindow : Window
         _diagnosticsTimer.Stop();
         RunDiagnostics();
         if (FindBar.IsVisible) UpdateFindMatches();
-        Editor.Focus();
+
+        // A hex tab shows the hex editor where the text editor would be; its (empty) document
+        // stays bound above so nothing else has to special-case it.
+        bool hex = tab.IsHexMode;
+        HexEditor.IsVisible = hex;
+        Editor.IsVisible = !hex;
+        if (hex)
+        {
+            if (FindBar.IsVisible) CloseFind();
+            HexEditor.LoadBytes(tab.RawBytes!, tab.CaretOffset, tab.UndoStack);
+        }
+        else
+        {
+            Editor.Focus();
+        }
     }
 
     private void BoundTab_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -490,6 +506,7 @@ public partial class MainWindow : Window
     {
         var settings = ViewModel.Settings;
         Editor.FontSize = Math.Clamp(settings.EditorFontSize, 6, 72);
+        HexEditor.HexFontSize = Editor.FontSize;
         Editor.WordWrap = settings.WordWrap;
         _columnGuideRenderer.Column = settings.ShowColumnGuide
             ? Math.Max(1, ViewModel.ActiveTab?.Language == EditorLanguage.Asm ? settings.AsmColumnGuideColumn : settings.BasicColumnGuideColumn)
@@ -938,18 +955,18 @@ public partial class MainWindow : Window
         return parent == null ? (ViewModel.RootFolderPath, null) : (parent.FullPath, parent);
     }
 
-    private void OpenTreeItem(FileTreeItem item)
+    private void OpenTreeItem(FileTreeItem item, bool forceHex = false)
     {
-        if (item.IsFolder || item.IsDiskImage)
+        if (item.IsFolder || (item.IsDiskImage && !forceHex))
         {
             item.IsExpanded = !item.IsExpanded;
             return;
         }
 
         if (item.IsVirtual)
-            ViewModel.OpenVirtualEntry(item);
+            ViewModel.OpenVirtualEntry(item, forceHex);
         else if (item.FullPath.Length > 0)
-            ViewModel.OpenFile(item.FullPath);
+            ViewModel.OpenFile(item.FullPath, forceHex);
     }
 
     private async Task NewFileAsync()
@@ -1027,6 +1044,7 @@ public partial class MainWindow : Window
         }
         else if (item.IsDiskImage)
         {
+            AddSync("Open in Hex editor", () => OpenTreeItem(item, forceHex: true));
             AddSync("Refresh", item.RefreshChildren);
             Sep();
         }
@@ -1034,6 +1052,7 @@ public partial class MainWindow : Window
         {
             if (item.IsOpenable)
                 AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenTreeItem(item));
+            AddSync("Open in Hex editor", () => OpenTreeItem(item, forceHex: true));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on VICE", () => ViewModel.SendFileToViceAsync(item, run: true));
@@ -1201,6 +1220,7 @@ public partial class MainWindow : Window
         {
             if (item.IsOpenable)
                 AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenC64UTreeItem(item));
+            Add("Open in Hex editor", () => ViewModel.OpenC64UItemAsync(item, forceHex: true));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on C64U", () => ViewModel.SendC64UItemAsync(item, run: true));
@@ -1540,6 +1560,7 @@ public partial class MainWindow : Window
 
     private void OpenFind(bool replaceMode)
     {
+        if (IsHexTabActive) return;
         FindBar.Open(Editor.SelectedText, replaceMode);
         UpdateFindMatches();
     }
@@ -1981,13 +2002,31 @@ public partial class MainWindow : Window
         e.Handled = true;
     }
 
-    private void EditUndo_Click(object? sender, EventArgs e) => Editor.Undo();
-    private void EditRedo_Click(object? sender, EventArgs e) => Editor.Redo();
-    private void EditCut_Click(object? sender, EventArgs e) => Editor.Cut();
-    private void EditCopy_Click(object? sender, EventArgs e) => Editor.Copy();
-    private async void EditPaste_Click(object? sender, EventArgs e) => await PasteAsync();
-    private void EditDelete_Click(object? sender, EventArgs e) => Editor.Delete();
-    private void EditSelectAll_Click(object? sender, EventArgs e) => Editor.SelectAll();
+    private void HexEditor_ContextRequested(object? sender, ContextRequestedEventArgs e)
+    {
+        var menu = new MenuFlyout();
+        void Add(string header, Func<Task> action, bool enabled = true) =>
+            menu.Items.Add(new MenuItem { Header = header, Command = new AsyncCommand(action), IsEnabled = enabled });
+        bool hasSelection = HexEditor.HasSelection;
+        Add("Cut", HexEditor.CutAsync, hasSelection);
+        Add("Copy", HexEditor.CopyAsync, hasSelection);
+        Add("Paste", HexEditor.PasteAsync);
+        Add("Delete", () => { HexEditor.Delete(); return Task.CompletedTask; }, hasSelection);
+        menu.Items.Add(new Separator());
+        Add("Select All", () => { HexEditor.SelectAll(); return Task.CompletedTask; });
+        menu.ShowAt(HexEditor, showAtPointer: true);
+        e.Handled = true;
+    }
+
+    // The Edit menu's basics go to whichever editor the active tab is in.
+    private bool IsHexTabActive => ViewModel.ActiveTab?.IsHexMode == true;
+    private void EditUndo_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.Undo(); else Editor.Undo(); }
+    private void EditRedo_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.Redo(); else Editor.Redo(); }
+    private async void EditCut_Click(object? sender, EventArgs e) { if (IsHexTabActive) await HexEditor.CutAsync(); else Editor.Cut(); }
+    private async void EditCopy_Click(object? sender, EventArgs e) { if (IsHexTabActive) await HexEditor.CopyAsync(); else Editor.Copy(); }
+    private async void EditPaste_Click(object? sender, EventArgs e) { if (IsHexTabActive) await HexEditor.PasteAsync(); else await PasteAsync(); }
+    private void EditDelete_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.Delete(); else Editor.Delete(); }
+    private void EditSelectAll_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.SelectAll(); else Editor.SelectAll(); }
     private async void EditGoToLine_Click(object? sender, EventArgs e) => await ExecuteGoToLineAsync();
     private void EditComment_Click(object? sender, EventArgs e) => ExecuteCommentSelection();
     private void EditUncomment_Click(object? sender, EventArgs e) => ExecuteUncommentSelection();

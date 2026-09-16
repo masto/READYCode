@@ -90,6 +90,19 @@ public class EditorTab : INotifyPropertyChanged
     public bool IsVirtual => VirtualSourceId != null;
 
     /// <summary>
+    /// Gets or sets the raw bytes of a tab open in the hex editor, or null for a text tab. The
+    /// hex grid edits this array in place, so it is always the content to save. A hex tab's
+    /// <see cref="Document"/> is empty.
+    /// </summary>
+    public byte[]? RawBytes { get; set; }
+
+    /// <summary>Gets whether this tab is shown in the hex editor rather than the text editor.</summary>
+    public bool IsHexMode => RawBytes != null;
+
+    /// <summary>Gets the undo/redo history for hex-mode edits - the hex analog of the document's own undo stack.</summary>
+    public HexUndoStack UndoStack { get; } = new();
+
+    /// <summary>
     /// Gets or sets whether <see cref="VirtualSourceId"/> names a disk image on a C64 Ultimate's
     /// remote storage rather than a local one, so Save routes to the C64U-specific write-back
     /// path instead of the local one.

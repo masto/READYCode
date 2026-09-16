@@ -19,7 +19,7 @@ public partial class MainViewModel
     // since the tab may never have matched disk, and the disk-image identity of a virtual tab.
     private sealed record ClosedTabSnapshot(
         string? FilePath, string? DisplayName, string? VirtualSourceId, bool IsC64UVirtual,
-        C64UFileKind Kind, EditorLanguage Language, string Text, bool WasModified, int CaretOffset);
+        C64UFileKind Kind, EditorLanguage Language, string Text, byte[]? RawBytes, bool WasModified, int CaretOffset);
 
     private const int _maxClosedTabHistory = 20;
 
@@ -68,6 +68,7 @@ public partial class MainViewModel
             IsC64UVirtual = snapshot.IsC64UVirtual,
             Kind = snapshot.Kind,
             Language = snapshot.Language,
+            RawBytes = snapshot.RawBytes,
         };
         tab.Document.Text = snapshot.Text;
         tab.IsModified = snapshot.WasModified; // reset any spurious change event from document setup
@@ -137,7 +138,7 @@ public partial class MainViewModel
     {
         _closedTabHistory.Add(new ClosedTabSnapshot(
             tab.FilePath, tab.DisplayName, tab.VirtualSourceId, tab.IsC64UVirtual,
-            tab.Kind, tab.Language, tab.Document.Text, tab.IsModified, tab.CaretOffset));
+            tab.Kind, tab.Language, tab.Document.Text, tab.RawBytes, tab.IsModified, tab.CaretOffset));
         if (_closedTabHistory.Count > _maxClosedTabHistory)
             _closedTabHistory.RemoveAt(0);
         OnPropertyChanged(nameof(HasClosedTabHistory));

@@ -94,13 +94,13 @@ public partial class MainViewModel
     /// Gets whether the active tab is BASIC - what decides whether the BASIC Keywords icon and the
     /// BASIC-only Edit menu commands (Minify, Prettify, Renumber) are offered.
     /// </summary>
-    public bool IsBasicTabActive => ActiveTab?.Language != EditorLanguage.Asm;
+    public bool IsBasicTabActive => ActiveTab is { IsHexMode: false } tab && tab.Language != EditorLanguage.Asm;
 
     /// <summary>
     /// Gets whether the active tab is assembly - what decides whether the ASM Mnemonics icon and
     /// Edit > Format Code are offered.
     /// </summary>
-    public bool IsAsmTabActive => ActiveTab?.Language == EditorLanguage.Asm;
+    public bool IsAsmTabActive => ActiveTab is { IsHexMode: false, Language: EditorLanguage.Asm };
 
     #endregion
 

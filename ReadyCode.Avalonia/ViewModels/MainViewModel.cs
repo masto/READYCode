@@ -360,7 +360,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public void RefreshShiftModeStatus()
     {
         var tab = ActiveTab;
-        IsShiftModeApplicable = tab != null && tab.Language == EditorLanguage.Basic;
+        IsShiftModeApplicable = tab != null && tab.Language == EditorLanguage.Basic && !tab.IsHexMode;
 
         // Set the backing field directly rather than through the IsUpperCaseModeActive setter,
         // which writes through to ActiveTab.IsUpperCaseModeActive - this method exists to read
@@ -401,17 +401,32 @@ public partial class MainViewModel : INotifyPropertyChanged
     public EditorTab? FindOpenTab(string path) =>
         OpenTabs.FirstOrDefault(t => string.Equals(t.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
+    // A file already open in the requested view is just activated (the caller has confirmed
+    // any reload). One open in the other view - opened as hex, now double-clicked for its
+    // normal view, or vice versa - is reloaded into the requested one, unless it has unsaved
+    // changes, which would be lost. Returns whether the caller should go on and (re)load.
+    private bool CanReloadInMode(EditorTab existing, bool wantsHexMode)
+    {
+        if (existing.IsHexMode != wantsHexMode && existing.IsModified)
+        {
+            SetStatus($"{existing.FileName} has unsaved changes - save or close it before reopening in a different view.", StatusType.Warning);
+            ActiveTab = existing;
+            return false;
+        }
+        return true;
+    }
+
     /// <summary>
     /// Opens <paramref name="path"/> in a tab. If the file is already open, its tab is reloaded
     /// from disk (discarding any unsaved edits - the caller is expected to have confirmed that)
     /// and activated, the way most editors treat re-opening a file as "revert to saved".
     /// Tokenized .prg files are detokenized to a BASIC listing; everything else is read as text.
+    /// Machine-language files open in the hex editor, as does anything at all - a disk image
+    /// included - with <paramref name="forceHex"/>.
     /// </summary>
-    public bool OpenFile(string path)
+    public bool OpenFile(string path, bool forceHex = false)
     {
-        var existing = FindOpenTab(path);
-
-        if (FileClassifier.Classify(path, isFolder: false).IsDiskImageKind())
+        if (!forceHex && FileClassifier.Classify(path, isFolder: false).IsDiskImageKind())
         {
             SetStatus("Disk images can't be opened as text - expand them in the explorer to see the programs inside.", StatusType.Warning);
             return false;
@@ -430,12 +445,10 @@ public partial class MainViewModel : INotifyPropertyChanged
             {
                 kind = FileClassifier.Classify(path, isFolder: false);
             }
+            bool wantsHexMode = forceHex || kind == C64UFileKind.Ml;
 
-            if (kind == C64UFileKind.Ml)
-            {
-                SetStatus("Machine-language files need the hex editor, which isn't available yet in this version.", StatusType.Warning);
-                return false;
-            }
+            var existing = FindOpenTab(path);
+            if (existing != null && !CanReloadInMode(existing, wantsHexMode)) return true;
 
             var tab = existing ?? new EditorTab
             {
@@ -444,9 +457,18 @@ public partial class MainViewModel : INotifyPropertyChanged
             };
             tab.Kind = kind;
 
-            tab.Document.Text = prgData != null
-                ? PadLineNumbers(new PrgConverter().ConvertFromPrg(prgData))
-                : File.ReadAllText(path, Encoding.UTF8);
+            if (wantsHexMode)
+            {
+                tab.RawBytes = prgData ?? File.ReadAllBytes(path);
+                tab.Document.Text = string.Empty;
+            }
+            else
+            {
+                tab.RawBytes = null;
+                tab.Document.Text = prgData != null
+                    ? PadLineNumbers(new PrgConverter().ConvertFromPrg(prgData))
+                    : File.ReadAllText(path, Encoding.UTF8);
+            }
             tab.IsModified = false;
 
             if (existing == null)
@@ -469,45 +491,45 @@ public partial class MainViewModel : INotifyPropertyChanged
     /// Opens a program stored inside a disk image (an explorer entry with in-memory content) in
     /// a tab, re-activating the existing tab if it's already open.
     /// </summary>
-    public bool OpenVirtualEntry(FileTreeItem item)
+    public bool OpenVirtualEntry(FileTreeItem item, bool forceHex = false)
     {
         if (item.Content == null || item.SourcePath == null) return false;
 
-        if (!item.IsOpenable)
+        bool wantsHexMode = forceHex || item.Kind == C64UFileKind.Ml;
+        if (!item.IsOpenable && !wantsHexMode)
         {
             SetStatus($"{item.Name} isn't a text-editable program type.", StatusType.Warning);
             return false;
         }
 
-        if (item.Kind == C64UFileKind.Ml)
-        {
-            SetStatus("Machine-language files need the hex editor, which isn't available yet in this version.", StatusType.Warning);
-            return false;
-        }
-
         string sourceId = $"{item.SourcePath}!{item.Name}";
         var existing = OpenTabs.FirstOrDefault(t => t.VirtualSourceId == sourceId);
-        if (existing != null)
-        {
-            ActiveTab = existing;
-            return true;
-        }
+        if (existing != null && !CanReloadInMode(existing, wantsHexMode)) return true;
 
         try
         {
-            var tab = new EditorTab
+            var tab = existing ?? new EditorTab
             {
                 DisplayName = item.Name,
                 VirtualSourceId = sourceId,
-                Kind = item.Kind,
-                Language = item.Kind == C64UFileKind.Asm ? EditorLanguage.Asm : EditorLanguage.Basic,
             };
-            tab.Document.Text = item.Kind == C64UFileKind.Prg
-                ? PadLineNumbers(new PrgConverter().ConvertFromPrg(item.Content))
-                : CompareFileResolver.DecodeSourceText(item.Content);
+            tab.Kind = item.Kind;
+            tab.Language = item.Kind == C64UFileKind.Asm ? EditorLanguage.Asm : EditorLanguage.Basic;
+            if (wantsHexMode)
+            {
+                tab.RawBytes = item.Content;
+                tab.Document.Text = string.Empty;
+            }
+            else
+            {
+                tab.RawBytes = null;
+                tab.Document.Text = item.Kind == C64UFileKind.Prg
+                    ? PadLineNumbers(new PrgConverter().ConvertFromPrg(item.Content))
+                    : CompareFileResolver.DecodeSourceText(item.Content);
+            }
             tab.IsModified = false;
 
-            AddTab(tab);
+            if (existing == null) AddTab(tab);
             ActiveTab = tab;
             SetStatus($"Opened {item.Name} from {Path.GetFileName(item.SourcePath)}.");
             return true;
@@ -527,7 +549,12 @@ public partial class MainViewModel : INotifyPropertyChanged
     {
         try
         {
-            if (!PrgConverter.ShouldTokenizeOnSave(tab.Language, filePath))
+            if (tab.RawBytes is { } rawBytes)
+            {
+                File.WriteAllBytes(filePath, rawBytes);
+                SetStatus($"File saved: {rawBytes.Length:N0} bytes.");
+            }
+            else if (!PrgConverter.ShouldTokenizeOnSave(tab.Language, filePath))
             {
                 File.WriteAllText(filePath, tab.Document.Text, Encoding.UTF8);
                 SetStatus("File saved.");
@@ -576,9 +603,10 @@ public partial class MainViewModel : INotifyPropertyChanged
 
         try
         {
-            byte[] newContent = tab.Language == EditorLanguage.Asm
-                ? Encoding.UTF8.GetBytes(tab.Document.Text)
-                : new PrgConverter().ConvertToPrg(tab.Document.Text);
+            byte[] newContent = tab.RawBytes
+                ?? (tab.Language == EditorLanguage.Asm
+                    ? Encoding.UTF8.GetBytes(tab.Document.Text)
+                    : new PrgConverter().ConvertToPrg(tab.Document.Text));
 
             byte[] diskBytes = File.ReadAllBytes(sourcePath);
             var kind = FileClassifier.Classify(sourcePath, isFolder: false);
@@ -625,10 +653,10 @@ public partial class MainViewModel : INotifyPropertyChanged
     public IReadOnlyList<EditorDiagnostic> AnalyzeTab(EditorTab tab)
     {
         string text = tab.Document.Text;
-        AssemblyResult? asmResult = tab.Language == EditorLanguage.Asm
+        AssemblyResult? asmResult = tab.Language == EditorLanguage.Asm && !tab.IsHexMode
             ? new Asm6502Assembler().Assemble(text, Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress)
             : null;
-        tab.Diagnostics = !Settings.EnableLinting
+        tab.Diagnostics = !Settings.EnableLinting || tab.IsHexMode
             ? Array.Empty<EditorDiagnostic>()
             : asmResult != null
                 ? AsmDiagnostics.Analyze(text, asmResult)
