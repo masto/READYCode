@@ -13,6 +13,12 @@ Nothing here blocks a release by itself - this is the full gap list for planning
 sidebar; printing last (high effort, low value). Keyboard shortcuts stay aligned with WPF as
 things are added - see `MenuTests.cs`.
 
+**Upstream sync** (2026-09-16): rebased onto upstream v2.5.0 (in progress). Its WPF-side
+changes to features this UI has were implemented in parallel: DEF FN in the Variable Explorer,
+the Renumber dialog (start / increment / selected lines), the hierarchical debugger Variables
+panel, no completion past a REM, Enter before a line number inserting above, the Problems panel
+selecting the exact span, and debug cleanup before closing. Its Core-side changes are shared.
+
 ## Legend
 
 - **Core logic**: already in `ReadyCode.Core`, shared with WPF - porting is UI work only.
