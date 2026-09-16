@@ -194,8 +194,9 @@ approve the automation the first time.
   read it); clicking it toggles the real key on Windows only.
 - **Folder explorer** - lazy folder tree with file-type badges. `.d64` and `.d81` images expand in
   place, and the programs inside them open and save back into the image. New file and folder,
-  rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE or the C64 Ultimate
-  straight from the tree.
+  rename, delete, Cut/Copy/Paste, Reveal in Finder, Copy Path, and Run or Load on VICE or the
+  C64 Ultimate straight from the tree. Drag a file onto a folder to move it or onto a disk image
+  to embed it; drop files in from the Finder to copy them in, or anywhere else to open them.
 - **Hex editor** - machine-language programs open in an offset/hex/ASCII grid, and any file
   (a whole disk image included) can be opened that way from the explorer's context menu. Type
   hex digits over the bytes, select and cut/copy/paste/zero-fill ranges, undo, and save back -
@@ -263,12 +264,9 @@ your real settings.
 
 ## Not ported yet
 
-Printing, and drag-and-drop and cut/copy/paste in either explorer tree.
+Printing.
 
-The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
-Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
-drive-mount highlighting in the tree are still WPF-only. New/rename use a modal text prompt
-rather than WPF's inline tree editing, matching how the local Explorer already works here.
+In both explorers, New and Rename use a modal text prompt rather than WPF's inline tree editing.
 
 Bringing VICE to the foreground after a transfer works on Windows and macOS. On Linux it is a
 no-op: there is no portable way to raise another application's window across the various window

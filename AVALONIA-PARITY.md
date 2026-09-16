@@ -118,22 +118,25 @@ things are added - see `MenuTests.cs`.
   either - this would need real research into what's available cross-platform, so it's probably
   the most open-ended item on this whole list. Worth scoping separately before estimating it.
 
-### Explorer file operations: clipboard and drag-and-drop
-Originally filed under "polish" below; on inspection it is a real feature, not a small one.
-- [ ] **Cut / Copy / Paste** in the local Explorer's context menus. In WPF this is OS
-  file-clipboard interop - copy in Windows Explorer, paste into READYCode's tree, and back -
-  with Cut carried as the Windows-only `Preferred DropEffect` clipboard format. Avalonia 12's
-  clipboard can read and write file lists cross-platform (`DataFormat.File`), but Cut has no
-  portable flag, so it would be an in-app "pending cut" marker instead.
-- [ ] **Drag-and-drop, local Explorer**: drag an item onto a folder to move it; onto a
-  `.d64`/`.d81` to embed it (assembling/tokenizing on the way); drag files in from the OS to
-  copy, embed, or open as tabs depending on the drop target.
-- [ ] **Drag-and-drop, C64U Explorer**: the same within the device's tree, plus dragging OS
-  files onto it to upload.
-- [ ] **Live drive-mount highlighting** in the C64U tree (the mounted image's row is marked;
-  `C64UMountedPathConverter` in WPF). The mount status footer itself already exists.
-- **New logic** for the UI side throughout; the file/disk-image operations they call into
-  (`DiskImage`, `C64UFtpClient`, `FileTreeItem`) are shared already.
+### Explorer file operations: clipboard and drag-and-drop - DONE
+- [x] **Cut / Copy / Paste** in the local explorer's context menus (files, folders, disk
+  images; Paste on a folder pastes into it, on a file beside it, on empty tree space into the
+  root). Copy and Cut put the real file on the OS clipboard, so it pastes into the Finder or
+  Explorer too, and files copied there paste into READYCode; the "move" intent of Cut has no
+  portable clipboard flag, so it is remembered in the app (`PendingCutPath`) and consumed by
+  the next Paste. Name clashes are skipped with a message, as WPF.
+- [x] **Drag-and-drop, local explorer**: onto a folder or the explorer header (the root) moves,
+  with open tabs following; onto a `.d64`/`.d81` embeds (BASIC tokenized, assembly assembled,
+  a program as is - also "Add File…" on an image). Files from the OS are copied into a folder,
+  embedded into an image, or - dropped anywhere else - opened as tabs (any openable kind,
+  where WPF opens only `.prg`). A drag of a file out of the tree carries the real file, so it
+  can land in the Finder.
+- [x] **Drag-and-drop, C64U explorer**: onto a folder moves (an FTP rename), onto an image
+  embeds; OS files dropped on a folder upload, on an image embed.
+- [x] **Live drive-mount highlighting** in the C64U tree, and the pending File Compare file
+  highlighted in both trees, as WPF.
+- The rules and file operations are `MainViewModel.FileOps.cs` (local) and the C64U view
+  model; the gestures are `MainWindow.FileOps.cs`, over Avalonia 12's `DataTransfer` API.
 
 ### Themes (Light / Dark / Commodore 64) - DONE
 - [x] Theme picker in Preferences, three themes applied across the app. Reads the WPF theme

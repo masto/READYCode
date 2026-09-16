@@ -495,16 +495,32 @@
                                   ItemsSource="{Binding FolderItems}"
                                   IsVisible="{Binding IsFolderOpen}"
                                   Background="Transparent" BorderThickness="0"
+                                  DragDrop.AllowDrop="True"
                                   DoubleTapped="FileTree_DoubleTapped"
                                   KeyDown="FileTree_KeyDown"
                                   ContextRequested="FileTree_ContextRequested">
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="core:FileTreeItem" ItemsSource="{Binding Children}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                    <!-- The row: amber while it is a drag's drop target; the name in the accent
+                                         color and bold while the file is pending as a comparison's left side. -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="{Binding IsDropTarget, Converter={x:Static conv:FileTreeConverters.DropTargetBrush}}">
                                         <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="{DynamicResource ThemeFolderExplorerIconFg}"
                                                   Data="{Binding ., Converter={x:Static conv:FileTreeConverters.Icon}}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Foreground>
+                                                <MultiBinding Converter="{x:Static conv:FileTreeConverters.PendingCompareBrush}">
+                                                    <Binding Path="." />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).PendingCompareFile" />
+                                                </MultiBinding>
+                                            </TextBlock.Foreground>
+                                            <TextBlock.FontWeight>
+                                                <MultiBinding Converter="{x:Static conv:FileTreeConverters.PendingCompareWeight}">
+                                                    <Binding Path="." />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).PendingCompareFile" />
+                                                </MultiBinding>
+                                            </TextBlock.FontWeight>
+                                        </TextBlock>
                                         <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
                                                 IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
                                                 Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">
@@ -574,16 +590,34 @@
                                   ItemsSource="{Binding C64UFileItems}"
                                   IsVisible="{Binding IsC64UConnected}"
                                   Background="Transparent" BorderThickness="0"
+                                  DragDrop.AllowDrop="True"
                                   DoubleTapped="C64UFileTree_DoubleTapped"
                                   KeyDown="C64UFileTree_KeyDown"
                                   ContextRequested="C64UFileTree_ContextRequested">
                             <TreeView.ItemTemplate>
                                 <TreeDataTemplate x:DataType="core:C64UFileItem" ItemsSource="{Binding Children}">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="Transparent">
+                                    <!-- As the local tree's row, plus a disk image mounted in drive A or B
+                                         shown in the accent color and bold. -->
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Background="{Binding IsDropTarget, Converter={x:Static conv:FileTreeConverters.DropTargetBrush}}">
                                         <PathIcon Grid.Column="0" Width="13" Height="13" Margin="0,0,6,0" Foreground="{DynamicResource ThemeFolderExplorerIconFg}"
                                                   Data="{Binding ., Converter={x:Static conv:FileTreeConverters.C64UIcon}}" />
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
+                                                   TextTrimming="CharacterEllipsis">
+                                            <TextBlock.Foreground>
+                                                <MultiBinding Converter="{x:Static conv:FileTreeConverters.MountedBrush}">
+                                                    <Binding Path="FullPath" />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).C64UDriveA.ImageFile" />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).C64UDriveB.ImageFile" />
+                                                </MultiBinding>
+                                            </TextBlock.Foreground>
+                                            <TextBlock.FontWeight>
+                                                <MultiBinding Converter="{x:Static conv:FileTreeConverters.MountedWeight}">
+                                                    <Binding Path="FullPath" />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).C64UDriveA.ImageFile" />
+                                                    <Binding Path="$parent[Window].((vm:MainViewModel)DataContext).C64UDriveB.ImageFile" />
+                                                </MultiBinding>
+                                            </TextBlock.FontWeight>
+                                        </TextBlock>
                                         <Border Grid.Column="2" CornerRadius="2" Padding="4,0" Margin="6,0,4,0" VerticalAlignment="Center"
                                                 IsVisible="{Binding Badge, Converter={x:Static conv:FileTreeConverters.HasBadge}}"
                                                 Background="{Binding Kind, Converter={x:Static conv:FileTreeConverters.BadgeBrush}}">

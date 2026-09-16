@@ -129,6 +129,7 @@ public partial class MainWindow : Window
             }
         };
         DisassemblyToolbar.DisassembleRequested += async (_, _) => await DisassembleRequestedAsync();
+        InstallExplorerDragDrop();
         _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
@@ -1119,12 +1120,21 @@ public partial class MainWindow : Window
             Add("New File…", async () => { FileTree.SelectedItem = item; await NewFileAsync(); });
             Add("New Folder…", async () => { FileTree.SelectedItem = item; await NewFolderAsync(); });
             Sep();
+            Add("Cut", () => CutOrCopyItemAsync(item, cut: true));
+            Add("Copy", () => CutOrCopyItemAsync(item, cut: false));
+            items.Add(MakePasteItem("Paste", item.FullPath));
+            Sep();
             AddSync("Refresh", item.RefreshChildren);
             Sep();
         }
         else if (item.IsDiskImage)
         {
+            Add("Add File…", () => AddFileToLocalDiskImageAsync(item));
             AddSync("Open in Hex editor", () => OpenTreeItem(item, forceHex: true));
+            Sep();
+            Add("Cut", () => CutOrCopyItemAsync(item, cut: true));
+            Add("Copy", () => CutOrCopyItemAsync(item, cut: false));
+            Sep();
             AddSync("Refresh", item.RefreshChildren);
             Sep();
         }
@@ -1143,6 +1153,15 @@ public partial class MainWindow : Window
                 Add("Run on C64U", () => ViewModel.SendFileToC64UAsync(item, run: true));
                 Add("Load on C64U", () => ViewModel.SendFileToC64UAsync(item, run: false));
             }
+            Sep();
+        }
+
+        if (!item.IsVirtual && !item.IsFolder && !item.IsDiskImage)
+        {
+            Add("Cut", () => CutOrCopyItemAsync(item, cut: true));
+            Add("Copy", () => CutOrCopyItemAsync(item, cut: false));
+            if (Path.GetDirectoryName(item.FullPath) is { } parent)
+                items.Add(MakePasteItem("Paste", parent));
             Sep();
         }
 
@@ -1251,6 +1270,21 @@ public partial class MainWindow : Window
         {
             await MessageDialog.ShowAsync(this, "Download", $"Could not download \"{item.Name}\": {ex.Message}");
         }
+    }
+
+    private async Task AddFileToLocalDiskImageAsync(FileTreeItem diskItem)
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Add File to Disk Image",
+            AllowMultiple = true,
+            SuggestedStartLocation = await SuggestedFolderAsync(),
+            FileTypeFilter = [_c64Files, FilePickerFileTypes.All],
+        });
+
+        foreach (var file in files)
+            if (file.TryGetLocalPath() is { } path)
+                ViewModel.AddFileToLocalDiskImage(path, diskItem);
     }
 
     private async Task AddFileToC64UDiskImageAsync(C64UFileItem diskItem)
@@ -1656,8 +1690,20 @@ public partial class MainWindow : Window
     private void FileTree_ContextRequested(object? sender, ContextRequestedEventArgs e)
     {
         // Right-click (or the menu key) on a row: select it and show its menu. The row is found
-        // from the event source so the menu always matches the item under the pointer.
-        if ((e.Source as Control)?.DataContext is not FileTreeItem item || item.Name.Length == 0) return;
+        // from the event source so the menu always matches the item under the pointer. Off any
+        // row, the menu is the root folder's.
+        if ((e.Source as Control)?.DataContext is not FileTreeItem item || item.Name.Length == 0)
+        {
+            if (!ViewModel.IsFolderOpen) return;
+            var rootMenu = new ContextMenu();
+            rootMenu.Items.Add(new MenuItem { Header = "New File…", Command = new AsyncCommand(async () => { FileTree.SelectedItem = null; await NewFileAsync(); }) });
+            rootMenu.Items.Add(new MenuItem { Header = "New Folder…", Command = new AsyncCommand(async () => { FileTree.SelectedItem = null; await NewFolderAsync(); }) });
+            rootMenu.Items.Add(new Separator());
+            rootMenu.Items.Add(MakePasteItem("Paste", ViewModel.RootFolderPath));
+            rootMenu.Open(FileTree);
+            e.Handled = true;
+            return;
+        }
 
         FileTree.SelectedItem = item;
         var container = (e.Source as Control)?.FindAncestorOfType<TreeViewItem>(includeSelf: true);
