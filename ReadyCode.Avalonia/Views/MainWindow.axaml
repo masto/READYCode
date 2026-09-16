@@ -158,6 +158,10 @@
         <Style Selector="TreeView#VariablesTree TreeViewItem, TreeView#SymbolsTree TreeViewItem">
             <Setter Property="Padding" Value="2,1" />
         </Style>
+        <Style Selector="TreeView#VariablesList TreeViewItem" x:DataType="core:DebugVariableNode">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+            <Setter Property="Padding" Value="2,1" />
+        </Style>
         <Style Selector="TreeView#SearchResultsTree > TreeViewItem" x:DataType="core:ProjectSearchFileResult">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
         </Style>
@@ -831,19 +835,22 @@
                             <Panel>
                                 <TextBlock x:Name="VariablesEmptyText" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" Margin="12,8"
                                            IsVisible="{Binding !DebugVariables.Count}" />
-                                <ListBox x:Name="VariablesList" ItemsSource="{Binding DebugVariables}" Background="Transparent" BorderThickness="0"
-                                         IsVisible="{Binding !!DebugVariables.Count}" DoubleTapped="VariablesList_DoubleTapped" KeyDown="VariablesList_KeyDown"
-                                         ToolTip.Tip="Double-click a variable to change its value">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate x:DataType="dbg:BasicVariable">
-                                            <Grid ColumnDefinitions="120,80,*">
-                                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
-                                                <TextBlock Grid.Column="1" Text="{Binding Type}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" />
-                                                <TextBlock Grid.Column="2" Text="{Binding ., Converter={x:Static conv:FileTreeConverters.VariableValue}}" FontSize="12" FontFamily="Menlo,Consolas,monospace" />
+                                <!-- Simple variables as leaves; an array as a node whose elements are read
+                                     from the machine when it is expanded. -->
+                                <TreeView x:Name="VariablesList" ItemsSource="{Binding DebugVariables}" Background="Transparent" BorderThickness="0"
+                                          IsVisible="{Binding !!DebugVariables.Count}" DoubleTapped="VariablesList_DoubleTapped" KeyDown="VariablesList_KeyDown"
+                                          ToolTip.Tip="Double-click a variable to change its value; expand an array to see its elements">
+                                    <TreeView.ItemTemplate>
+                                        <TreeDataTemplate x:DataType="core:DebugVariableNode" ItemsSource="{Binding Children}">
+                                            <Grid ColumnDefinitions="120,110,*">
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" FontFamily="Menlo,Consolas,monospace" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="{Binding TypeLabel}" FontSize="12" Foreground="{DynamicResource ThemeFileFg}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding ValueDisplayText}" FontSize="12" FontFamily="Menlo,Consolas,monospace" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="loading…" FontSize="11" Opacity="0.7" VerticalAlignment="Center" IsVisible="{Binding IsLoading}" />
                                             </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
+                                        </TreeDataTemplate>
+                                    </TreeView.ItemTemplate>
+                                </TreeView>
                             </Panel>
                         </TabItem>
 

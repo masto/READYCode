@@ -114,7 +114,7 @@ public partial class MainViewModel
     }
 
     /// <summary>Gets the BASIC variables read from the halted machine.</summary>
-    public ObservableCollection<BasicVariable> DebugVariables { get; } = new();
+    public ObservableCollection<DebugVariableNode> DebugVariables { get; } = new();
 
     /// <summary>Gets the GOSUB call stack read from the halted machine.</summary>
     public ObservableCollection<GosubFrame> DebugCallStack { get; } = new();
@@ -319,35 +319,39 @@ public partial class MainViewModel
         _ => variable.Value.ToString() ?? "",
     };
 
-    /// <summary>Re-reads the variable table and GOSUB stack from the halted machine.</summary>
+    /// <summary>
+    /// Re-reads the variable table and GOSUB stack from the halted machine. Simple variables
+    /// are read in full (strings resolved, up to a limit); arrays are listed by their headers
+    /// only, their elements fetched when expanded - and re-fetched here for ones already
+    /// expanded. Existing nodes are updated in place so the tree keeps its expansion.
+    /// </summary>
     public async Task RefreshDebugVariablesAndCallStackAsync()
     {
         if (DebugSession is not { } session) return;
 
         try
         {
-            byte[] zeroPage = await session.ReadMemoryAsync(0x2D, 4); // VARTAB ($2D-$2E), ARYTAB ($2F-$30)
+            byte[] zeroPage = await session.ReadMemoryAsync(0x2D, 6); // VARTAB ($2D-$2E), ARYTAB ($2F-$30), STREND ($31-$32)
             ushort vartab = (ushort)(zeroPage[0] | (zeroPage[1] << 8));
             ushort arytab = (ushort)(zeroPage[2] | (zeroPage[3] << 8));
+            ushort strend = (ushort)(zeroPage[4] | (zeroPage[5] << 8));
+            bool isUpperCaseModeActive = DebugTab?.IsUpperCaseModeActive ?? true;
 
-            var variables = new List<BasicVariable>();
+            var nodes = new List<DebugVariableNode>();
             if (arytab > vartab)
             {
                 byte[] tableBytes = await session.ReadMemoryAsync(vartab, arytab - vartab);
-                variables.AddRange(VariableTableParser.ParseSimpleVariables(tableBytes, vartab, arytab));
-
-                for (int i = 0; i < variables.Count; i++)
-                {
-                    if (variables[i] is not { Type: BasicVariableType.String, Value: StringDescriptor descriptor }) continue;
-                    if (descriptor.Length == 0) continue;
-
-                    byte[] chars = await session.ReadMemoryAsync(descriptor.HeapPointer, descriptor.Length);
-                    string text = new(chars.Select(b => (char)b).ToArray());
-                    variables[i] = variables[i] with { Value = new ResolvedStringValue(text, descriptor.HeapPointer) };
-                }
-
-                variables.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
+                var simpleVars = VariableTableParser.ParseSimpleVariables(tableBytes, vartab, arytab).ToList();
+                await ResolveStringValuesAsync(session, simpleVars, maxResolutions: 300);
+                foreach (var variable in simpleVars)
+                    nodes.Add(new DebugVariableNode(variable) { IsUpperCaseModeActive = isUpperCaseModeActive });
             }
+            if (strend > arytab)
+            {
+                foreach (var header in await LoadArrayHeadersAsync(session, arytab, strend))
+                    nodes.Add(new DebugVariableNode(header.Name, header.ElementType, header.DimensionSizes, header.DataAddress) { IsUpperCaseModeActive = isUpperCaseModeActive });
+            }
+            nodes.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
 
             IReadOnlyList<GosubFrame> callStack = Array.Empty<GosubFrame>();
             if (session.SupportsCallStackAndStepOut)
@@ -357,17 +361,129 @@ public partial class MainViewModel
                 callStack = GosubStackParser.Parse(stackPage, stackPointer, DebugLineAddressTable);
             }
 
+            var reexpand = new List<DebugVariableNode>();
             RunOnUiThread(() =>
             {
+                var existingByKey = DebugVariables.GroupBy(n => (n.Name, n.IsArray)).ToDictionary(g => g.Key, g => g.First());
                 DebugVariables.Clear();
-                foreach (var variable in variables) DebugVariables.Add(variable);
+                foreach (var node in nodes)
+                {
+                    var toAdd = node;
+                    if (existingByKey.TryGetValue((node.Name, node.IsArray), out var existing))
+                    {
+                        if (existing.IsArray)
+                        {
+                            existing.RefreshArrayShape(node.DimensionSizes, node.DataAddress);
+                            existing.ChildrenLoaded = false;
+                            if (existing.IsExpanded) reexpand.Add(existing);
+                        }
+                        else
+                        {
+                            existing.UpdateVariable(node.Variable!);
+                        }
+                        existing.IsUpperCaseModeActive = isUpperCaseModeActive;
+                        toAdd = existing;
+                    }
+                    DebugVariables.Add(toAdd);
+                }
                 DebugCallStack.Clear();
                 foreach (var frame in callStack) DebugCallStack.Add(frame);
             });
+
+            foreach (var node in reexpand)
+                await LoadArrayChildrenAsync(node);
         }
         catch (Exception ex)
         {
             RunOnUiThread(() => SetStatus($"Failed to refresh variables/call stack: {ex.Message}", StatusType.Error));
+        }
+    }
+
+    /// <summary>Reads an array's elements from the machine into its node's children (once; a refresh re-reads an expanded one).</summary>
+    public async Task LoadArrayChildrenAsync(DebugVariableNode node)
+    {
+        if (!node.IsArray || node.ChildrenLoaded || DebugSession is not { } session) return;
+
+        node.IsLoading = true;
+        try
+        {
+            int elementWidth = node.ElementType switch { BasicVariableType.Integer => 2, BasicVariableType.String => 3, _ => 5 };
+            int elementCount = 1;
+            foreach (int size in node.DimensionSizes) elementCount *= size;
+
+            byte[] data = elementCount > 0 ? await session.ReadMemoryAsync(node.DataAddress, elementCount * elementWidth) : [];
+            var elements = VariableTableParser.ParseArrayElements(data, node.DataAddress, node.Name, node.ElementType, node.DimensionSizes).ToList();
+            await ResolveStringValuesAsync(session, elements, maxResolutions: int.MaxValue);
+
+            RunOnUiThread(() =>
+            {
+                node.Children.Clear();
+                foreach (var element in elements)
+                    node.Children.Add(new DebugVariableNode(element) { IsUpperCaseModeActive = node.IsUpperCaseModeActive });
+                node.ChildrenLoaded = true;
+            });
+        }
+        catch (Exception ex)
+        {
+            RunOnUiThread(() => SetStatus($"Failed to load {node.Name}'s contents: {ex.Message}", StatusType.Error));
+        }
+        finally
+        {
+            node.IsLoading = false;
+        }
+    }
+
+    /// <summary>Re-applies the debugged tab's Upper/Lower Case Mode to every node's display, after the mode is toggled.</summary>
+    public void RefreshDebugVariablesDisplayMode()
+    {
+        bool isUpperCaseModeActive = DebugTab?.IsUpperCaseModeActive ?? true;
+        foreach (var node in DebugVariables)
+        {
+            node.IsUpperCaseModeActive = isUpperCaseModeActive;
+            foreach (var child in node.Children) child.IsUpperCaseModeActive = isUpperCaseModeActive;
+        }
+    }
+
+    private const int _headerReadSize = 64;
+    private const int _bigHeaderReadSize = 1024;
+
+    // Walks the array table header by header; a header that doesn't fit the small read is
+    // retried with a bigger one, and a corrupt one ends the walk rather than looping.
+    private static async Task<List<(string Name, BasicVariableType ElementType, IReadOnlyList<int> DimensionSizes, ushort DataAddress)>> LoadArrayHeadersAsync(IDebugSession session, ushort arytab, ushort strend)
+    {
+        var headers = new List<(string, BasicVariableType, IReadOnlyList<int>, ushort)>();
+        ushort address = arytab;
+        while (address < strend)
+        {
+            int remaining = strend - address;
+            byte[] chunk = await session.ReadMemoryAsync(address, Math.Min(_headerReadSize, remaining));
+            var header = VariableTableParser.TryParseArrayHeader(chunk, 0);
+            if (header == null && remaining > _headerReadSize)
+            {
+                chunk = await session.ReadMemoryAsync(address, Math.Min(_bigHeaderReadSize, remaining));
+                header = VariableTableParser.TryParseArrayHeader(chunk, 0);
+            }
+            if (header == null) break;
+
+            headers.Add((header.Name, header.ElementType, header.DimensionSizes, (ushort)(address + header.DataOffset)));
+            if (header.EntryLength <= 0) break;
+            address = (ushort)(address + header.EntryLength);
+        }
+        return headers;
+    }
+
+    private static async Task ResolveStringValuesAsync(IDebugSession session, List<BasicVariable> variables, int maxResolutions)
+    {
+        int resolutions = 0;
+        for (int i = 0; i < variables.Count && resolutions < maxResolutions; i++)
+        {
+            if (variables[i] is not { Type: BasicVariableType.String, Value: StringDescriptor descriptor }) continue;
+            resolutions++;
+            if (descriptor.Length == 0) continue;
+
+            byte[] chars = await session.ReadMemoryAsync(descriptor.HeapPointer, descriptor.Length);
+            string text = new(chars.Select(b => (char)b).ToArray());
+            variables[i] = variables[i] with { Value = new ResolvedStringValue(text, descriptor.HeapPointer) };
         }
     }
 

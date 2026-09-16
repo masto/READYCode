@@ -36,7 +36,16 @@ internal sealed class FakeDebugSession : IDebugSession
     public Task StepOverAsync() => StepIntoAsync();
     public Task StepOutAsync() => StepIntoAsync();
     public Task<byte> ReadStackPointerAsync() => Task.FromResult((byte)0xFF);
-    public Task<byte[]> ReadMemoryAsync(ushort startAddress, int length) => Task.FromResult(new byte[length]); // VARTAB == ARYTAB: no variables
+    /// <summary>A C64 memory image to serve reads from; null reads as zeros (VARTAB == ARYTAB: no variables).</summary>
+    public byte[]? Memory;
+
+    public Task<byte[]> ReadMemoryAsync(ushort startAddress, int length)
+    {
+        var bytes = new byte[length];
+        if (Memory != null)
+            for (int i = 0; i < length && startAddress + i < Memory.Length; i++) bytes[i] = Memory[startAddress + i];
+        return Task.FromResult(bytes);
+    }
     public Task WriteMemoryAsync(ushort startAddress, byte[] data) => Task.CompletedTask;
     public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
 }
@@ -134,6 +143,56 @@ public class DebuggerTests
         Assert.Equal(5, vm.DebugCurrentDocumentLine);
         Assert.True(vm.IsBottomPanelOpen);
         RenderCapture.Save(window, "debugger.png");
+    }
+
+    [AvaloniaFact]
+    public async Task Variables_ListSimpleOnesAndArrays_AndAnArrayLoadsItsElementsWhenExpanded()
+    {
+        var vm = new MainViewModel();
+        vm.ActiveTab!.Document.Text = Program;
+
+        // VARTAB at $1000: X = 3.0 (7 bytes). ARYTAB at $1007: DIM A(2), floats 1.0, 2.0, 3.0
+        // (7-byte header + 3 x 5). STREND at $1007 + 22 = $101D.
+        var memory = new byte[0x1100];
+        memory[0x2D] = 0x00; memory[0x2E] = 0x10;
+        memory[0x2F] = 0x07; memory[0x30] = 0x10;
+        memory[0x31] = 0x1D; memory[0x32] = 0x10;
+        new byte[] { 0x58, 0x00, 0x82, 0x40, 0x00, 0x00, 0x00 }.CopyTo(memory, 0x1000);
+        new byte[] { 0x41, 0x00, 0x00, 0x16, 0x01, 0x00, 0x03 }.CopyTo(memory, 0x1007);
+        new byte[] { 0x81, 0x00, 0x00, 0x00, 0x00 }.CopyTo(memory, 0x100E); // 1.0
+        new byte[] { 0x82, 0x00, 0x00, 0x00, 0x00 }.CopyTo(memory, 0x1013); // 2.0
+        new byte[] { 0x82, 0x40, 0x00, 0x00, 0x00 }.CopyTo(memory, 0x1018); // 3.0
+
+        var fake = new FakeDebugSession { Memory = memory };
+        vm.DebugSessionFactoryOverride = () => Task.FromResult<IDebugSession>(fake);
+        vm.DebugTransferOverride = (_, _) => Task.CompletedTask;
+        await vm.DebugStartOrContinueAsync();
+        fake.RaiseStopped(20, breakpoint: false);
+        await vm.RefreshDebugVariablesAndCallStackAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.Equal(["A", "X"], vm.DebugVariables.Select(n => n.Name));
+        var x = vm.DebugVariables.Single(n => n.Name == "X");
+        Assert.False(x.IsArray);
+        Assert.Equal("3", x.ValueDisplayText);
+
+        var a = vm.DebugVariables.Single(n => n.Name == "A");
+        Assert.True(a.IsArray);
+        Assert.Empty(a.Children); // not read until expanded
+        await vm.LoadArrayChildrenAsync(a);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(["1", "2", "3"], a.Children.Select(c => c.ValueDisplayText));
+
+        // A refresh keeps the same nodes (so the tree's expansion survives) and re-reads an
+        // expanded array's elements.
+        a.IsExpanded = true;
+        memory[0x1000 + 2] = 0x83; // X = 6.0
+        await vm.RefreshDebugVariablesAndCallStackAsync();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Same(a, vm.DebugVariables.Single(n => n.Name == "A"));
+        Assert.Same(x, vm.DebugVariables.Single(n => n.Name == "X"));
+        Assert.Equal("6", x.ValueDisplayText);
+        Assert.Equal(3, a.Children.Count);
     }
 
     #endregion

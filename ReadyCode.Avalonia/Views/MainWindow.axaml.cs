@@ -266,7 +266,15 @@ public partial class MainWindow : Window
 
         PersistLayout(vm);
 
-        if (vm.IsDebugging) _ = vm.DebugStopAsync();
+        // An active debug session is cleaned up (VICE detached, the C64U's poll loop joined)
+        // before the window goes, so closing is cancelled and re-run once that has finished.
+        if (vm.IsDebugging)
+        {
+            e.Cancel = true;
+            await vm.DebugStopAsync();
+            Close(); // runs OnClosing again, now past this branch, for the unsaved-changes prompt
+            return;
+        }
 
         var dirty = vm.OpenTabs.Where(t => t.IsModified).ToList();
         if (dirty.Count == 0)
@@ -309,6 +317,7 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm) return;
 
         vm.PropertyChanged += ViewModel_PropertyChanged;
+        vm.DebugVariables.CollectionChanged += DebugVariables_CollectionChanged;
         vm.BreakpointStore.Breakpoints.CollectionChanged += BreakpointStore_CollectionChanged;
         foreach (var breakpoint in vm.BreakpointStore.Breakpoints)
             breakpoint.PropertyChanged += Breakpoint_PropertyChanged;
@@ -368,6 +377,7 @@ public partial class MainWindow : Window
                 break;
             case nameof(MainViewModel.IsUpperCaseModeActive):
                 ApplyUpperCaseMode();
+                if (ReferenceEquals(ViewModel.ActiveTab, ViewModel.DebugTab)) ViewModel.RefreshDebugVariablesDisplayMode();
                 break;
         }
     }
@@ -817,27 +827,64 @@ public partial class MainWindow : Window
 
     private void ViewBottomPanelClose_Click(object? sender, RoutedEventArgs e) => ViewModel.IsBottomPanelOpen = false;
 
-    private async void VariablesList_DoubleTapped(object? sender, TappedEventArgs e) => await EditSelectedVariableAsync();
+    private async void VariablesList_DoubleTapped(object? sender, TappedEventArgs e)
+    {
+        // A double-click on an array toggles it (the tree does that); on a value, edits it.
+        if (VariablesList.SelectedItem is DebugVariableNode { IsArray: false })
+            await EditSelectedVariableAsync();
+    }
+
+    // An array's elements are read from the machine the first time it is expanded.
+    private void DebugVariables_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.NewItems != null)
+            foreach (DebugVariableNode node in e.NewItems) node.PropertyChanged += DebugVariableNode_PropertyChanged;
+        if (e.OldItems != null)
+            foreach (DebugVariableNode node in e.OldItems) node.PropertyChanged -= DebugVariableNode_PropertyChanged;
+    }
+
+    private async void DebugVariableNode_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(DebugVariableNode.IsExpanded) && sender is DebugVariableNode { IsArray: true, IsExpanded: true } node)
+            await ViewModel.LoadArrayChildrenAsync(node);
+    }
 
     private async void VariablesList_KeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter) { e.Handled = true; await EditSelectedVariableAsync(); }
     }
 
+    // The value as the C64 would show it in the debugged tab's Upper/Lower Case Mode, edited
+    // the same way: what's typed is taken as display text, so in Lower Case Mode the ASCII
+    // case is swapped back to the bytes the C64 stores.
     private async Task EditSelectedVariableAsync()
     {
-        if (VariablesList.SelectedItem is not BasicVariable variable) return;
+        if (VariablesList.SelectedItem is not DebugVariableNode { IsArray: false, Variable: { } variable }) return;
         if (!ViewModel.IsDebugStopped)
         {
             ViewModel.SetStatus($"Can't update {variable.Name} while running - pause first.", StatusType.Error);
             return;
         }
 
-        string current = MainViewModel.FormatVariableValue(variable);
-        if (variable.Type == BasicVariableType.String && current.Length >= 2) current = current[1..^1];
+        bool isUpperCaseModeActive = ViewModel.DebugTab?.IsUpperCaseModeActive ?? true;
+        string current = variable is { Type: BasicVariableType.String, Value: ResolvedStringValue resolved }
+            ? PetsciiScreenCodeMap.ToDisplayText(resolved.Text, isUpperCaseModeActive)
+            : MainViewModel.FormatVariableValue(variable);
         string? text = await TextPromptDialog.ShowAsync(this, "Set Variable", $"New value for {variable.Name}:", current);
         if (text == null) return;
+
+        if (variable.Type == BasicVariableType.String && !isUpperCaseModeActive)
+            text = SwapAsciiLetterCase(text);
         await ViewModel.SetVariableAsync(variable, text);
+    }
+
+    private static string SwapAsciiLetterCase(string text)
+    {
+        char[] chars = text.ToCharArray();
+        for (int i = 0; i < chars.Length; i++)
+            if (char.IsAsciiLetter(chars[i]))
+                chars[i] = char.IsAsciiLetterUpper(chars[i]) ? char.ToLowerInvariant(chars[i]) : char.ToUpperInvariant(chars[i]);
+        return new string(chars);
     }
 
     private void BreakpointsList_DoubleTapped(object? sender, TappedEventArgs e)
