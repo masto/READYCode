@@ -85,7 +85,7 @@ public class MenuTests
             "Column Guide", "Status Bar", "About READYCode", "About My C64 Ultimate…", "About VICE",
             "Problems", "Load", "Visit READYCode on GitHub", "View Online Docs", "Format Code",
             "Open Recent", "Export…", "Import…", "Comment Selection", "Uncomment Selection",
-            "Make Lowercase", "Code Statistics",
+            "Make Lowercase", "Code Statistics", "Disassemble at…",
         };
 
         var missing = new List<string>();

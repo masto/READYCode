@@ -24,6 +24,8 @@ public class EditorTab : INotifyPropertyChanged
     private EditorLanguage _language = EditorLanguage.Basic;
     private C64UFileKind _kind = C64UFileKind.Prg;
     private bool _isUpperCaseModeActive = true;
+    private bool _isDisassemblyMode;
+    private IReadOnlyDictionary<int, ushort>? _disassemblyLineAddresses;
 
     #endregion
 
@@ -101,6 +103,37 @@ public class EditorTab : INotifyPropertyChanged
 
     /// <summary>Gets the undo/redo history for hex-mode edits - the hex analog of the document's own undo stack.</summary>
     public HexUndoStack UndoStack { get; } = new();
+
+    /// <summary>
+    /// Gets or sets whether this is a live-memory disassembly tab: read-only, with the
+    /// Start/End address toolbar above it. Cleared by Save As, which turns the listing into an
+    /// ordinary assembly file.
+    /// </summary>
+    public bool IsDisassemblyMode
+    {
+        get => _isDisassemblyMode;
+        set { if (_isDisassemblyMode == value) return; _isDisassemblyMode = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>Gets or sets which machine a disassembly tab reads memory from.</summary>
+    public DisassemblySource DisassemblySource { get; set; }
+
+    /// <summary>
+    /// Gets or sets the address of each line of assembled source with an explicit origin, from
+    /// the last analysis, for the gutter; null when the source has no fixed origin or didn't
+    /// assemble. <see cref="DisassemblyLineAddresses"/> takes precedence when set.
+    /// </summary>
+    public IReadOnlyDictionary<int, ushort>? AssembledLineAddresses { get; set; }
+
+    /// <summary>
+    /// Gets or sets the memory address each document line represents, keyed by 1-based line
+    /// number, for the gutter - set on a disassembly, null for ordinary source.
+    /// </summary>
+    public IReadOnlyDictionary<int, ushort>? DisassemblyLineAddresses
+    {
+        get => _disassemblyLineAddresses;
+        set { if (ReferenceEquals(_disassemblyLineAddresses, value)) return; _disassemblyLineAddresses = value; OnPropertyChanged(); }
+    }
 
     /// <summary>
     /// Gets or sets whether <see cref="VirtualSourceId"/> names a disk image on a C64 Ultimate's
