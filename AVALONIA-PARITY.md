@@ -23,13 +23,17 @@ things are added - see `MenuTests.cs`.
 
 ## Large features (their own multi-step effort each)
 
-### Hex Editor
-- [ ] Open any file (not just recognized BASIC/asm/disk-image types) as a raw offset/hex/ASCII grid
-- [ ] Inline byte editing, its own undo/redo history
-- [ ] Works on files inside a mounted `.d64`/`.d81` image, not just on-disk files
-- **New logic**: `HexEditorControl.xaml`/`HexGridCanvas.cs` are WPF-only; `HexUndoStack` model is
-  already in `ReadyCode.Core/Models/`, so the undo/redo *data structure* is shared - the grid
-  rendering and byte-editing UI is not.
+### Hex Editor - DONE
+- [x] Machine-language `.prg` files open in it automatically; anything else - a disk image
+  included - via "Open in Hex editor" on the explorer, disk-image entry, and C64U context
+  menus. A file already open in the other view is reloaded into the requested one, unless it
+  has unsaved changes.
+- [x] Offset / 16 hex bytes / ASCII grid drawn by one control (`Editor/HexGridCanvas.cs`, a port
+  of WPF's), selection by mouse or keyboard, Cut/Copy/Paste/Delete/Select All from the Edit
+  menu and a context menu, and its own undo/redo (the shared `HexUndoStack`).
+- [x] Editing: double-click or Enter opens the byte in an edit box; or just type a hex digit -
+  the second digit commits and moves to the next byte, so a run can be typed straight through.
+- [x] Saves the bytes back to the file, into a local disk image, or into a C64U disk image.
 
 ### File Compare
 - [ ] Side-by-side or unified diff view for two comparable files (`.bas`, `.asm`/`.s`, `.prg` -

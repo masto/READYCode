@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:editor="using:ReadyCode.Avalonia.Editor"
+             x:Class="ReadyCode.Avalonia.Views.HexEditorControl"
+             Background="{DynamicResource ThemeEditorBg}">
+
+    <UserControl.Styles>
+        <Style Selector="TextBlock.hexHeader">
+            <Setter Property="FontFamily" Value="Menlo,Consolas,DejaVu Sans Mono,monospace" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemePanelHeaderFg}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <DockPanel>
+        <!-- Fixed column-index header (00-0F), laid out with the same numbers HexGridCanvas uses
+             for its cells (see RescaleHeaderAndEditBox), so it lines up with the rows scrolling
+             beneath it. -->
+        <Border DockPanel.Dock="Top" Background="{DynamicResource ThemePanelHeaderBg}" BorderBrush="{DynamicResource ThemeSettingsDivider}" BorderThickness="0,0,0,1">
+            <StackPanel x:Name="HeaderPanel" Orientation="Horizontal" Margin="6,4">
+                <TextBlock x:Name="OffsetHeaderText" Text="Offset" Width="64" Classes="hexHeader" />
+                <Border x:Name="HeaderDivider1" Width="1" Margin="6,2" Background="{DynamicResource ThemeSettingsDivider}" />
+                <StackPanel x:Name="CellsHeaderPanel" Orientation="Horizontal" Margin="8,0" />
+                <Border x:Name="HeaderDivider2" Width="1" Margin="6,2" Background="{DynamicResource ThemeSettingsDivider}" />
+                <TextBlock x:Name="AsciiHeaderText" Text="ASCII" Margin="8,0,0,0" Classes="hexHeader" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer x:Name="RowsScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+            <!-- The grid and, over whichever cell is being edited, the one shared edit box -
+                 in the same scrolling panel as the grid, so its position is just the cell's. -->
+            <Panel>
+                <editor:HexGridCanvas x:Name="HexGrid" />
+                <TextBox x:Name="EditBox"
+                         IsVisible="False"
+                         HorizontalAlignment="Left" VerticalAlignment="Top"
+                         MinHeight="0" MinWidth="0" Padding="0"
+                         FontFamily="Menlo,Consolas,DejaVu Sans Mono,monospace" FontSize="13"
+                         TextAlignment="Center" VerticalContentAlignment="Center"
+                         MaxLength="2" BorderThickness="1"
+                         Background="{DynamicResource ThemeSettingsInputBg}"
+                         BorderBrush="{DynamicResource ThemeSettingsAccent}"
+                         Foreground="{DynamicResource ThemeFileFg}"
+                         CaretBrush="{DynamicResource ThemeFileFg}" />
+            </Panel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

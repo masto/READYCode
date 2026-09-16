@@ -196,6 +196,10 @@ approve the automation the first time.
   place, and the programs inside them open and save back into the image. New file and folder,
   rename, delete, Reveal in Finder, Copy Path, and Run or Load on VICE or the C64 Ultimate
   straight from the tree.
+- **Hex editor** - machine-language programs open in an offset/hex/ASCII grid, and any file
+  (a whole disk image included) can be opened that way from the explorer's context menu. Type
+  hex digits over the bytes, select and cut/copy/paste/zero-fill ranges, undo, and save back -
+  to the file, or into the disk image the program lives in.
 - **Variable / Symbol Explorer** - under the folder explorer, every variable in the BASIC
   program (or every label and constant in the assembly program) with each place it's set or
   read; double-click one to jump there, F2 to rename a variable throughout the file.
@@ -247,8 +251,8 @@ your real settings.
 
 ## Not ported yet
 
-Project-wide search, the hex editor, file compare, the disassembler tabs, printing, and
-drag-and-drop and cut/copy/paste in either explorer tree.
+Project-wide search, file compare, the disassembler tabs, printing, and drag-and-drop and
+cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
