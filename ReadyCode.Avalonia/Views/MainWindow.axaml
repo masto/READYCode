@@ -158,6 +158,28 @@
         <Style Selector="TreeView#VariablesTree TreeViewItem, TreeView#SymbolsTree TreeViewItem">
             <Setter Property="Padding" Value="2,1" />
         </Style>
+        <Style Selector="TreeView#SearchResultsTree > TreeViewItem" x:DataType="core:ProjectSearchFileResult">
+            <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+        </Style>
+        <Style Selector="TreeView#SearchResultsTree TreeViewItem">
+            <Setter Property="Padding" Value="2,1" />
+        </Style>
+        <Style Selector="TreeView#SearchResultsTree TreeViewItem TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeFileFg}" />
+        </Style>
+        <Style Selector="ToggleButton.searchOpt, Button.searchBtn">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.search">
+            <Setter Property="Height" Value="24" />
+            <Setter Property="MinHeight" Value="24" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="4,2" />
+        </Style>
         <Style Selector="Border.symbolBadge">
             <Setter Property="Background" Value="{DynamicResource ThemeFolderExplorerHoverBg}" />
             <Setter Property="CornerRadius" Value="2" />
@@ -250,6 +272,9 @@
                         <NativeMenuItem Header="Find and Replace…" Click="EditReplace_Click"     Gesture="{OnPlatform Ctrl+H, macOS=Cmd+Alt+F}" />
                         <NativeMenuItem Header="Find Next"        Click="EditFindNext_Click"     Gesture="{OnPlatform F3, macOS=Cmd+G}" />
                         <NativeMenuItem Header="Find Previous"    Click="EditFindPrevious_Click" Gesture="{OnPlatform Shift+F3, macOS=Cmd+Shift+G}" />
+                        <NativeMenuItemSeparator />
+                        <NativeMenuItem Header="Find in Files"    Click="EditFindInFiles_Click"    Gesture="{OnPlatform Ctrl+Shift+F, macOS=Cmd+Shift+F}" IsEnabled="{Binding IsFolderOpen}" />
+                        <NativeMenuItem Header="Replace in Files" Click="EditReplaceInFiles_Click" Gesture="{OnPlatform Ctrl+Shift+H, macOS=Cmd+Shift+H}" IsEnabled="{Binding IsFolderOpen}" />
                     </NativeMenu>
                 </NativeMenuItem.Menu>
             </NativeMenuItem>
@@ -424,6 +449,9 @@
                     <Button x:Name="ActivityC64U" Classes="activityBar" Classes.active="{Binding IsC64UToggleChecked}" ToolTip.Tip="C64U" Click="ActivityC64U_Click">
                         <Path Data="M2.5 4.5h15v9h-15z M7 17.5h6 M10 13.5v4" />
                     </Button>
+                    <Button x:Name="ActivitySearch" Classes="activityBar" Classes.active="{Binding IsSearchToggleChecked}" ToolTip.Tip="Search" Click="ActivitySearch_Click">
+                        <Path Data="M8.5 3a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11z M12.5 12.5l5 5" />
+                    </Button>
                 </StackPanel>
             </Border>
 
@@ -566,6 +594,50 @@
                             </TreeView.ItemTemplate>
                         </TreeView>
                     </Panel>
+                </DockPanel>
+
+                <!-- Search: find and replace across the open folder's source files. -->
+                <DockPanel x:Name="SearchPanel" IsVisible="{Binding IsSearchTabActive}">
+                    <Border DockPanel.Dock="Top" Height="32" Background="{DynamicResource ThemeFolderExplorerHeaderBg}" BorderBrush="{DynamicResource ThemeFolderExplorerHeaderBorder}" BorderThickness="0,0,0,1">
+                        <TextBlock Text="SEARCH" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    </Border>
+                    <StackPanel DockPanel.Dock="Top" Margin="8,8,8,4" Spacing="4">
+                        <DockPanel LastChildFill="True">
+                            <ToggleButton x:Name="SearchReplaceExpandBtn" DockPanel.Dock="Left" Classes="searchOpt" Width="22" Padding="0" IsTabStop="False"
+                                          ToolTip.Tip="Toggle Replace" IsCheckedChanged="SearchReplaceExpandBtn_IsCheckedChanged">
+                                <TextBlock x:Name="SearchReplaceExpandArrow" Text="▸" FontSize="10" />
+                            </ToggleButton>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="2" Margin="4,0,0,0">
+                                <ToggleButton x:Name="SearchMatchCaseBtn" Classes="searchOpt" Content="Aa" ToolTip.Tip="Match Case" />
+                                <ToggleButton x:Name="SearchWholeWordBtn" Classes="searchOpt" Content="ab" ToolTip.Tip="Match Whole Word" />
+                                <ToggleButton x:Name="SearchRegexBtn" Classes="searchOpt" Content=".*" FontFamily="Menlo,Consolas,monospace" ToolTip.Tip="Use Regular Expression" />
+                            </StackPanel>
+                            <TextBox x:Name="SearchQueryBox" Classes="search" Margin="4,0,0,0" PlaceholderText="Search" KeyDown="SearchQueryBox_KeyDown" />
+                        </DockPanel>
+                        <DockPanel x:Name="SearchReplaceRow" IsVisible="False" LastChildFill="True">
+                            <Panel DockPanel.Dock="Left" Width="22" />
+                            <Button DockPanel.Dock="Right" Classes="searchBtn" Content="Replace All" Margin="4,0,0,0" ToolTip.Tip="Replace All in Project" Click="SearchReplaceAll_Click" />
+                            <TextBox x:Name="SearchReplaceBox" Classes="search" Margin="4,0,0,0" PlaceholderText="Replace" KeyDown="SearchQueryBox_KeyDown" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding SearchStatusText}" FontSize="11" Foreground="{DynamicResource ThemeFileFg}" TextWrapping="Wrap" Margin="2,2,0,0" />
+                    </StackPanel>
+                    <TreeView x:Name="SearchResultsTree"
+                              ItemsSource="{Binding SearchResults}"
+                              Background="Transparent" BorderThickness="0"
+                              DoubleTapped="SearchResultsTree_DoubleTapped"
+                              KeyDown="SearchResultsTree_KeyDown">
+                        <TreeView.DataTemplates>
+                            <TreeDataTemplate x:DataType="core:ProjectSearchFileResult" ItemsSource="{Binding Matches}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding RelativeDisplayPath}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <Border Classes="symbolBadge"><TextBlock Text="{Binding Matches.Count}" /></Border>
+                                </StackPanel>
+                            </TreeDataTemplate>
+                            <DataTemplate x:DataType="core:ProjectSearchMatchInfo">
+                                <TextBlock Text="{Binding DisplayText}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            </DataTemplate>
+                        </TreeView.DataTemplates>
+                    </TreeView>
                 </DockPanel>
               </Panel>
 

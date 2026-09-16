@@ -152,11 +152,6 @@ public partial class MainWindow : Window
         FindBar.ReplaceRequested      += (_, _) => ExecuteReplace();
         FindBar.ReplaceAllRequested   += (_, _) => ExecuteReplaceAll();
 
-        // Cmd+Alt+F (the menu's gesture) is fine when nothing else claims it; Cmd+Shift+H is an
-        // alternate that avoids Option-key text-composition quirks.
-        if (OperatingSystem.IsMacOS())
-            KeyBindings.Add(new KeyBinding { Gesture = new KeyGesture(Key.H, KeyModifiers.Meta | KeyModifiers.Shift), Command = new AsyncCommand(() => { OpenFind(replaceMode: true); return Task.CompletedTask; }) });
-
         AddQuickKeyBindings();
         ConfigureMacOSMenus();
         Opened += (_, _) => AddMenuShortcutBindings();
@@ -1359,6 +1354,8 @@ public partial class MainWindow : Window
     // Deliberately does not auto-connect: matches the WPF app, which leaves the "Not connected"
     // state until the user clicks Connect, even with a URL already configured.
     private void ActivityC64U_Click(object? sender, RoutedEventArgs e) => ActivateLeftPanel("C64U");
+
+    private void ActivitySearch_Click(object? sender, RoutedEventArgs e) => ActivateLeftPanel("Search");
 
     private void ActivateLeftPanel(string tab)
     {

@@ -213,7 +213,9 @@ approve the automation the first time.
 - **Variable / Symbol Explorer** - under the folder explorer, every variable in the BASIC
   program (or every label and constant in the assembly program) with each place it's set or
   read; double-click one to jump there, F2 to rename a variable throughout the file.
-- **Find and replace** - `Cmd`/`Ctrl+F`, with match case, whole word, and regex.
+- **Find and replace** - `Cmd`/`Ctrl+F`, with match case, whole word, and regex. **Find in
+  Files** (`Cmd`/`Ctrl+Shift+F`) and **Replace in Files** (`Cmd`/`Ctrl+Shift+H`) search every
+  source file in the open folder, `.prg` included, from a Search tab on the activity bar.
 - **Diagnostics** - live squiggles for invalid `GOTO`/`GOSUB` targets, unmatched `FOR`/`NEXT`,
   unterminated strings, duplicate line numbers, and assembly errors, with hover messages and a
   Problems panel that jumps to the issue.
@@ -261,7 +263,7 @@ your real settings.
 
 ## Not ported yet
 
-Project-wide search, printing, and drag-and-drop and cut/copy/paste in either explorer tree.
+Printing, and drag-and-drop and cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live
