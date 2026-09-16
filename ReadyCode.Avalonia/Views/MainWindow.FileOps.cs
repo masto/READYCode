@@ -95,21 +95,25 @@ public partial class MainWindow
         _dragCandidate = null;
         _dragPress = null;
 
+        // One item carrying every format: macOS makes a drag image per item and requires
+        // exactly one per pasteboard item, and it merges the formats into one pasteboard item.
         var data = new DataTransfer();
+        var transferItem = new DataTransferItem();
         switch (item)
         {
             case FileTreeItem local:
-                data.Add(DataTransferItem.Create(LocalItemFormat, local));
+                transferItem.Set(LocalItemFormat, local);
                 // The real file too, so the same drag can land in the Finder / Explorer.
                 if (await StorageItemForPathAsync(local.FullPath) is { } storageItem)
-                    data.Add(DataTransferItem.CreateFile(storageItem));
+                    transferItem.SetFile(storageItem);
                 break;
             case C64UFileItem remote:
-                data.Add(DataTransferItem.Create(_c64uItemFormat, remote));
+                transferItem.Set(_c64uItemFormat, remote);
                 break;
             default:
                 return;
         }
+        data.Add(transferItem);
 
         // Both effects are offered: DragOver decides Move (folder) or Copy (disk image).
         await DragDrop.DoDragDropAsync(press, data, DragDropEffects.Move | DragDropEffects.Copy);
