@@ -48,16 +48,17 @@ things are added - see `MenuTests.cs`.
   `DiffChangeIndicatorStrip`, `DiffColors`, `DiffLineColorizer`, `DiffPrefixMargin`,
   `DiffViewportThumb`, all WPF-only) plus the Explorer context-menu wiring.
 
-### Disassembler
-- [ ] **Disassemble at...** - reads live memory from a running C64 Ultimate or VICE instance
-  starting at a given address, opens a read-only annotated-assembly tab
-- [ ] **Disassemble file** - same for a machine-language `.prg`/`.ml` file from either Explorer
-  tree, auto-detecting and skipping a BASIC loader stub
-- [ ] Disassembly toolbar (address field, re-disassemble, etc.)
-- **Core logic**: `ReadyCode.Core/Assembler/Asm6502Disassembler.cs` and
-  `PrgFileDisassembler.cs` are shared. Missing: the VICE/C64U memory-read wiring for "at a live
-  address" (the emulator clients themselves are shared, so this is mostly UI + a bit of
-  glue), the read-only disassembly tab mode, and `DisassemblyToolbarControl`.
+### Disassembler - DONE
+- [x] **Disassemble at…** on the VICE and C64U menus: a read-only listing tab with a Start/End
+  address toolbar that reads that range of the machine's live memory and disassembles it.
+  Save As turns it into an ordinary editable assembly file, as WPF.
+- [x] **Disassemble file** on machine-language files in the explorer, in disk-image entries, and
+  in the C64U tree, skipping a BASIC loader stub (left as a comment describing it).
+- [x] The assembly gutter (`Editor/AsmLineNumberMargin.cs`, ported) - line numbers for source,
+  each line's address for a disassembly or for assembled source with a fixed origin. Assembly
+  tabs previously had no gutter at all here.
+- The disassembly is the shared `Asm6502Disassembler` / `PrgFileDisassembler`; the tab and
+  memory-read handling is `MainViewModel.Disassembly.cs`.
 
 ### Project-wide Find/Replace in Files
 - [ ] Search and replace across `.bas`, `.asm`, `.s`, `.txt`, `.prg` files in the open folder

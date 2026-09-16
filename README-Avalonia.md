@@ -200,6 +200,11 @@ approve the automation the first time.
   (a whole disk image included) can be opened that way from the explorer's context menu. Type
   hex digits over the bytes, select and cut/copy/paste/zero-fill ranges, undo, and save back -
   to the file, or into the disk image the program lives in.
+- **Disassembler** - `Disassemble at…` on the VICE and C64U menus reads a range of the
+  machine's memory into a listing with each line's address in the gutter; `Disassemble file`
+  on a machine-language program in the explorer does the same for the file, skipping a BASIC
+  loader stub. Assembly tabs have a line-number gutter, which shows addresses instead when the
+  source has a fixed origin.
 - **Variable / Symbol Explorer** - under the folder explorer, every variable in the BASIC
   program (or every label and constant in the assembly program) with each place it's set or
   read; double-click one to jump there, F2 to rename a variable throughout the file.
@@ -251,8 +256,8 @@ your real settings.
 
 ## Not ported yet
 
-Project-wide search, file compare, the disassembler tabs, printing, and drag-and-drop and
-cut/copy/paste in either explorer tree.
+Project-wide search, file compare, printing, and drag-and-drop and cut/copy/paste in either
+explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live

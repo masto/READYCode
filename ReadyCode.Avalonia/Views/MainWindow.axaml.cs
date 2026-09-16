@@ -69,6 +69,7 @@ public partial class MainWindow : Window
     private CurrentLineBorderRenderer _currentLineBorderRenderer = null!;
     private readonly DebugCurrentLineRenderer _debugCurrentLineRenderer = new();
     private readonly BreakpointMargin _breakpointMargin = new();
+    private readonly AsmLineNumberMargin _asmLineNumberMargin = new();
     private BasicLineAddressTable? _activeTabLineAddressTable;
     private IReadOnlyList<EditorDiagnostic> _currentDiagnostics = Array.Empty<EditorDiagnostic>();
     private double _problemsHeight = 160;
@@ -115,6 +116,7 @@ public partial class MainWindow : Window
         InstallCompletion();
         HexEditor.ByteEdited += (_, _) => { if (ViewModel.ActiveTab is { IsHexMode: true } tab) tab.IsModified = true; };
         HexEditor.ContextRequested += HexEditor_ContextRequested;
+        DisassemblyToolbar.DisassembleRequested += async (_, _) => await DisassembleRequestedAsync();
         _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
         Editor.TextArea.TextView.PointerHoverStopped += (_, _) => HideDiagnosticTip();
@@ -395,10 +397,16 @@ public partial class MainWindow : Window
         bool hex = tab.IsHexMode;
         HexEditor.IsVisible = hex;
         Editor.IsVisible = !hex;
+        ApplyDisassemblyMode(tab);
         if (hex)
         {
             if (FindBar.IsVisible) CloseFind();
             HexEditor.LoadBytes(tab.RawBytes!, tab.CaretOffset, tab.UndoStack);
+        }
+        else if (tab.IsDisassemblyMode && tab.DisassemblyLineAddresses == null)
+        {
+            // A fresh disassembly tab: the address range is the first thing to fill in.
+            Dispatcher.UIThread.Post(DisassemblyToolbar.FocusStartAddress, DispatcherPriority.Background);
         }
         else
         {
@@ -408,8 +416,28 @@ public partial class MainWindow : Window
 
     private void BoundTab_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(EditorTab.Language) or nameof(EditorTab.Kind) && _boundTab != null)
-            ApplyLanguageStyling(_boundTab);
+        if (_boundTab == null) return;
+        switch (e.PropertyName)
+        {
+            case nameof(EditorTab.Language) or nameof(EditorTab.Kind):
+                ApplyLanguageStyling(_boundTab);
+                break;
+            case nameof(EditorTab.IsDisassemblyMode) or nameof(EditorTab.DisassemblyLineAddresses):
+                ApplyDisassemblyMode(_boundTab);
+                RefreshAsmGutter(_boundTab);
+                break;
+        }
+    }
+
+    // The gutter of an assembly tab shows the disassembly's addresses, else the assembled
+    // addresses when the source has a fixed origin, else line numbers.
+    private void RefreshAsmGutter(EditorTab tab) =>
+        _asmLineNumberMargin.LineAddresses = tab.DisassemblyLineAddresses ?? tab.AssembledLineAddresses;
+
+    private void ApplyDisassemblyMode(EditorTab tab)
+    {
+        Editor.IsReadOnly = tab.IsDisassemblyMode;
+        DisassemblyToolbar.IsVisible = tab.IsDisassemblyMode;
     }
 
     private void ApplyLanguageStyling(EditorTab tab)
@@ -421,6 +449,9 @@ public partial class MainWindow : Window
         var margins = Editor.TextArea.LeftMargins;
         if (!isAsm && !margins.Contains(_breakpointMargin)) margins.Insert(0, _breakpointMargin);
         if (isAsm) margins.Remove(_breakpointMargin);
+        if (isAsm && !margins.Contains(_asmLineNumberMargin)) margins.Insert(0, _asmLineNumberMargin);
+        if (!isAsm) margins.Remove(_asmLineNumberMargin);
+        RefreshAsmGutter(tab);
         if (isAsm)
         {
             transformers.Add(_asmMnemonicColorizer);
@@ -469,6 +500,7 @@ public partial class MainWindow : Window
     private void ApplyThemeBrushes()
     {
         _lineNumberColorizer.LineNumberBrush = ThemeBrush("ThemeEditorLineNumberFg");
+        _asmLineNumberMargin.TextBrush = ThemeBrush("ThemeEditorLineNumberFg");
         _lineNumberColorizer.ActiveLineNumberBrush = ThemeBrush("ThemeEditorFg");
         _keywordColorizer.KeywordBrush = ThemeBrush("ThemeEditorKeywordFg");
         _numberLiteralColorizer.NumberBrush = ThemeBrush("ThemeEditorNumberLiteralFg");
@@ -507,6 +539,8 @@ public partial class MainWindow : Window
         var settings = ViewModel.Settings;
         Editor.FontSize = Math.Clamp(settings.EditorFontSize, 6, 72);
         HexEditor.HexFontSize = Editor.FontSize;
+        _asmLineNumberMargin.FontSize = Editor.FontSize;
+        _asmLineNumberMargin.ZeroPadWidth = settings.LineNumberPadding;
         Editor.WordWrap = settings.WordWrap;
         _columnGuideRenderer.Column = settings.ShowColumnGuide
             ? Math.Max(1, ViewModel.ActiveTab?.Language == EditorLanguage.Asm ? settings.AsmColumnGuideColumn : settings.BasicColumnGuideColumn)
@@ -619,6 +653,7 @@ public partial class MainWindow : Window
         var tab = ViewModel.ActiveTab;
         _currentDiagnostics = tab == null ? Array.Empty<EditorDiagnostic>() : ViewModel.AnalyzeTab(tab);
         _errorSquiggleRenderer.SetDiagnostics(_currentDiagnostics);
+        if (tab != null) RefreshAsmGutter(tab);
         Editor.TextArea.TextView.InvalidateLayer(KnownLayer.Background);
         RefreshBreakpointMargin();
     }
@@ -1024,6 +1059,10 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>The headers of the explorer context menu an item would get, for tests.</summary>
+    internal IReadOnlyList<string> ContextMenuHeadersFor(FileTreeItem item) =>
+        BuildTreeContextMenu(item).Items.OfType<MenuItem>().Select(m => (string)m.Header!).ToList();
+
     private ContextMenu BuildTreeContextMenu(FileTreeItem item)
     {
         var menu = new ContextMenu();
@@ -1053,6 +1092,8 @@ public partial class MainWindow : Window
             if (item.IsOpenable)
                 AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenTreeItem(item));
             AddSync("Open in Hex editor", () => OpenTreeItem(item, forceHex: true));
+            if (item.Kind == C64UFileKind.Ml)
+                AddSync("Disassemble file", () => ViewModel.DisassembleFile(item));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on VICE", () => ViewModel.SendFileToViceAsync(item, run: true));
@@ -1221,6 +1262,8 @@ public partial class MainWindow : Window
             if (item.IsOpenable)
                 AddSync(item.Kind == C64UFileKind.Asm ? "Open in Assembly editor" : "Open in BASIC editor", () => OpenC64UTreeItem(item));
             Add("Open in Hex editor", () => ViewModel.OpenC64UItemAsync(item, forceHex: true));
+            if (item.Kind == C64UFileKind.Ml)
+                Add("Disassemble file", () => ViewModel.DisassembleC64UFileAsync(item));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on C64U", () => ViewModel.SendC64UItemAsync(item, run: true));
@@ -2070,6 +2113,20 @@ public partial class MainWindow : Window
     private async void C64UPause_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("pause", "C64 Ultimate machine paused.");
     private async void C64UResume_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("resume", "C64 Ultimate machine resumed.");
     private async void C64UPowerOff_Click(object? sender, EventArgs e) => await ViewModel.C64UMachineActionAsync("poweroff", "C64 Ultimate powered off.");
+
+    private void ViceDisassemble_Click(object? sender, EventArgs e) => ViewModel.OpenDisassemblyTab(DisassemblySource.Vice);
+    private void C64UDisassemble_Click(object? sender, EventArgs e) => ViewModel.OpenDisassemblyTab(DisassemblySource.C64U);
+
+    private async Task DisassembleRequestedAsync()
+    {
+        if (ViewModel.ActiveTab is not { IsDisassemblyMode: true } tab) return;
+        if (!DisassemblyToolbar.TryGetAddressRange(out ushort start, out ushort end, out string? error))
+        {
+            ViewModel.SetStatus(error!, StatusType.Error);
+            return;
+        }
+        await ViewModel.DisassembleMemoryAsync(tab, start, end);
+    }
 
     private async void ViceAbout_Click(object? sender, EventArgs e) => await ShowAboutViceAsync();
 

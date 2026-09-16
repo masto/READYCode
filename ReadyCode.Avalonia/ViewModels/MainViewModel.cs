@@ -570,6 +570,10 @@ public partial class MainViewModel : INotifyPropertyChanged
             tab.VirtualSourceId = null;
             tab.DisplayName = null;
             tab.FilePath = filePath;
+
+            // Saving a disassembly listing turns it into an ordinary editable assembly file.
+            tab.IsDisassemblyMode = false;
+            tab.DisassemblyLineAddresses = null;
             tab.Kind = FileClassifier.Classify(filePath, isFolder: false);
             tab.Language = LanguageClassifier.Classify(filePath);
             tab.IsModified = false;
@@ -662,6 +666,12 @@ public partial class MainViewModel : INotifyPropertyChanged
                 ? AsmDiagnostics.Analyze(text, asmResult)
                 : BasicDiagnostics.Analyze(text);
         RefreshErrorList();
+
+        // Assembled source with a fixed origin shows each line's address in the gutter, as WPF.
+        tab.AssembledLineAddresses = asmResult is { Success: true, HasExplicitOrigin: true }
+            ? asmResult.ListingEntries.GroupBy(e => e.LineNumber).ToDictionary(g => g.Key, g => g.First().Address)
+            : null;
+
         if (ReferenceEquals(tab, ActiveTab)) RefreshSymbolIndex(asmResult);
         return tab.Diagnostics;
     }
