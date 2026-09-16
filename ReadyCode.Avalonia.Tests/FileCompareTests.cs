@@ -1,7 +1,10 @@
 // Copyright (c) 2026 Moonspace Labs, LLC
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -147,6 +150,56 @@ public class FileCompareTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(left.VerticalOffset > 0, "left pane did not scroll to the change");
             Assert.Equal(left.VerticalOffset, right.VerticalOffset, 1.0);
+
+            // The wheel over one pane carries the other along - in both directions.
+            var overLeft = left.TranslatePoint(new Point(50, 50), window)!.Value;
+            window.MouseWheel(overLeft, new Vector(0, -3));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(left.VerticalOffset, right.VerticalOffset, 1.0);
+
+            var overRight = right.TranslatePoint(new Point(50, 50), window)!.Value;
+            double before = right.VerticalOffset;
+            window.MouseWheel(overRight, new Vector(0, 3));
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(right.VerticalOffset < before, "right pane did not scroll");
+            Assert.Equal(right.VerticalOffset, left.VerticalOffset, 1.0);
+        }
+        finally { Directory.Delete(dir, recursive: true); }
+    }
+
+    [AvaloniaFact]
+    public async Task DraggingTheViewportThumb_ScrollsThePanes_AndStays()
+    {
+        var (window, vm, dir) = ShowWithFolder();
+        try
+        {
+            string same = string.Join("\n", Enumerable.Range(1, 200).Select(i => $"{i * 10} REM LINE {i}"));
+            File.WriteAllText(Path.Combine(dir, "a.bas"), same);
+            File.WriteAllText(Path.Combine(dir, "b.bas"), same.Replace("REM LINE 150", "REM CHANGED"));
+            vm.LoadFolder(dir);
+            var a = ComparableFileRef.FromLocal(vm.FolderItems.Single(i => i.Name == "a.bas"));
+            var b = ComparableFileRef.FromLocal(vm.FolderItems.Single(i => i.Name == "b.bas"));
+            Assert.NotNull(await vm.OpenCompareTabAsync(a, b));
+            Dispatcher.UIThread.RunJobs();
+            var view = window.FindControl<FileCompareControl>("CompareView")!;
+            var left = view.FindControl<AvaloniaEdit.TextEditor>("LeftEditor")!;
+            var right = view.FindControl<AvaloniaEdit.TextEditor>("RightEditor")!;
+            var thumb = view.FindControl<Editor.DiffViewportThumb>("SplitViewportThumb")!;
+            view.ExpandAll();
+            Dispatcher.UIThread.RunJobs();
+
+            // Press near the top of the track and drag to its middle: the panes scroll to about
+            // the middle of the document, and the thumb reports that position afterwards.
+            var top = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, 5), window)!.Value;
+            var middle = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(top, MouseButton.Left);
+            window.MouseMove(middle);
+            window.MouseUp(middle, MouseButton.Left);
+            Dispatcher.UIThread.RunJobs();
+
+            Assert.True(left.VerticalOffset > left.ExtentHeight * 0.3, $"left pane at {left.VerticalOffset} of {left.ExtentHeight}");
+            Assert.Equal(left.VerticalOffset, right.VerticalOffset, 1.0);
+            Assert.Equal(left.VerticalOffset / left.ExtentHeight, thumb.ViewportStart, 0.05);
         }
         finally { Directory.Delete(dir, recursive: true); }
     }
