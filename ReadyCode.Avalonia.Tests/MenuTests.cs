@@ -136,10 +136,9 @@ public class MenuTests
         Assert.All(expected, gesture => Assert.Contains(gesture, bound));
 
         // Beyond the menu's own gestures the window binds the Quick Keys shortcuts (Ctrl+1-8 and
-        // so on, on every platform) and, on macOS only, an alternate for Find and Replace
-        // (Cmd+Shift+H), because Cmd+Alt+F is easy for another app to claim first. Shift+F3 is
-        // both a quick key and Find Previous where the menu isn't native, and is bound twice.
-        int extra = window.QuickKeyGestures.Count + (OperatingSystem.IsMacOS() ? 1 : 0);
+        // so on, on every platform). Shift+F3 is both a quick key and Find Previous where the
+        // menu isn't native, and is bound twice.
+        int extra = window.QuickKeyGestures.Count;
         Assert.Equal(expected.Count + extra, bound.Count);
     }
 

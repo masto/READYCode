@@ -60,11 +60,15 @@ things are added - see `MenuTests.cs`.
 - The disassembly is the shared `Asm6502Disassembler` / `PrgFileDisassembler`; the tab and
   memory-read handling is `MainViewModel.Disassembly.cs`.
 
-### Project-wide Find/Replace in Files
-- [ ] Search and replace across `.bas`, `.asm`, `.s`, `.txt`, `.prg` files in the open folder
-- [ ] Match case, whole word, regex options; results tree grouped by file
-- **Core logic**: `ReadyCode.Core/Search/ProjectSearcher.cs` and `ProjectSearchResultInfo.cs` are
-  shared. Missing: the results-tree UI and the Find in Files / Replace in Files dialogs.
+### Project-wide Find/Replace in Files - DONE
+- [x] A Search tab on the left activity bar (`Edit > Find in Files` `Ctrl+Shift+F`, `Replace in
+  Files` `Ctrl+Shift+H` - on macOS `Cmd+Shift+F` / `Cmd+Shift+H`, which replaced the earlier
+  ad-hoc `Cmd+Shift+H` alternate for the single-file Find and Replace): match case, whole
+  word, regex; results grouped by file with a match count, double-click or Enter opens the
+  file at the match; Replace All (confirmed) edits open tabs through their document and
+  rewrites closed files, `.prg` included, re-tokenized.
+- The matching and file reading is the shared `ProjectSearcher`; the results and replace are
+  `MainViewModel.Search.cs`. As WPF, files are searched as they are on disk.
 
 ### Minify / Prettify / Renumber - DONE
 - [x] Minify dialog (with "bytes saved" reporting) and Prettify dialog, remembering their

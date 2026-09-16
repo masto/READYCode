@@ -118,7 +118,8 @@ public partial class MainViewModel
     public bool IsC64UDriveBMounted => !string.IsNullOrEmpty(C64UDriveB?.ImageFile);
 
     /// <summary>
-    /// Gets or sets which left-panel tab is active ("Explorer" or "C64U"). Persisted in settings.
+    /// Gets or sets which left-panel tab is active ("Explorer", "C64U", or "Search"). Persisted
+    /// in settings.
     /// </summary>
     public string ActiveLeftPanelTab
     {
@@ -130,21 +131,28 @@ public partial class MainViewModel
             OnPropertyChanged();
             OnPropertyChanged(nameof(IsExplorerTabActive));
             OnPropertyChanged(nameof(IsC64UTabActive));
+            OnPropertyChanged(nameof(IsSearchTabActive));
             NotifyActivityBarChanged();
         }
     }
 
     /// <summary>Gets whether the Explorer tab of the left panel is the active one.</summary>
-    public bool IsExplorerTabActive => ActiveLeftPanelTab != "C64U";
+    public bool IsExplorerTabActive => ActiveLeftPanelTab is not ("C64U" or "Search");
 
     /// <summary>Gets whether the C64U tab of the left panel is the active one.</summary>
     public bool IsC64UTabActive => ActiveLeftPanelTab == "C64U";
+
+    /// <summary>Gets whether the Search tab of the left panel is the active one.</summary>
+    public bool IsSearchTabActive => ActiveLeftPanelTab == "Search";
 
     /// <summary>Gets whether the activity bar's Explorer icon shows as active: its tab is showing and the panel is open.</summary>
     public bool IsExplorerToggleChecked => IsExplorerOpen && IsExplorerTabActive;
 
     /// <summary>Gets whether the activity bar's C64U icon shows as active: its tab is showing and the panel is open.</summary>
     public bool IsC64UToggleChecked => IsExplorerOpen && IsC64UTabActive;
+
+    /// <summary>Gets whether the activity bar's Search icon shows as active: its tab is showing and the panel is open.</summary>
+    public bool IsSearchToggleChecked => IsExplorerOpen && IsSearchTabActive;
 
     #endregion
 
@@ -679,6 +687,7 @@ public partial class MainViewModel
     {
         OnPropertyChanged(nameof(IsExplorerToggleChecked));
         OnPropertyChanged(nameof(IsC64UToggleChecked));
+        OnPropertyChanged(nameof(IsSearchToggleChecked));
     }
 
     private bool EnsureC64UUrlConfigured()
