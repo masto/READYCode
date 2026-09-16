@@ -70,6 +70,7 @@ public partial class MainWindow : Window
     private readonly DebugCurrentLineRenderer _debugCurrentLineRenderer = new();
     private readonly BreakpointMargin _breakpointMargin = new();
     private readonly AsmLineNumberMargin _asmLineNumberMargin = new();
+    private readonly TabStopElementGenerator _tabStopGenerator = new();
     private BasicLineAddressTable? _activeTabLineAddressTable;
     private IReadOnlyList<EditorDiagnostic> _currentDiagnostics = Array.Empty<EditorDiagnostic>();
     private double _problemsHeight = 160;
@@ -104,6 +105,7 @@ public partial class MainWindow : Window
         // to the PETSCII glyph generator - same setting the WPF editor turns off.
         Editor.Options.ShowBoxForControlCharacters = false;
         Editor.TextArea.TextView.ElementGenerators.Add(_petsciiGlyphGenerator);
+        Editor.TextArea.TextView.ElementGenerators.Add(_tabStopGenerator);
         _errorSquiggleRenderer = new ErrorSquiggleRenderer(Editor);
         _currentLineBorderRenderer = new CurrentLineBorderRenderer(Editor);
         Editor.TextArea.TextView.BackgroundRenderers.Add(_currentLineBorderRenderer);
@@ -476,6 +478,7 @@ public partial class MainWindow : Window
         // never be reinterpreted as PETSCII bytes.
         Editor.FontFamily = isAsm ? _asciiFont : _petsciiFont;
         _petsciiGlyphGenerator.IsAsmMode = isAsm;
+        _tabStopGenerator.IsEnabled = isAsm;
         ApplyEditorSettings();
         Editor.TextArea.TextView.Redraw();
         ViewModel.ApplyLanguageToRightPanel();
@@ -1478,18 +1481,33 @@ public partial class MainWindow : Window
 
     private async void FileClose_Click(object? sender, EventArgs e)
     {
-        if (ViewModel.ActiveTab is not { } tab) return;
+        if (ViewModel.ActiveTab is { } tab) await CloseTabWithPromptAsync(tab);
+    }
 
+    // The tab strip's per-tab close button; its DataContext is the tab, active or not.
+    private async void TabClose_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if ((sender as Control)?.DataContext is EditorTab tab) await CloseTabWithPromptAsync(tab);
+    }
+
+    // Closes a tab, offering to save it first if it has unsaved changes. Returns false if the
+    // user cancelled.
+    private async Task<bool> CloseTabWithPromptAsync(EditorTab tab)
+    {
         if (tab.IsModified)
         {
+            ViewModel.ActiveTab = tab; // so the user can see what they're being asked about
             string? choice = await MessageDialog.ShowAsync(this, "Unsaved Changes",
                 $"Save changes to {tab.FileName}?", "Save", "Don't Save", "Cancel");
-            if (choice == "Cancel" || choice == null) return;
-            if (choice == "Save" && !await SaveTabAsync(tab, forceDialog: false)) return;
+            if (choice == "Cancel" || choice == null) return false;
+            if (choice == "Save" && !await SaveTabAsync(tab, forceDialog: false)) return false;
         }
 
-        tab.CaretOffset = Editor.CaretOffset;
+        if (ReferenceEquals(tab, ViewModel.ActiveTab))
+            tab.CaretOffset = tab.IsHexMode ? HexEditor.SelectedOffset : Editor.CaretOffset;
         ViewModel.CloseTab(tab, rememberForReopen: true);
+        return true;
     }
 
     private void FileReopenClosedTab_Click(object? sender, EventArgs e) => ViewModel.ReopenClosedTab();
