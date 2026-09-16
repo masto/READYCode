@@ -360,7 +360,7 @@ public partial class MainViewModel : INotifyPropertyChanged
     public void RefreshShiftModeStatus()
     {
         var tab = ActiveTab;
-        IsShiftModeApplicable = tab != null && tab.Language == EditorLanguage.Basic && !tab.IsHexMode;
+        IsShiftModeApplicable = tab != null && tab.Language == EditorLanguage.Basic && !tab.IsHexMode && !tab.IsCompareMode;
 
         // Set the backing field directly rather than through the IsUpperCaseModeActive setter,
         // which writes through to ActiveTab.IsUpperCaseModeActive - this method exists to read
@@ -547,6 +547,12 @@ public partial class MainViewModel : INotifyPropertyChanged
     /// </summary>
     public bool SaveTab(EditorTab tab, string filePath)
     {
+        if (tab.IsCompareMode)
+        {
+            SetStatus("A comparison can't be saved.", StatusType.Warning);
+            return false;
+        }
+
         try
         {
             if (tab.RawBytes is { } rawBytes)
@@ -660,7 +666,7 @@ public partial class MainViewModel : INotifyPropertyChanged
         AssemblyResult? asmResult = tab.Language == EditorLanguage.Asm && !tab.IsHexMode
             ? new Asm6502Assembler().Assemble(text, Settings.AsmOutputMode == "Standalone", (ushort)Settings.AsmDefaultOriginAddress)
             : null;
-        tab.Diagnostics = !Settings.EnableLinting || tab.IsHexMode
+        tab.Diagnostics = !Settings.EnableLinting || tab.IsHexMode || tab.IsCompareMode
             ? Array.Empty<EditorDiagnostic>()
             : asmResult != null
                 ? AsmDiagnostics.Analyze(text, asmResult)

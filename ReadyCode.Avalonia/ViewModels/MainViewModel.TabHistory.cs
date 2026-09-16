@@ -4,6 +4,7 @@
 using System.Text;
 using ReadyCode.Avalonia.Models;
 using ReadyCode.C64U;
+using ReadyCode.Diff;
 using ReadyCode.Models;
 
 namespace ReadyCode.Avalonia.ViewModels;
@@ -20,7 +21,8 @@ public partial class MainViewModel
     private sealed record ClosedTabSnapshot(
         string? FilePath, string? DisplayName, string? VirtualSourceId, bool IsC64UVirtual,
         C64UFileKind Kind, EditorLanguage Language, string Text, byte[]? RawBytes, bool WasModified, int CaretOffset,
-        bool IsDisassemblyMode, DisassemblySource DisassemblySource, IReadOnlyDictionary<int, ushort>? DisassemblyLineAddresses);
+        bool IsDisassemblyMode, DisassemblySource DisassemblySource, IReadOnlyDictionary<int, ushort>? DisassemblyLineAddresses,
+        FileCompareResult? CompareResult, bool CompareIsUnified, bool CompareIgnoreWhitespace);
 
     private const int _maxClosedTabHistory = 20;
 
@@ -73,6 +75,9 @@ public partial class MainViewModel
             IsDisassemblyMode = snapshot.IsDisassemblyMode,
             DisassemblySource = snapshot.DisassemblySource,
             DisassemblyLineAddresses = snapshot.DisassemblyLineAddresses,
+            CompareResult = snapshot.CompareResult,
+            CompareIsUnified = snapshot.CompareIsUnified,
+            CompareIgnoreWhitespace = snapshot.CompareIgnoreWhitespace,
         };
         tab.Document.Text = snapshot.Text;
         tab.IsModified = snapshot.WasModified; // reset any spurious change event from document setup
@@ -143,7 +148,8 @@ public partial class MainViewModel
         _closedTabHistory.Add(new ClosedTabSnapshot(
             tab.FilePath, tab.DisplayName, tab.VirtualSourceId, tab.IsC64UVirtual,
             tab.Kind, tab.Language, tab.Document.Text, tab.RawBytes, tab.IsModified, tab.CaretOffset,
-            tab.IsDisassemblyMode, tab.DisassemblySource, tab.DisassemblyLineAddresses));
+            tab.IsDisassemblyMode, tab.DisassemblySource, tab.DisassemblyLineAddresses,
+            tab.CompareResult, tab.CompareIsUnified, tab.CompareIgnoreWhitespace));
         if (_closedTabHistory.Count > _maxClosedTabHistory)
             _closedTabHistory.RemoveAt(0);
         OnPropertyChanged(nameof(HasClosedTabHistory));
