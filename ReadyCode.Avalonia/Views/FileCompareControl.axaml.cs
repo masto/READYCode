@@ -4,6 +4,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using AvaloniaEdit;
 using AvaloniaEdit.Document;
 using AvaloniaEdit.Folding;
@@ -282,7 +283,17 @@ public partial class FileCompareControl : UserControl
     }
 
     private static void ScrollToFraction(TextEditor editor, double fraction) =>
-        editor.ScrollToVerticalOffset(fraction * editor.ExtentHeight);
+        SetVerticalOffset(editor, fraction * editor.ExtentHeight);
+
+    // AvaloniaEdit's TextEditor.ScrollToVerticalOffset is a stub (its body is commented out
+    // upstream) and the scroll viewer it wraps is internal, so the offset is set on the viewer
+    // found in the editor's template.
+    private static void SetVerticalOffset(TextEditor editor, double y)
+    {
+        if (editor.FindDescendantOfType<ScrollViewer>() is not { } viewer) return;
+        y = Math.Clamp(y, 0, Math.Max(0, viewer.Extent.Height - viewer.Viewport.Height));
+        viewer.Offset = viewer.Offset.WithY(y);
+    }
 
     private static string JoinLines(IReadOnlyList<DiffPiece> lines) =>
         string.Join(Environment.NewLine, lines.Select(l => l.Text ?? string.Empty));
@@ -329,7 +340,7 @@ public partial class FileCompareControl : UserControl
         if (Math.Abs(source.VerticalOffset - target.VerticalOffset) < 0.5) return;
 
         _syncingScroll = true;
-        try { target.ScrollToVerticalOffset(source.VerticalOffset); }
+        try { SetVerticalOffset(target, source.VerticalOffset); }
         finally { _syncingScroll = false; }
     }
 
