@@ -42,7 +42,7 @@ public class HexEditorTests
             Assert.True(window.FindControl<HexEditorControl>("HexEditor")!.IsVisible);
             Assert.False(window.FindControl<AvaloniaEdit.TextEditor>("Editor")!.IsVisible);
 
-            tab.RawBytes[3] = 0x07;
+            tab.RawBytes![3] = 0x07;
             Assert.True(vm.SaveTab(tab, path));
             Assert.Equal(0x07, File.ReadAllBytes(path)[3]);
             Assert.False(tab.IsModified);
