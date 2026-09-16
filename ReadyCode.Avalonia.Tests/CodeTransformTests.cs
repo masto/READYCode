@@ -27,14 +27,29 @@ public class CodeTransformTests
         vm.Settings.LineNumberPadding = 0;
         editor.Document.Text = "5 PRINT \"A\"\n7 GOTO 5\n12 END";
 
-        await window.ExecuteRenumberAsync();
+        await window.ExecuteRenumberAsync(new RenumberDialog.Choice(10, 10, SelectedOnly: false));
         Dispatcher.UIThread.RunJobs();
 
         Assert.Equal("10 PRINT \"A\"\n20 GOTO 10\n30 END", editor.Document.Text);
         Assert.Equal("Code renumbered.", vm.StatusText);
 
-        await window.ExecuteRenumberAsync();
+        await window.ExecuteRenumberAsync(new RenumberDialog.Choice(10, 10, SelectedOnly: false));
         Assert.Equal("No changes — line numbers are already sequential.", vm.StatusText);
+    }
+
+    [AvaloniaFact]
+    public async Task Renumber_SelectedLinesOnly_RenumbersJustThose_AndFixesReferencesEverywhere()
+    {
+        var (window, vm, editor) = Show(EditorLanguage.Basic);
+        vm.Settings.LineNumberPadding = 0;
+        editor.Document.Text = "10 GOTO 25\n25 PRINT \"A\"\n27 PRINT \"B\"\n40 END";
+        editor.Select(editor.Document.GetLineByNumber(2).Offset, editor.Document.GetLineByNumber(3).EndOffset - editor.Document.GetLineByNumber(2).Offset);
+
+        await window.ExecuteRenumberAsync(new RenumberDialog.Choice(20, 10, SelectedOnly: true));
+        Dispatcher.UIThread.RunJobs();
+
+        // Lines 25 and 27 become 20 and 30; line 10's GOTO follows; lines 10 and 40 keep their numbers.
+        Assert.Equal("10 GOTO 20\n20 PRINT \"A\"\n30 PRINT \"B\"\n40 END", editor.Document.Text);
     }
 
     [AvaloniaFact]

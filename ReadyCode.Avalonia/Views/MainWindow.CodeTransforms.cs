@@ -6,6 +6,7 @@ using ReadyCode.Formatting;
 using ReadyCode.Minify;
 using ReadyCode.Models;
 using ReadyCode.Prettify;
+using ReadyCode.Avalonia.ViewModels;
 using ReadyCode.Tokenizer;
 
 namespace ReadyCode.Avalonia.Views;
@@ -97,29 +98,68 @@ public partial class MainWindow
         ViewModel.SetStatus("Code prettified.");
     }
 
-    internal async Task ExecuteRenumberAsync()
+    internal Task ExecuteRenumberAsync() => ExecuteRenumberAsync(null);
+
+    // The dialog asks for the start, increment, and scope; pass a choice to skip it (tests).
+    internal async Task ExecuteRenumberAsync(RenumberDialog.Choice? choice)
     {
         if (!HasNonEmptyBasicActiveTab()) return;
-        int increment = ViewModel.Settings.AutoNumberIncrement;
-        int padding = ViewModel.Settings.LineNumberPadding;
+        var document = Editor.Document;
 
-        string source = Editor.Document.Text;
-        string renumbered = CodePrettifier.RenumberLines(source, increment, increment, padding);
+        // The lowest selected line number seeds the dialog's start and, if the user keeps
+        // "Selected lines only", is the renumber's scope.
+        bool hasSelection = Editor.SelectionLength > 0;
+        var selectedLineNumbers = new HashSet<int>();
+        if (hasSelection)
+        {
+            var (selStartLine, selEndLine) = GetSelectedLineRange();
+            for (int i = selStartLine; i <= selEndLine; i++)
+                if (TryGetBasicLineNumber(document, i, out int n))
+                    selectedLineNumbers.Add(n);
+        }
+
+        choice ??= await RenumberDialog.ShowAsync(this,
+            selectedLineNumbers.Count > 0 ? selectedLineNumbers.Min() : 10, ViewModel.Settings.AutoNumberIncrement, hasSelection);
+        if (choice == null) return;
+
+        HashSet<int>? onlyLineNumbers = null;
+        if (choice.SelectedOnly)
+        {
+            onlyLineNumbers = selectedLineNumbers;
+            if (onlyLineNumbers.Count == 0)
+            {
+                ViewModel.SetStatus("No BASIC lines in the current selection to renumber.", StatusType.Warning);
+                return;
+            }
+        }
+
+        string source = document.Text;
+        // References are rewritten across the whole document, so one outside the selection
+        // pointing into it (or vice versa) stays right.
+        string renumbered = CodePrettifier.RenumberLines(source, choice.StartLineNumber, choice.Increment, ViewModel.Settings.LineNumberPadding, onlyLineNumbers);
         if (renumbered == source)
         {
             ViewModel.SetStatus("No changes — line numbers are already sequential.");
             return;
         }
 
-        // Renumbering can't fix a reference to a line number that never existed - it's left
-        // unchanged, so warn rather than silently applying a renumber with dangling references.
-        int dangling = BasicDiagnostics.Analyze(renumbered).Count(d => d.Message.EndsWith("does not exist."));
-        if (dangling > 0)
+        // Renumbering can't fix a reference to a line that never existed, and renumbering only
+        // a selection can land a new number on an untouched line outside it - both are left
+        // as-is, so warn rather than silently applying either.
+        var problems = BasicDiagnostics.Analyze(renumbered)
+            .Where(d => d.Message.EndsWith("does not exist.") || d.Message.StartsWith("Duplicate line number"))
+            .ToList();
+        if (problems.Count > 0)
         {
-            string? choice = await MessageDialog.ShowAsync(this, "Renumber Code",
-                $"{dangling} GOTO/GOSUB/THEN reference(s) point to line numbers that don't exist and will be left unchanged. Apply the renumber anyway?",
-                "Renumber", "Cancel");
-            if (choice != "Renumber") return;
+            int dangling = problems.Count(d => d.Message.EndsWith("does not exist."));
+            int duplicates = problems.Count(d => d.Message.StartsWith("Duplicate line number"));
+            var parts = new List<string>();
+            if (dangling > 0) parts.Add($"{dangling} GOTO/GOSUB/THEN reference(s) would point to line numbers that don't exist.");
+            if (duplicates > 0) parts.Add($"{duplicates} line number(s) would end up duplicated.");
+            parts.Add("Apply the renumber anyway?");
+
+            string? answer = await MessageDialog.ShowAsync(this, "Renumber Code", string.Join("\n\n", parts), "Renumber", "Cancel");
+            if (answer != "Renumber") return;
         }
 
         ReplaceDocumentText(renumbered);
