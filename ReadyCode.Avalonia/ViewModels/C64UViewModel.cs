@@ -463,15 +463,21 @@ public partial class MainViewModel
         }
     }
 
-    /// <summary>Embeds a file into a disk image already on the C64 Ultimate's storage.</summary>
+    /// <summary>
+    /// Embeds a file into a disk image already on the C64 Ultimate's storage - BASIC source
+    /// tokenized and assembly source assembled first, a program as is.
+    /// </summary>
     public async Task<bool> AddFileToC64UDiskImageAsync(C64UFileItem diskItem, string fileName, byte[] content, C64UFileKind kind)
     {
         if (C64UFtp == null) return false;
+        if (!TryBuildDiskEntryPrgData(content, kind, out byte[]? prgData)) return false;
 
         try
         {
+            string entryName = Path.GetFileNameWithoutExtension(fileName);
+            var entryKind = FileClassifier.Classify(entryName + ".prg", isFolder: false, () => prgData!);
             byte[] diskBytes = await C64UFtp.DownloadBytesAsync(diskItem.FullPath);
-            byte[] updated = DiskImage.ForKind(diskItem.Kind).AddEntry(diskBytes, Path.GetFileNameWithoutExtension(fileName), kind, content);
+            byte[] updated = DiskImage.ForKind(diskItem.Kind).AddEntry(diskBytes, entryName, entryKind, prgData!);
             await C64UFtp.UploadBytesAsync(diskItem.FullPath, updated);
             await diskItem.RefreshChildrenAsync();
             SetStatus($"Added {fileName} to {diskItem.Name}.");
@@ -480,6 +486,67 @@ public partial class MainViewModel
         catch (Exception ex)
         {
             ErrorRaised?.Invoke("Add File", $"Could not add \"{fileName}\" to {diskItem.Name}: {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Whether <paramref name="source"/> can be dropped on <paramref name="target"/> in the C64U
+    /// tree: onto a real folder that isn't its parent or inside it (a move), or a single
+    /// non-image file onto a real disk image (an embed).
+    /// </summary>
+    public static bool IsValidC64UDrop(C64UFileItem source, C64UFileItem target)
+    {
+        if (source.IsVirtual || target.IsVirtual) return false;
+        if (target.Kind.IsDiskImageKind()) return !source.IsFolder && !source.Kind.IsDiskImageKind();
+        if (!target.IsFolder) return false;
+        if (string.Equals(GetC64UParentPath(source.FullPath), target.FullPath.TrimEnd('/'), StringComparison.OrdinalIgnoreCase)
+            || string.Equals(GetC64UParentPath(source.FullPath), target.FullPath, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (source.IsFolder)
+        {
+            string srcPrefix = source.FullPath.TrimEnd('/') + "/";
+            string tgtPrefix = target.FullPath.TrimEnd('/') + "/";
+            if (tgtPrefix.StartsWith(srcPrefix, StringComparison.OrdinalIgnoreCase)) return false;
+        }
+        return true;
+    }
+
+    /// <summary>Moves a remote file or folder into another remote folder (an FTP rename).</summary>
+    public async Task<bool> MoveC64UItemAsync(C64UFileItem source, C64UFileItem targetFolder)
+    {
+        if (C64UFtp == null || !IsValidC64UDrop(source, targetFolder) || !targetFolder.IsFolder) return false;
+
+        string sourceParent = GetC64UParentPath(source.FullPath);
+        try
+        {
+            await C64UFtp.RenameAsync(source.FullPath, CombineC64UPath(targetFolder.FullPath, source.Name));
+            await RefreshAfterC64UChangeAsync(sourceParent);
+            await RefreshAfterC64UChangeAsync(targetFolder.FullPath);
+            targetFolder.IsExpanded = true;
+            SetStatus($"Moved {source.Name} to {targetFolder.Name}.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Move Failed", $"Could not move \"{source.Name}\": {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>Embeds a file already on the C64 Ultimate into a disk image there.</summary>
+    public async Task<bool> AddC64UItemToC64UDiskImageAsync(C64UFileItem source, C64UFileItem diskItem)
+    {
+        if (C64UFtp == null || !IsValidC64UDrop(source, diskItem) || !diskItem.Kind.IsDiskImageKind()) return false;
+
+        try
+        {
+            byte[] bytes = source.Content ?? await C64UFtp.DownloadBytesAsync(source.FullPath);
+            return await AddFileToC64UDiskImageAsync(diskItem, source.Name, bytes, source.Kind);
+        }
+        catch (Exception ex)
+        {
+            ErrorRaised?.Invoke("Add File", $"Could not add \"{source.Name}\" to {diskItem.Name}: {ex.Message}");
             return false;
         }
     }
