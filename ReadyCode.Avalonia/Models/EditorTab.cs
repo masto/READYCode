@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using AvaloniaEdit.Document;
 using ReadyCode.Diagnostics;
+using ReadyCode.Diff;
 using ReadyCode.Models;
 
 namespace ReadyCode.Avalonia.Models;
@@ -103,6 +104,21 @@ public class EditorTab : INotifyPropertyChanged
 
     /// <summary>Gets the undo/redo history for hex-mode edits - the hex analog of the document's own undo stack.</summary>
     public HexUndoStack UndoStack { get; } = new();
+
+    /// <summary>
+    /// Gets or sets the comparison a File Compare tab shows, or null for any other tab. Such a
+    /// tab is read-only and has no document text of its own.
+    /// </summary>
+    public FileCompareResult? CompareResult { get; set; }
+
+    /// <summary>Gets whether this tab shows a File Compare rather than an editor.</summary>
+    public bool IsCompareMode => CompareResult != null;
+
+    /// <summary>Gets or sets whether a compare tab shows the unified view rather than split.</summary>
+    public bool CompareIsUnified { get; set; }
+
+    /// <summary>Gets or sets whether a compare tab ignores whitespace-only differences.</summary>
+    public bool CompareIgnoreWhitespace { get; set; }
 
     /// <summary>
     /// Gets or sets whether this is a live-memory disassembly tab: read-only, with the

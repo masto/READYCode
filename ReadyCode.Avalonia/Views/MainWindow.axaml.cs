@@ -25,6 +25,7 @@ using AvaloniaEdit.Rendering;
 using ReadyCode.Tokenizer;
 using ReadyCode.Formatting;
 using ReadyCode.Debugger;
+using ReadyCode.Diff;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 
@@ -39,8 +40,8 @@ public partial class MainWindow : Window
 {
     #region Private Fields
 
-    private static readonly FontFamily _petsciiFont = new("avares://ReadyCode.Avalonia/Assets/Fonts#Pet Me 64");
-    private static readonly FontFamily _asciiFont = new("Menlo,Consolas,DejaVu Sans Mono,monospace");
+    private static readonly FontFamily _petsciiFont = EditorFonts.Petscii;
+    private static readonly FontFamily _asciiFont = EditorFonts.Ascii;
 
     private static readonly FilePickerFileType _c64Files = new("C64 programs")
     {
@@ -118,6 +119,15 @@ public partial class MainWindow : Window
         InstallCompletion();
         HexEditor.ByteEdited += (_, _) => { if (ViewModel.ActiveTab is { IsHexMode: true } tab) tab.IsModified = true; };
         HexEditor.ContextRequested += HexEditor_ContextRequested;
+        CompareView.ViewStateChanged += (isUnified, ignoreWhitespace) =>
+        {
+            if (ViewModel.ActiveTab is { IsCompareMode: true } tab)
+            {
+                tab.CompareIsUnified = isUnified;
+                tab.CompareIgnoreWhitespace = ignoreWhitespace;
+                tab.CompareResult = CompareView.Result;
+            }
+        };
         DisassemblyToolbar.DisassembleRequested += async (_, _) => await DisassembleRequestedAsync();
         _breakpointMargin.BreakpointToggleRequested += async (_, line) => await ToggleBreakpointAtDocumentLineAsync(line);
         Editor.TextArea.TextView.PointerHover += Editor_PointerHover;
@@ -397,13 +407,20 @@ public partial class MainWindow : Window
         // A hex tab shows the hex editor where the text editor would be; its (empty) document
         // stays bound above so nothing else has to special-case it.
         bool hex = tab.IsHexMode;
+        bool compare = tab.IsCompareMode;
         HexEditor.IsVisible = hex;
-        Editor.IsVisible = !hex;
+        CompareView.IsVisible = compare;
+        Editor.IsVisible = !hex && !compare;
         ApplyDisassemblyMode(tab);
         if (hex)
         {
             if (FindBar.IsVisible) CloseFind();
             HexEditor.LoadBytes(tab.RawBytes!, tab.CaretOffset, tab.UndoStack);
+        }
+        else if (compare)
+        {
+            if (FindBar.IsVisible) CloseFind();
+            CompareView.LoadResult(tab.CompareResult!, tab.CompareIsUnified, tab.CompareIgnoreWhitespace);
         }
         else if (tab.IsDisassemblyMode && tab.DisassemblyLineAddresses == null)
         {
@@ -542,6 +559,7 @@ public partial class MainWindow : Window
         var settings = ViewModel.Settings;
         Editor.FontSize = Math.Clamp(settings.EditorFontSize, 6, 72);
         HexEditor.HexFontSize = Editor.FontSize;
+        CompareView.EditorFontSize = Editor.FontSize;
         _asmLineNumberMargin.FontSize = Editor.FontSize;
         _asmLineNumberMargin.ZeroPadWidth = settings.LineNumberPadding;
         Editor.WordWrap = settings.WordWrap;
@@ -1062,6 +1080,31 @@ public partial class MainWindow : Window
         }
     }
 
+    // "Select file for comparison" on any comparable file; "Compare file" once one is pending,
+    // disabled (with the reason) when the clicked file can't be compared with it.
+    private void AddCompareItems(ItemCollection items, ComparableFileRef file)
+    {
+        if (!CompareFileResolver.IsComparableKind(file.Kind)) return;
+
+        items.Add(new Separator());
+        var pending = ViewModel.PendingCompareFile;
+        items.Add(new MenuItem
+        {
+            Header = file.IsSameFile(pending) ? "Clear comparison selection" : "Select file for comparison",
+            Command = new AsyncCommand(() => { ViewModel.SelectFileForCompare(file); return Task.CompletedTask; }),
+        });
+        if (pending != null && !file.IsSameFile(pending))
+        {
+            bool canCompare = ViewModel.CanCompareWithPending(file);
+            items.Add(new MenuItem
+            {
+                Header = $"Compare with {pending.Name}",
+                IsEnabled = canCompare,
+                Command = new AsyncCommand(async () => await ViewModel.CompareWithPendingAsync(file)),
+            });
+        }
+    }
+
     /// <summary>The headers of the explorer context menu an item would get, for tests.</summary>
     internal IReadOnlyList<string> ContextMenuHeadersFor(FileTreeItem item) =>
         BuildTreeContextMenu(item).Items.OfType<MenuItem>().Select(m => (string)m.Header!).ToList();
@@ -1097,6 +1140,7 @@ public partial class MainWindow : Window
             AddSync("Open in Hex editor", () => OpenTreeItem(item, forceHex: true));
             if (item.Kind == C64UFileKind.Ml)
                 AddSync("Disassemble file", () => ViewModel.DisassembleFile(item));
+            AddCompareItems(items, ComparableFileRef.FromLocal(item));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on VICE", () => ViewModel.SendFileToViceAsync(item, run: true));
@@ -1267,6 +1311,7 @@ public partial class MainWindow : Window
             Add("Open in Hex editor", () => ViewModel.OpenC64UItemAsync(item, forceHex: true));
             if (item.Kind == C64UFileKind.Ml)
                 Add("Disassemble file", () => ViewModel.DisassembleC64UFileAsync(item));
+            AddCompareItems(items, ComparableFileRef.FromC64U(item));
             if (item.Kind is C64UFileKind.Prg or C64UFileKind.Ml or C64UFileKind.Asm or C64UFileKind.Bas)
             {
                 Add("Run on C64U", () => ViewModel.SendC64UItemAsync(item, run: true));
@@ -1395,6 +1440,12 @@ public partial class MainWindow : Window
     // Saves a tab to its existing path, or prompts for one when it has none (or when forced).
     private async Task<bool> SaveTabAsync(EditorTab tab, bool forceDialog)
     {
+        if (tab.IsCompareMode)
+        {
+            ViewModel.SetStatus("A comparison can't be saved.", StatusType.Warning);
+            return false;
+        }
+
         if (tab.IsVirtual && !forceDialog)
         {
             bool savedVirtual = tab.IsC64UVirtual ? await ViewModel.SaveC64UVirtualTabAsync(tab) : ViewModel.SaveVirtualTab(tab);
@@ -1621,7 +1672,7 @@ public partial class MainWindow : Window
 
     private void OpenFind(bool replaceMode)
     {
-        if (IsHexTabActive) return;
+        if (IsHexTabActive || IsCompareTabActive) return;
         FindBar.Open(Editor.SelectedText, replaceMode);
         UpdateFindMatches();
     }
@@ -2081,6 +2132,7 @@ public partial class MainWindow : Window
 
     // The Edit menu's basics go to whichever editor the active tab is in.
     private bool IsHexTabActive => ViewModel.ActiveTab?.IsHexMode == true;
+    private bool IsCompareTabActive => ViewModel.ActiveTab?.IsCompareMode == true;
     private void EditUndo_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.Undo(); else Editor.Undo(); }
     private void EditRedo_Click(object? sender, EventArgs e) { if (IsHexTabActive) HexEditor.Redo(); else Editor.Redo(); }
     private async void EditCut_Click(object? sender, EventArgs e) { if (IsHexTabActive) await HexEditor.CutAsync(); else Editor.Cut(); }

@@ -35,18 +35,18 @@ things are added - see `MenuTests.cs`.
   the second digit commits and moves to the next byte, so a run can be typed straight through.
 - [x] Saves the bytes back to the file, into a local disk image, or into a C64U disk image.
 
-### File Compare
-- [ ] Side-by-side or unified diff view for two comparable files (`.bas`, `.asm`/`.s`, `.prg` -
-  detokenized/disassembled the same as opening it directly would)
-- [ ] "Ignore Whitespace" toggle, whole-document change-location strip for navigation
-- [ ] Any two comparable kinds against each other (upstream v2.4.0 lifted the same-kind
-  requirement - see this session's rebase)
-- [ ] Invoked via "Select file for comparison" in either Explorer's context menu
-- **Core logic**: `ReadyCode.Core/Diff/FileCompareEngine.cs`, `CompareFileResolver.cs`,
-  `FileCompareResult.cs` are all shared already. This is entirely the `FileCompareControl` UI
-  (diff panes, change-location strip, the colorizers/margins that render it -
-  `DiffChangeIndicatorStrip`, `DiffColors`, `DiffLineColorizer`, `DiffPrefixMargin`,
-  `DiffViewportThumb`, all WPF-only) plus the Explorer context-menu wiring.
+### File Compare - DONE
+- [x] Split (side-by-side) and unified views, color-coded rows with word-level highlighting of
+  a modified line, long unchanged runs folded with an Expand All, previous/next change, an
+  Ignore Whitespace toggle (recomputes), and a change map with a draggable viewport thumb
+  beside the panes. Each side is resolved to text on its own (`.prg` detokenized, `.ml`
+  disassembled), so any two comparable kinds compare.
+- [x] "Select file for comparison" then "Compare with <name>" on the explorer, disk-image
+  entry, and C64U context menus; the same item reads "Clear comparison selection" on the
+  pending file. (WPF's second item is just "Compare file", and clears by re-selecting.)
+- The diff is the shared `FileCompareEngine` / `CompareFileResolver`; the view is
+  `Views/FileCompareControl` over the ported `Editor/DiffRendering.cs` pieces. One difference
+  from WPF: the row tint is a background renderer, so an empty filler row is tinted too.
 
 ### Disassembler - DONE
 - [x] **Disassemble at…** on the VICE and C64U menus: a read-only listing tab with a Start/End

@@ -67,7 +67,7 @@ public partial class MainViewModel
     public void RefreshSymbolIndex(AssemblyResult? asmResult = null)
     {
         var tab = ActiveTab;
-        if (tab?.IsHexMode == true) tab = null;
+        if (tab is { IsHexMode: true } or { IsCompareMode: true }) tab = null;
         if (tab?.Language == EditorLanguage.Asm)
         {
             Variables.Clear();

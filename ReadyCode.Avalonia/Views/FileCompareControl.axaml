@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ae="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+             xmlns:editor="using:ReadyCode.Avalonia.Editor"
+             x:Class="ReadyCode.Avalonia.Views.FileCompareControl"
+             Background="{DynamicResource ThemeEditorBg}">
+
+    <UserControl.Styles>
+        <Style Selector="Border.paneHeader">
+            <Setter Property="Background" Value="{DynamicResource ThemePanelHeaderBg}" />
+            <Setter Property="Padding" Value="8,4" />
+        </Style>
+        <Style Selector="Border.paneHeader TextBlock">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemePanelHeaderFg}" />
+        </Style>
+        <Style Selector="StackPanel.toolbar > Button, StackPanel.toolbar > ToggleButton">
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="Padding" Value="8,3" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="TextBlock.warning">
+            <Setter Property="Foreground" Value="#FFB300" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="ae|TextEditor">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="WordWrap" Value="False" />
+            <Setter Property="Padding" Value="6" />
+            <Setter Property="Background" Value="{DynamicResource ThemeEditorBg}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeEditorFg}" />
+            <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Hidden" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*">
+        <!-- Toolbar -->
+        <Border Grid.Row="0" Background="{DynamicResource ThemeMenuItemBg}" BorderBrush="{DynamicResource ThemeMenuItemBorder}" BorderThickness="0,0,0,1" Padding="10,6">
+            <StackPanel Classes="toolbar" Orientation="Horizontal" Spacing="4">
+                <ToggleButton x:Name="SplitViewToggle" Content="Split" IsChecked="True" Click="SplitViewToggle_Click" />
+                <ToggleButton x:Name="UnifiedViewToggle" Content="Unified" Margin="0,0,12,0" Click="UnifiedViewToggle_Click" />
+                <Button x:Name="PrevHunkButton" ToolTip.Tip="Previous change" Click="PrevHunk_Click">
+                    <Path Data="M0,6 L5,1 L10,6" Stroke="{DynamicResource ThemeMenuItemFg}" StrokeThickness="1.5" Width="10" Height="7" />
+                </Button>
+                <Button x:Name="NextHunkButton" ToolTip.Tip="Next change" Margin="0,0,12,0" Click="NextHunk_Click">
+                    <Path Data="M0,1 L5,6 L10,1" Stroke="{DynamicResource ThemeMenuItemFg}" StrokeThickness="1.5" Width="10" Height="7" />
+                </Button>
+                <ToggleButton x:Name="IgnoreWhitespaceToggle" Content="Ignore Whitespace" Click="IgnoreWhitespaceToggle_Click" />
+                <Button x:Name="ExpandAllButton" Content="Expand All" Margin="0,0,12,0" Click="ExpandAll_Click" />
+                <TextBlock x:Name="HunkCountText" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource ThemeMenuItemFg}" />
+            </StackPanel>
+        </Border>
+
+        <!-- Warnings, shown only when a side couldn't be fully resolved to text -->
+        <StackPanel Grid.Row="1" x:Name="WarningsPanel" IsVisible="False" Background="{DynamicResource ThemeMenuItemBg}">
+            <TextBlock x:Name="LeftWarningText" Classes="warning" Margin="10,4,10,0" IsVisible="False" />
+            <TextBlock x:Name="RightWarningText" Classes="warning" Margin="10,0,10,4" IsVisible="False" />
+        </StackPanel>
+
+        <Panel Grid.Row="2">
+            <!-- Split (side-by-side) view. The two panes' own vertical scroll bars are hidden;
+                 the "location pane" on the left holds each side's change map and one shared
+                 draggable viewport thumb spanning both, driven by the same synced scroll. -->
+            <Grid x:Name="SplitViewGrid" ColumnDefinitions="Auto,*,Auto,*" RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Grid.Column="0" Background="{DynamicResource ThemeCompareLocationPaneBg}" />
+                <Border Grid.Row="0" Grid.Column="1" Classes="paneHeader"><TextBlock x:Name="LeftHeaderText" /></Border>
+                <Border Grid.Row="0" Grid.Column="3" Classes="paneHeader"><TextBlock x:Name="RightHeaderText" /></Border>
+
+                <Grid Grid.Row="1" Grid.Column="0" Width="109" ColumnDefinitions="19,25,21,25,19" Background="{DynamicResource ThemeCompareLocationPaneBg}">
+                    <Border Grid.Column="1" Background="{DynamicResource ThemeEditorBg}" />
+                    <Border Grid.Column="3" Background="{DynamicResource ThemeEditorBg}" />
+                    <editor:DiffChangeIndicatorStrip x:Name="LeftMapStrip" Grid.Column="1" />
+                    <editor:DiffChangeIndicatorStrip x:Name="RightMapStrip" Grid.Column="3" />
+                    <editor:DiffViewportThumb x:Name="SplitViewportThumb" Grid.Column="0" Grid.ColumnSpan="5" />
+                </Grid>
+                <ae:TextEditor x:Name="LeftEditor" Grid.Row="1" Grid.Column="1" ShowLineNumbers="True" />
+                <GridSplitter Grid.Row="1" Grid.Column="2" Width="4" Background="{DynamicResource ThemeSplitter}" />
+                <ae:TextEditor x:Name="RightEditor" Grid.Row="1" Grid.Column="3" ShowLineNumbers="True" />
+            </Grid>
+
+            <!-- Unified (single-pane) view -->
+            <Grid x:Name="UnifiedViewGrid" IsVisible="False" RowDefinitions="Auto,*">
+                <Border Grid.Row="0" Classes="paneHeader"><TextBlock x:Name="UnifiedHeaderText" /></Border>
+                <Grid Grid.Row="1" ColumnDefinitions="*,24">
+                    <Border Grid.Column="1" Background="{DynamicResource ThemeEditorBg}" />
+                    <ae:TextEditor x:Name="UnifiedEditor" Grid.Column="0" ShowLineNumbers="False" />
+                    <editor:DiffChangeIndicatorStrip x:Name="UnifiedMapStrip" Grid.Column="1" />
+                    <editor:DiffViewportThumb x:Name="UnifiedViewportThumb" Grid.Column="1" />
+                </Grid>
+            </Grid>
+        </Panel>
+    </Grid>
+</UserControl>

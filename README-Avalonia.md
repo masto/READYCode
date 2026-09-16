@@ -200,6 +200,11 @@ approve the automation the first time.
   (a whole disk image included) can be opened that way from the explorer's context menu. Type
   hex digits over the bytes, select and cut/copy/paste/zero-fill ranges, undo, and save back -
   to the file, or into the disk image the program lives in.
+- **File Compare** - right-click a file in either explorer, `Select file for comparison`,
+  then `Compare with …` on another: a GitHub-style split or unified diff with word-level
+  highlighting, folded unchanged runs, next/previous change, and an Ignore Whitespace toggle.
+  A `.prg` is detokenized and a machine-language program disassembled first, so any two
+  program files compare.
 - **Disassembler** - `Disassemble at…` on the VICE and C64U menus reads a range of the
   machine's memory into a listing with each line's address in the gutter; `Disassemble file`
   on a machine-language program in the explorer does the same for the file, skipping a BASIC
@@ -256,8 +261,7 @@ your real settings.
 
 ## Not ported yet
 
-Project-wide search, file compare, printing, and drag-and-drop and cut/copy/paste in either
-explorer tree.
+Project-wide search, printing, and drag-and-drop and cut/copy/paste in either explorer tree.
 
 The C64U explorer's coverage of the REST API and FTP service is not yet as complete as the
 Windows app's: drag-and-drop (both within the tree and dragging files in from the OS) and live

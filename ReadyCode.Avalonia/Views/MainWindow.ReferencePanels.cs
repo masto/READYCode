@@ -116,7 +116,7 @@ public partial class MainWindow
     // shortcuts all come through here.
     private void InsertSpecialChar(char ch)
     {
-        if (ViewModel.ActiveTab is not { IsHexMode: false }) return;
+        if (ViewModel.ActiveTab is not { IsHexMode: false, IsCompareMode: false }) return;
 
         int start = Editor.SelectionStart;
         int length = Editor.SelectionLength;
