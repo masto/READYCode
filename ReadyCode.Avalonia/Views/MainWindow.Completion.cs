@@ -6,8 +6,10 @@ using Avalonia.Threading;
 using AvaloniaEdit.CodeCompletion;
 using AvaloniaEdit.Document;
 using ReadyCode.Avalonia.Editor;
+using ReadyCode.Diagnostics;
 using ReadyCode.Editor;
 using ReadyCode.Models;
+using ReadyCode.Tokenizer;
 
 namespace ReadyCode.Avalonia.Views;
 
@@ -121,6 +123,14 @@ public partial class MainWindow
             return;
         }
 
+        // Past a REM the rest of the line is a comment - no keyword makes sense there, the same
+        // "everything after REM isn't code" rule the analyses follow. (Upstream f8b2d3e.)
+        if (ViewModel.ActiveTab.Language == EditorLanguage.Basic && IsCaretPastRem())
+        {
+            ClearGhostText();
+            return;
+        }
+
         var (_, word) = GetWordBeforeCaret();
         if (string.IsNullOrEmpty(word) || word.All(char.IsDigit))
         {
@@ -152,6 +162,21 @@ public partial class MainWindow
         // the part of its snippet the user hasn't typed yet.
         string snippet = matches[0].Snippet;
         _ghostRenderer.GhostText = snippet.Length > word.Length ? snippet[word.Length..] : string.Empty;
+    }
+
+    private bool IsCaretPastRem()
+    {
+        var caretLine = Editor.Document.GetLineByOffset(Editor.CaretOffset);
+        string lineText = Editor.Document.GetText(caretLine);
+        if (!BasicDiagnostics.TryParseLineNumber(lineText, out _, out _, out _, out int codeStart)) return false;
+
+        string code = lineText[codeStart..];
+        int remStart = BasicDiagnostics.FindTopLevelRemStart(code);
+        if (remStart >= code.Length) return false;
+        if (!BasicTokens.TryMatchKeyword(code, remStart, BasicTokens.WordKeywordsLongestFirst, out string remKeyword)) return false;
+
+        int caretCol = Editor.CaretOffset - caretLine.Offset - codeStart;
+        return caretCol >= remStart + remKeyword.Length;
     }
 
     private void ClearGhostText() => _ghostRenderer.GhostText = string.Empty;

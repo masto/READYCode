@@ -111,6 +111,39 @@ public class EditorInputTests
     }
 
     [AvaloniaFact]
+    public void BasicTab_EnterBeforeTheLineNumber_InsertsANumberedLineAbove()
+    {
+        var (window, editor) = ShowEditor(EditorLanguage.Basic);
+        var vm = (MainViewModel)window.DataContext!;
+        vm.Settings.LineNumberPadding = 0;
+        vm.Settings.AutoNumberLines = true;
+        vm.Settings.AutoNumberIncrement = 10;
+        editor.Document.Text = "10 PRINT 1\n30 PRINT 3";
+
+        // At the start of line 30: the gap between 10 and 30 is split, and the caret lands on
+        // the new line, ready to type - rather than "40" being inserted into the middle of it.
+        editor.CaretOffset = editor.Document.GetLineByNumber(2).Offset;
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("10 PRINT 1\n20 " + Environment.NewLine + "30 PRINT 3", editor.Document.Text);
+        Assert.Equal(editor.Document.GetLineByNumber(2).Offset + 3, editor.CaretOffset);
+
+        // 0 is a valid line number, so line 1 gets a 0 above it; a line 0 has no room at all,
+        // and Enter is then just a newline.
+        editor.Document.Text = "1 PRINT 1";
+        editor.CaretOffset = 0;
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("0 " + Environment.NewLine + "1 PRINT 1", editor.Document.Text);
+
+        editor.Document.Text = "0 PRINT 0";
+        editor.CaretOffset = 0;
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("\n0 PRINT 0", editor.Document.Text);
+    }
+
+    [AvaloniaFact]
     public void AsmTab_EnterAutoIndentsAndNormalizesMnemonic()
     {
         var (window, editor) = ShowEditor(EditorLanguage.Asm);

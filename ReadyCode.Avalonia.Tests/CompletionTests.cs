@@ -80,6 +80,19 @@ public class CompletionTests
     }
 
     [AvaloniaFact]
+    public void NoSuggestion_PastARem_ButStillBeforeIt()
+    {
+        var (window, editor) = ShowEditor(EditorLanguage.Basic);
+        editor.Document.Text = "10 REM PRI";
+        editor.CaretOffset = editor.Document.TextLength;
+        Assert.Equal("", window.GhostText);
+
+        editor.Document.Text = "10 PRI";
+        editor.CaretOffset = editor.Document.TextLength;
+        Assert.Equal("NT \"\"", window.GhostText);
+    }
+
+    [AvaloniaFact]
     public void AssemblyTabs_SuggestMnemonics_NotBasicKeywords()
     {
         var (window, editor) = ShowEditor(EditorLanguage.Asm);

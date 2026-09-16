@@ -704,6 +704,7 @@ public partial class MainViewModel : INotifyPropertyChanged
                         Tab = tab,
                         Message = diag.Message,
                         Offset = diag.Offset,
+                        Length = diag.Length,
                         Line = documentLine.LineNumber,
                         BasicLineNumber = basicLineNumber,
                     });

@@ -916,13 +916,19 @@ public partial class MainWindow : Window
         ToolTip.SetTip(Editor, null);
     }
 
-    private void JumpToProblem(ErrorListRow row)
+    // Selects the exact text the diagnostic's squiggle underlines, not just the start of the
+    // line, and scrolls it into view - as WPF since 2.5.0.
+    internal void JumpToProblem(ErrorListRow row)
     {
         ViewModel.ActiveTab = row.Tab;
         int offset = Math.Min(row.Offset, Editor.Document.TextLength);
-        Editor.CaretOffset = offset;
+        int length = Math.Clamp(row.Length, 0, Editor.Document.TextLength - offset);
+        Editor.Select(offset, length);
         RevealCaretLine();
+        Editor.TextArea.Caret.BringCaretToView();
         Editor.Focus();
+        // Select() moved the caret; a span that is a whole keyword would otherwise show a suggestion.
+        ClearGhostText();
     }
 
     // Scrolls so the caret's line is comfortably inside the viewport - vertically centred when
@@ -2043,6 +2049,37 @@ public partial class MainWindow : Window
         string afterNumber = lineText[(match.Groups[2].Index + match.Groups[2].Length)..];
         if (string.IsNullOrWhiteSpace(afterNumber)) return;
         if (!int.TryParse(match.Groups[2].Value, out int currentNumber)) return;
+
+        // Enter at or before the line's own number means "a new line above this one": split the
+        // gap between the previous line's number (or 0) and this one, rather than continuing
+        // forward from it and colliding with this line's content. (Upstream 306492e.)
+        int enterCol = Editor.CaretOffset - line.Offset;
+        if (enterCol <= match.Groups[2].Index)
+        {
+            int previousNumber = 0;
+            bool hasPreviousNumber = false;
+            if (line.PreviousLine is { } prevDocLine)
+            {
+                Match prevMatch = _leadingLineNumberPattern.Match(document.GetText(prevDocLine));
+                if (prevMatch.Success && int.TryParse(prevMatch.Groups[2].Value, out int prevNumber))
+                {
+                    previousNumber = prevNumber;
+                    hasPreviousNumber = true;
+                }
+            }
+
+            // 0 is a valid line number, so with no real previous line the only floor is this
+            // line's own number.
+            int aboveMidpoint = (previousNumber + currentNumber) / 2;
+            bool noRoom = aboveMidpoint >= currentNumber || (hasPreviousNumber && aboveMidpoint <= previousNumber);
+            if (noRoom) return;
+
+            string aboveLabel = padding > 0 ? aboveMidpoint.ToString().PadLeft(padding, '0') : aboveMidpoint.ToString();
+            e.Handled = true;
+            document.Insert(line.Offset, aboveLabel + " " + Environment.NewLine);
+            Editor.CaretOffset = line.Offset + aboveLabel.Length + 1;
+            return;
+        }
 
         int nextNumber = currentNumber + ViewModel.Settings.AutoNumberIncrement;
 

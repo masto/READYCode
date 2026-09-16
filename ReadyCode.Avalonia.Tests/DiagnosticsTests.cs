@@ -55,6 +55,11 @@ public class DiagnosticsTests
 
         Assert.Equal(2, vm.ErrorListRows.Count);
         RenderCapture.Save(window, "diagnostics.png");
+
+        // Going to a problem selects exactly the text its squiggle underlines.
+        window.JumpToProblem(vm.ErrorListRows[1]);
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("500", editor.SelectedText);
     }
 
     #endregion
