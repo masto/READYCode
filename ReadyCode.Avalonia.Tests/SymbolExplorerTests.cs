@@ -95,6 +95,31 @@ public class SymbolExplorerTests
     }
 
     [AvaloniaFact]
+    public void DefFn_ListsTheFunction_AndItsParameterAsLocal_AndRenamesEach()
+    {
+        var (window, vm, editor) = Show(EditorLanguage.Basic);
+        editor.Document.Text = "10 DEF FN SQ(X)=X*X\n20 X=3\n30 PRINT FN SQ(X)";
+        window.RunDiagnosticsNow();
+
+        var names = vm.Variables.Select(v => v.DisplayName).ToList();
+        Assert.Contains("SQ", names);
+        Assert.Contains("X (local to FN SQ)", names);
+        Assert.Contains("X", names);
+        var fn = vm.Variables.Single(v => v.IsFunction);
+        Assert.Equal("FN", fn.TypeBadge);
+        Assert.Equal(["Line 10 — Defined", "Line 30 — Called"], fn.Occurrences.Select(o => o.DisplayText));
+
+        // Renaming the parameter touches only the function's own X, not the global one.
+        var local = vm.Variables.Single(v => v.LocalToFunction == "SQ");
+        Assert.Equal(3, vm.RenameSymbol(local, "N"));
+        Assert.Equal("10 DEF FN SQ(N)=N*N\n20 X=3\n30 PRINT FN SQ(X)", editor.Document.Text);
+
+        Assert.Equal(2, vm.RenameSymbol(vm.Variables.Single(v => v.IsFunction), "SQUARE"));
+        Assert.Equal("10 DEF FN SQUARE(N)=N*N\n20 X=3\n30 PRINT FN SQUARE(X)", editor.Document.Text);
+        Assert.Equal(-1, vm.RenameSymbol(vm.Variables.Single(v => v.IsFunction), "FOR"));
+    }
+
+    [AvaloniaFact]
     public void Panel_ShowsUnderTheExplorer_AndViewVariablesHidesIt()
     {
         var (window, vm, editor) = Show(EditorLanguage.Basic);

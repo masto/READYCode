@@ -121,9 +121,11 @@ public partial class MainWindow
 
     private async Task RenameVariableAsync(VariableInfo variable)
     {
-        string? newName = await TextPromptDialog.ShowAsync(this, "Rename Variable", $"Rename {variable.Name} everywhere in this file to:", variable.Name);
+        string what = variable.IsFunction ? $"FN {variable.Name}" : variable.DisplayName;
+        string? newName = await TextPromptDialog.ShowAsync(this, variable.IsFunction ? "Rename Function" : "Rename Variable",
+            $"Rename {what} everywhere in this file to:", variable.Name);
         if (newName == null) return;
-        ViewModel.RenameVariable(variable.Name, newName);
+        ViewModel.RenameSymbol(variable, newName);
     }
 
     #endregion

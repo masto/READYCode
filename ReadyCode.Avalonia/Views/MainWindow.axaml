@@ -697,7 +697,7 @@
                         <TreeView.DataTemplates>
                             <TreeDataTemplate x:DataType="core:VariableInfo" ItemsSource="{Binding Occurrences}">
                                 <Grid ColumnDefinitions="*,Auto" Background="Transparent">
-                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                     <Border Grid.Column="1" Classes="symbolBadge">
                                         <TextBlock Text="{Binding TypeBadge}" />
                                     </Border>
