@@ -102,6 +102,24 @@ public class DebuggerTests
     }
 
     [Fact]
+    public async Task ProgramReturningToReady_DetachesTheSession()
+    {
+        var vm = new MainViewModel();
+        vm.ActiveTab!.Document.Text = Program;
+        var fake = new FakeDebugSession();
+        vm.DebugSessionFactoryOverride = () => Task.FromResult<IDebugSession>(fake);
+        vm.DebugTransferOverride = (_, _) => Task.CompletedTask;
+
+        await vm.DebugStartOrContinueAsync();
+        fake.RaiseStopped(0xFFFF, breakpoint: false); // BASIC's "no program running" sentinel
+
+        Assert.True(fake.Disposed);
+        Assert.False(vm.IsDebugging);
+        Assert.False(vm.IsDebugStopped);
+        Assert.Contains("Program finished", vm.StatusText);
+    }
+
+    [Fact]
     public async Task ConnectionLost_ClearsTheSession()
     {
         var vm = new MainViewModel();

@@ -264,7 +264,8 @@ public partial class MainViewModel
     }
 
     /// <summary>Ends the session without disturbing the running machine.</summary>
-    public async Task DebugStopAsync()
+    /// <param name="completionMessage">Status text to show once stopped.</param>
+    public async Task DebugStopAsync(string completionMessage = "Debug session stopped.")
     {
         if (DebugSession == null) return;
 
@@ -279,7 +280,7 @@ public partial class MainViewModel
         finally
         {
             CleanupDebugSessionState();
-            SetStatus("Debug session stopped.");
+            SetStatus(completionMessage);
         }
     }
 
@@ -548,7 +549,14 @@ public partial class MainViewModel
             async () => DebugSessionFactoryOverride != null
                 ? await DebugSessionFactoryOverride()
                 : (IDebugSession)await ViceDebugSession.StartAsync(Settings.ViceMonitorHost, Settings.ViceMonitorPort),
-            session => session is ViceDebugSession vice ? vice.TypeAsync("RUN\r") : Task.CompletedTask);
+            session =>
+            {
+                if (session is not ViceDebugSession vice) return Task.CompletedTask;
+                // From here on, a checkpoint hit at the direct-mode sentinel means the program
+                // really finished, not startup noise from the autostart transfer's reset.
+                vice.MarkRunTyped();
+                return vice.TypeAsync("RUN\r");
+            });
     }
 
     // Starts a new BASIC debug session on a C64 Ultimate for the active tab. Unlike VICE's
@@ -671,6 +679,15 @@ public partial class MainViewModel
 
     private void OnDebugSessionStopped(object? sender, DebugStoppedEventArgs e)
     {
+        // Curlin 0xFFFF is BASIC's "no program running" sentinel: the program returned to READY
+        // on its own (END, falling off the end, STOP, a runtime error). Nothing is left to
+        // inspect, so detach entirely rather than staying attached with Restart/Stop enabled.
+        if (e.Curlin == 0xFFFF)
+        {
+            RunOnUiThread(() => _ = DebugStopAsync("Program finished - back at READY."));
+            return;
+        }
+
         RunOnUiThread(() =>
         {
             IsDebugStopped = true;

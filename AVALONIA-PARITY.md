@@ -17,7 +17,8 @@ things are added - see `MenuTests.cs`.
 changes to features this UI has were implemented in parallel: DEF FN in the Variable Explorer,
 the Renumber dialog (start / increment / selected lines), the hierarchical debugger Variables
 panel, no completion past a REM, Enter before a line number inserting above, the Problems panel
-selecting the exact span, and debug cleanup before closing. Its Core-side changes are shared.
+selecting the exact span, debug cleanup before closing, and detaching the debugger when the
+program returns to READY on its own. Its Core-side changes are shared.
 
 ## Legend
 
