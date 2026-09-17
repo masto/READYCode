@@ -162,6 +162,11 @@
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
             <Setter Property="Padding" Value="2,1" />
         </Style>
+        <!-- An array's elements are only read when it is expanded, so its row has no children yet
+             and the theme would hide the chevron; keep it for arrays (the class is set in code). -->
+        <Style Selector="TreeView#VariablesList TreeViewItem.array:empty /template/ ToggleButton#PART_ExpandCollapseChevron">
+            <Setter Property="IsVisible" Value="True" />
+        </Style>
         <Style Selector="TreeView#SearchResultsTree > TreeViewItem" x:DataType="core:ProjectSearchFileResult">
             <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
         </Style>

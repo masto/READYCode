@@ -318,6 +318,11 @@ public partial class MainWindow : Window
 
         vm.PropertyChanged += ViewModel_PropertyChanged;
         vm.DebugVariables.CollectionChanged += DebugVariables_CollectionChanged;
+        VariablesList.ContainerPrepared += (_, e) =>
+        {
+            if (e.Container is TreeViewItem item)
+                item.Classes.Set("array", item.DataContext is DebugVariableNode { IsArray: true });
+        };
         vm.BreakpointStore.Breakpoints.CollectionChanged += BreakpointStore_CollectionChanged;
         foreach (var breakpoint in vm.BreakpointStore.Breakpoints)
             breakpoint.PropertyChanged += Breakpoint_PropertyChanged;

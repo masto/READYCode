@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.VisualTree;
 using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -211,6 +213,45 @@ public class DebuggerTests
         Assert.Same(x, vm.DebugVariables.Single(n => n.Name == "X"));
         Assert.Equal("6", x.ValueDisplayText);
         Assert.Equal(3, a.Children.Count);
+    }
+
+    [AvaloniaFact]
+    public async Task VariablesPanel_ShowsAChevronForAnUnloadedArray_AndExpandingItLoadsTheElements()
+    {
+        var vm = new MainViewModel();
+        var window = new MainWindow { DataContext = vm, Width = 900, Height = 500 };
+        window.Show();
+        vm.ActiveTab!.Document.Text = Program;
+
+        // VARTAB at $1000: ARYTAB at $1000: DIM A(1), integers 5, 6. STREND at $100B.
+        var memory = new byte[0x1100];
+        memory[0x2D] = 0x00; memory[0x2E] = 0x10;
+        memory[0x2F] = 0x00; memory[0x30] = 0x10;
+        memory[0x31] = 0x0B; memory[0x32] = 0x10;
+        new byte[] { 0xC1, 0x80, 0x0B, 0x00, 0x01, 0x00, 0x02, 0x00, 0x05, 0x00, 0x06 }.CopyTo(memory, 0x1000);
+
+        var fake = new FakeDebugSession { Memory = memory };
+        vm.DebugSessionFactoryOverride = () => Task.FromResult<IDebugSession>(fake);
+        vm.DebugTransferOverride = (_, _) => Task.CompletedTask;
+        await vm.DebugStartOrContinueAsync();
+        fake.RaiseStopped(20, breakpoint: false);
+        await vm.RefreshDebugVariablesAndCallStackAsync();
+        Dispatcher.UIThread.RunJobs();
+
+        var node = vm.DebugVariables.Single();
+        Assert.True(node.IsArray);
+        var tree = window.FindControl<TreeView>("VariablesList")!;
+        var container = (TreeViewItem)tree.ContainerFromIndex(0)!;
+        var chevron = container.GetVisualDescendants().OfType<ToggleButton>().Single(t => t.Name == "PART_ExpandCollapseChevron");
+        Assert.True(chevron.IsEffectivelyVisible);
+
+        chevron.IsChecked = true; // what clicking the chevron does
+        Dispatcher.UIThread.RunJobs();
+        await Task.Delay(50);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(node.IsExpanded);
+        Assert.Equal(["5", "6"], node.Children.Select(c => c.ValueDisplayText));
+        Assert.Equal(2, container.ItemCount);
     }
 
     #endregion
