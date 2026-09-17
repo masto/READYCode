@@ -150,6 +150,25 @@ public class CompletionTests
         Assert.Equal("10 PRINT \"\"", editor.Document.Text);
     }
 
+    [AvaloniaFact]
+    public void Enter_WithNothingTypedBeforeThePopup_InsertsTheSelection_AtTheCaret()
+    {
+        var (window, editor) = ShowEditor(EditorLanguage.Basic);
+        window.KeyTextInput("10 ");
+        Dispatcher.UIThread.RunJobs();
+        window.KeyPressQwerty(PhysicalKey.Space, RawInputModifiers.Control);
+        Dispatcher.UIThread.RunJobs();
+        Assert.True(window.IsCompletionPopupOpen);
+
+        window.KeyPressQwerty(PhysicalKey.ArrowDown, RawInputModifiers.None);
+        window.KeyPressQwerty(PhysicalKey.Enter, RawInputModifiers.None);
+        Dispatcher.UIThread.RunJobs();
+
+        Assert.False(window.IsCompletionPopupOpen);
+        Assert.Equal("10 ABS()", editor.Document.Text);
+        Assert.Equal(7, editor.CaretOffset); // inside the parentheses
+    }
+
     #endregion
 
     #region Private Methods

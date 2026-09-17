@@ -64,8 +64,11 @@ public sealed class KeywordCompletionData : ICompletionData
     /// <param name="insertionRequestEventArgs">The event that requested the insertion.</param>
     public void Complete(TextArea textArea, ISegment completionSegment, EventArgs insertionRequestEventArgs)
     {
+        // Read the start first: the popup passes an anchored segment, and an empty one (nothing
+        // typed before Ctrl+Space) follows the inserted text instead of staying in front of it.
+        int start = completionSegment.Offset;
         textArea.Document.Replace(completionSegment, Item.InsertText);
-        textArea.Caret.Offset = completionSegment.Offset + Item.CaretOffset;
+        textArea.Caret.Offset = start + Item.CaretOffset;
     }
 
     #endregion
